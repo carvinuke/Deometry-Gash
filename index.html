@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deometry Gash</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; color: #eee; font-family: system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  canvas { max-width: 100%; touch-action: none; border-radius: 6px; }
+  p { margin: 0; opacity: .7; font-size: 14px; }
+</style>
+</head>
+<body>
+<canvas id="game" width="960" height="480" aria-label="Deometry Gash, a Geometry Dash style game. Hold Space, Up or click to jump."></canvas>
+<p>Hold <b>Space</b> / <b>↑</b> / <b>click</b> to jump. Avoid spikes and block walls.</p>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const T = 40;                 // pixels per tile
+const GROUND = canvas.height - 80;
+const PLAYER_SCREEN_X = 6;    // tiles from left edge
+const SPEED = 10;             // tiles / second
+const GRAVITY = -100;         // tiles / second^2
+const JUMP = 21;              // tiles / second -> ~2.2 tiles high, ~4 tiles long
+const DT = 1 / 60;
+
+// Level: 5 rows, top to bottom. '#' block, '^' spike, '.' empty. Bottom row sits on the ground.
+const SEGMENTS = [
+  ['...............', '...............', '...............', '...............', '...............'],
+  ['........', '........', '........', '........', '....^...'],
+  ['..........', '..........', '..........', '..........', '....^^....'],
+  ['..............', '..............', '..............', '......##......', '...#..##....^.'],
+  ['................', '................', '................', '................', '..##^^##^^##....'],
+  ['..........', '..........', '..........', '..........', '...^^^....'],
+  ['.....................', '.....................', '..........####.......', '.......#######.......', '....##########..^^...'],
+  ['....................', '....................', '....................', '....................', '....^....^^....^....'],
+  ['....................', '....................', '....................', '....................', '....................'],
+];
+const LEVEL = [0, 1, 2, 3, 4].map(r => SEGMENTS.map(s => s[r]).join(''));
+console.assert(LEVEL.every(r => r.length === LEVEL[0].length), 'level rows must be equal length');
+const LEVEL_LEN = LEVEL[0].length;
+
+// Every tile as {x, y(bottom), type}, y measured in tiles up from the ground.
+const TILES = [];
+LEVEL.forEach((row, r) => [...row].forEach((c, x) => {
+  if (c !== '.') TILES.push({ x, y: LEVEL.length - 1 - r, type: c });
+}));
+
+function newPlayer() { return { x: 0, y: 0, vy: 0, grounded: true, rot: 0 }; }
+
+// Advances one frame. Returns 'dead', 'win' or null. Pure apart from mutating p, so tests can drive it.
+function step(p, hold) {
+  if (hold && p.grounded) { p.vy = JUMP; p.grounded = false; }
+  const prevY = p.y;
+  p.x += SPEED * DT;
+  p.vy += GRAVITY * DT;
+  p.y += p.vy * DT;
+  p.grounded = false;
+  if (p.y <= 0) { p.y = 0; p.vy = 0; p.grounded = true; }
+
+  for (const t of TILES) {
+    if (p.x + 1 <= t.x + 0.001 || p.x >= t.x + 1 - 0.001) continue;
+    if (t.type === '^') {
+      // Spike hitbox: inner part of the triangle, so grazing a corner is forgiving.
+      if (p.x + 1 > t.x + 0.3 && p.x < t.x + 0.7 && p.y < t.y + 0.6 && p.y + 1 > t.y) return 'dead';
+    } else if (p.y < t.y + 1 && p.y + 1 > t.y) {
+      if (p.vy <= 0 && prevY >= t.y + 1 - 0.01) { p.y = t.y + 1; p.vy = 0; p.grounded = true; }
+      else return 'dead'; // hit a wall or ceiling
+    }
+  }
+  p.rot = p.grounded ? Math.round(p.rot / (Math.PI / 2)) * (Math.PI / 2) : p.rot + 7 * DT;
+  return p.x >= LEVEL_LEN ? 'win' : null;
+}
+
+let player = newPlayer(), state = 'play', stateTime = 0, attempts = 1, holding = false;
+
+function draw() {
+  const camX = player.x - PLAYER_SCREEN_X;
+  const sx = x => (x - camX) * T, sy = y => GROUND - y * T;
+  const hue = (player.x * 3) % 360;
+  ctx.fillStyle = `hsl(${hue} 60% 22%)`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = `hsl(${hue} 60% 12%)`;
+  ctx.fillRect(0, GROUND, canvas.width, canvas.height - GROUND);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, GROUND, canvas.width, 2);
+
+  for (const t of TILES) {
+    const x = sx(t.x), y = sy(t.y + 1);
+    if (x < -T || x > canvas.width) continue;
+    if (t.type === '#') {
+      ctx.fillStyle = '#000'; ctx.fillRect(x, y, T, T);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, T - 2, T - 2);
+    } else {
+      ctx.fillStyle = '#000'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x + 2, y + T); ctx.lineTo(x + T / 2, y + 2); ctx.lineTo(x + T - 2, y + T); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    }
+  }
+  // Finish line
+  ctx.fillStyle = '#fff8'; ctx.fillRect(sx(LEVEL_LEN), 0, 6, GROUND);
+
+  if (state !== 'dead') {
+    ctx.save();
+    ctx.translate(sx(player.x) + T / 2, sy(player.y) - T / 2);
+    ctx.rotate(player.rot);
+    ctx.fillStyle = '#ffd400'; ctx.fillRect(-T / 2, -T / 2, T, T);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(-T / 2 + 1.5, -T / 2 + 1.5, T - 3, T - 3);
+    ctx.fillStyle = '#00e5ff'; ctx.fillRect(-T / 4, -T / 4, T / 2, T / 2);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = `rgba(255,255,255,${Math.max(0, 0.6 - stateTime)})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // HUD: progress bar and attempts
+  const pct = Math.min(100, Math.floor(player.x / LEVEL_LEN * 100));
+  ctx.fillStyle = '#fff3'; ctx.fillRect(canvas.width / 2 - 150, 14, 300, 10);
+  ctx.fillStyle = '#7f7'; ctx.fillRect(canvas.width / 2 - 150, 14, 3 * pct, 10);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 16px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText(`${pct}%`, canvas.width / 2 + 180, 25);
+  ctx.textAlign = 'left'; ctx.fillText(`Attempt ${attempts}`, 16, 25);
+  if (state === 'win') {
+    ctx.textAlign = 'center'; ctx.font = 'bold 48px system-ui';
+    ctx.fillText('Level Complete!', canvas.width / 2, canvas.height / 2 - 20);
+    ctx.font = '18px system-ui'; ctx.fillText('Press jump to play again', canvas.width / 2, canvas.height / 2 + 16);
+  }
+}
+
+let last = performance.now(), acc = 0;
+function frame(now) {
+  acc += Math.min(0.25, (now - last) / 1000); last = now;
+  while (acc >= DT) {
+    acc -= DT; stateTime += DT;
+    if (state === 'play') {
+      const r = step(player, holding);
+      if (r) { state = r; stateTime = 0; }
+    } else if (state === 'dead' && stateTime > 0.6) {
+      player = newPlayer(); state = 'play'; attempts++;
+    } else if (state === 'win' && holding && stateTime > 0.5) {
+      player = newPlayer(); state = 'play'; attempts = 1;
+    }
+  }
+  draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
+addEventListener('keydown', e => { if (JUMP_KEYS.includes(e.code)) { holding = true; e.preventDefault(); } });
+addEventListener('keyup', e => { if (JUMP_KEYS.includes(e.code)) holding = false; });
+canvas.addEventListener('pointerdown', () => holding = true);
+addEventListener('pointerup', () => holding = false);
+addEventListener('blur', () => holding = false);
+</script>
+</body>
+</html>
