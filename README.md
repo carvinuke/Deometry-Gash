@@ -1,4 +1,4 @@
-# Geometry Dash Ripoff
+# Deometry Gash
 
 A tiny Geometry Dash–style game in a single HTML file. No install, no build.
 
