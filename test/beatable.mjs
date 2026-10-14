@@ -22,7 +22,7 @@ const results = await page.evaluate(() => LEVELS.flatMap(lvl => [false, true].ma
   const seen = new Set(); let furthest = 0;
   const coins = lvl.tiles.filter(t => t.type === 'c').length;
   const won = (r, q) => r === 'win' && (!allCoins || q.coins.length === coins);
-  const key = (p, f) => [f, p.mode, p.y.toFixed(1), p.vy.toFixed(0), p.used.length, p.coins.length].join('|');
+  const key = (p, f) => [f, p.mode, p.grav, p.y.toFixed(1), p.vy.toFixed(0), p.used.length, p.coins.length].join('|');
   function go(p, f) {
     for (;;) {
       furthest = Math.max(furthest, p.x);
@@ -31,7 +31,7 @@ const results = await page.evaluate(() => LEVELS.flatMap(lvl => [false, true].ma
       if (won(ra, a) || won(rb, b)) return true;
       if (ra === 'win' && rb === 'win') return false;
       f++;
-      if (!ra && !rb && a.y === b.y && a.vy === b.vy && a.mode === b.mode && a.used.length === b.used.length && a.coins.length === b.coins.length) { p = b; continue; }
+      if (!ra && !rb && a.y === b.y && a.vy === b.vy && a.mode === b.mode && a.grav === b.grav && a.used.length === b.used.length && a.coins.length === b.coins.length) { p = b; continue; }
       const options = [a, b].filter((q, i) => ![ra, rb][i]);
       for (const q of options) {
         const k = key(q, f);
