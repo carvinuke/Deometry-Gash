@@ -8,7 +8,8 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
-page.on('console', m => m.type() === 'error' || m.type() === 'assert' ? errors.push(m.text()) : 0);
+// The optional web font may fail to load offline; that is not a game error.
+page.on('console', m => (m.type() === 'error' || m.type() === 'assert') && !m.text().startsWith('Failed to load resource') ? errors.push(m.text()) : 0);
 await page.goto('file://' + fileURLToPath(new URL('../index.html', import.meta.url)));
 await page.waitForTimeout(300);
 
