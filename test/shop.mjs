@@ -32,6 +32,11 @@ const after = await page.evaluate(() => {
     saved: JSON.parse(localStorage.getItem(SAVE_KEY)).owned.length,
   };
 });
+
+// A version 1 save (from before the portals moved) still has the same coins collected.
+await page.evaluate(() => localStorage.setItem(SAVE_KEY, JSON.stringify({ coins: { 2: [34, 72], 3: [32] } })));
+await page.reload();
+const kept = await page.evaluate(() => ({ sky: save.coins[2], gash: save.coins[3], skyIds: LEVELS[2].coinTiles.map(t => t.id), gashId: LEVELS[3].coinTiles[1].id }));
 await browser.close();
 assert.deepEqual(errors, []);
 assert.deepEqual(after.secrets, ['code', 'deaths', 'title']);
@@ -39,4 +44,6 @@ assert.deepEqual(after.locked, [], 'everything is unlockable');
 assert.equal(after.stars, 0, 'stars cover the star items exactly');
 assert.equal(after.coins, 0, 'coins cover the coin items exactly');
 assert.equal(after.saved, 7, 'purchases persist');
+assert.deepEqual(kept.sky, kept.skyIds, 'old saves keep their Sky Rush coins');
+assert.deepEqual(kept.gash, [kept.gashId], 'old saves keep their Gash Gauntlet coin');
 console.log('OK');

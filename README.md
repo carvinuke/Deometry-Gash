@@ -26,10 +26,13 @@ A tiny Geometry Dash–style game in a single HTML file. No install, no build.
 
 Progress is saved in your browser.
 
+Everything is drawn in code on a canvas (glowing blocks, animated portals, 7 cube designs, parallax backgrounds) and stays sharp on high-DPI screens. Online it uses the free [Lilita One](https://fonts.google.com/specimen/Lilita+One) font; offline it falls back to a system font.
+
 ## Make your own level
 
 Levels are in `LEVELS` near the top of the script in `index.html`, built from `seg(...)` rows (top to bottom, the last row sits on the ground):
 `#` block, `^` spike, `v` hanging spike, `p` jump pad, `o` jump orb, `c` coin, `S` ship portal, `C` cube portal, `.` empty.
+Stack a portal letter in a column (3 or 4 tall) where the player passes; the portal works at any height, but that is where it is drawn.
 
 To check every level (and every coin) is still reachable, and that the shop adds up (needs Node and Playwright, `npm i -D playwright`):
 
