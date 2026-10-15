@@ -1,5 +1,5 @@
 // Self-check: the page loads without errors, and for every level standing still dies
-// while some sequence of inputs beats it, both at all and while collecting every coin.
+// while some sequence of inputs beats it, both at all and while collecting every coin, and motion is smooth.
 // Run: node test/beatable.mjs   (needs playwright: npm i -D playwright)
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
@@ -51,10 +51,20 @@ const tripleSpikeFrames = await page.evaluate(() => {
   for (let f = 60; f < 130; f++) { const p = newPlayer(); let r = null; for (let i = 0; !r; i++) r = step(p, i === f, lvl); n += r === 'win'; }
   return n;
 });
+// On a 144 Hz screen the cube should move the same distance every frame (it used to jump in uneven 60 Hz steps).
+const glide = await page.evaluate(() => {
+  requestAnimationFrame = () => 0; // stop the game's own loop and draw frames by hand
+  startLevel(0);
+  const xs = [];
+  for (let f = 0, now = last; f < 80; f++) { frame(now += 1000 / 144); if (f >= 8) xs.push(was.x + (player.x - was.x) * tween); } // from the first step on
+  const d = xs.slice(1).map((x, i) => x - xs[i]);
+  return Math.max(...d) - Math.min(...d);
+});
 await browser.close();
 console.table(results);
 console.log('frames that clear a triple spike:', tripleSpikeFrames);
 if (tripleSpikeFrames < 5) throw new Error('a triple spike should leave at least 5 frames to jump');
+if (glide > 0.001) throw new Error(`the cube moves unevenly between frames (spread ${glide} tiles)`);
 if (errors.length) throw new Error('page errors: ' + errors.join('; '));
 for (const r of results) {
   if (r.idle !== 'dead') throw new Error(`${r.name}: standing still should die`);
