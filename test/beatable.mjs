@@ -51,6 +51,21 @@ const tripleSpikeFrames = await page.evaluate(() => {
   for (let f = 60; f < 130; f++) { const p = newPlayer(); let r = null; for (let i = 0; !r; i++) r = step(p, i === f, lvl); n += r === 'win'; }
   return n;
 });
+// Holding jump through a landing must not auto-jump again, and a held input must not retrigger an orb.
+const inputEdges = await page.evaluate(() => {
+  const empty = { tiles: [], len: 100 };
+  const held = newPlayer();
+  step(held, true, empty);
+  for (let i = 0; i < 180; i++) step(held, true, empty);
+  const stayedLanded = held.y === 0 && held.grounded;
+  const orb = newPlayer();
+  step(orb, true, { tiles: [{ id: 7, x: 0, y: 0, type: 'o' }], len: 100 });
+  for (let i = 0; i < 30; i++) step(orb, true, { tiles: [{ id: 7, x: 0, y: 0, type: 'o' }], len: 100 });
+  return { stayedLanded, orbUses: orb.used.length };
+});
+if (!inputEdges.stayedLanded) throw new Error('holding jump should not auto-jump after landing');
+if (inputEdges.orbUses !== 1) throw new Error('holding jump should only trigger an orb once per press');
+
 // On a 144 Hz screen the cube should move the same distance every frame (it used to jump in uneven 60 Hz steps).
 const glide = await page.evaluate(() => {
   requestAnimationFrame = () => 0; // stop the game's own loop and draw frames by hand
