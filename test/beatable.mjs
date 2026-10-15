@@ -51,6 +51,17 @@ const tripleSpikeFrames = await page.evaluate(() => {
   for (let f = 60; f < 130; f++) { const p = newPlayer(); let r = null; for (let i = 0; !r; i++) r = step(p, i === f, lvl); n += r === 'win'; }
   return n;
 });
+const orbLaunches = await page.evaluate(() => {
+  const launch = type => {
+    const lvl = { tiles: [{ id: 0, x: 1, y: 2, type }], len: 10 };
+    const p = newPlayer(); p.x = 0.2; p.y = 1.2; p.vy = 5; p.grounded = false; p.coyote = 0;
+    step(p, true, lvl, true);
+    const first = p.vy;
+    step(p, true, lvl, false); // staying inside the orb cannot retrigger it
+    return { first, second: p.vy, used: p.used.length };
+  };
+  return { standard: launch('o'), boost: launch('b'), standardValue: JUMP, boostValue: BOOST_ORB_JUMP };
+});
 // On a 144 Hz screen the cube should move the same distance every frame (it used to jump in uneven 60 Hz steps).
 const glide = await page.evaluate(() => {
   requestAnimationFrame = () => 0; // stop the game's own loop and draw frames by hand
@@ -63,7 +74,9 @@ const glide = await page.evaluate(() => {
 await browser.close();
 console.table(results);
 console.log('frames that clear a triple spike:', tripleSpikeFrames);
+console.log('orb launch velocities:', orbLaunches);
 if (tripleSpikeFrames < 5) throw new Error('a triple spike should leave at least 5 frames to jump');
+if (orbLaunches.standard.first !== orbLaunches.standardValue || orbLaunches.boost.first !== orbLaunches.boostValue || orbLaunches.boost.second >= orbLaunches.boost.first || orbLaunches.boost.used !== 1) throw new Error('cyan boost orbs should give one controlled stronger launch');
 if (glide > 0.001) throw new Error(`the cube moves unevenly between frames (spread ${glide} tiles)`);
 if (errors.length) throw new Error('page errors: ' + errors.join('; '));
 for (const r of results) {

@@ -23,7 +23,7 @@ const order = await page.evaluate(() => ({
     return [name, LEVELS[item.level].name];
   }),
 }));
-assert.deepEqual(order.names, ['First Steps', 'Orb Garden', 'Rolling Thunder', 'Prism Path', 'Sky Rush', 'Neon Circuit', 'Wave Rider', 'Gash Gauntlet', 'Mode Mayhem', 'Demon Gash'], 'levels are ordered by difficulty, then stars');
+assert.deepEqual(order.names, ['First Steps', 'Sunrise Run', 'Orb Garden', 'Rolling Thunder', 'Prism Path', 'Tidal Flow', 'Sky Rush', 'Neon Circuit', 'Wave Rider', 'Circuit Breaker', 'Gash Gauntlet', 'Mode Mayhem', 'Demon Gash', 'Abyssal Run'], 'levels are ordered by difficulty, then stars');
 assert.equal(order.songs, order.names.length, 'every reordered and added level has its own song');
 assert.deepEqual(order.badUnlocks, [], 'all level rewards point to an existing level');
 assert.deepEqual(order.unlockTargets, [['Gold', 'Gash Gauntlet'], ['Prism', 'Sky Rush'], ['Skull', 'Demon Gash']], 'level unlocks stay attached to their original level');
@@ -80,16 +80,26 @@ const keptV2 = await page.evaluate(() => ({
   skyCoins: save.coins[LEVELS.findIndex(l => l.name === 'Sky Rush')],
   gauntletCoins: save.coins[LEVELS.findIndex(l => l.name === 'Gash Gauntlet')],
 }));
+await page.evaluate(() => localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 3, best: { 0: 100, 4: 75, 9: 100 }, coins: { 4: [29], 7: [28] } })));
+await page.reload();
+const keptV3 = await page.evaluate(() => ({
+  version: save.v,
+  skyRushBest: save.best[LEVELS.findIndex(l => l.name === 'Sky Rush')],
+  demonBest: save.best[LEVELS.findIndex(l => l.name === 'Demon Gash')],
+  skyCoins: save.coins[LEVELS.findIndex(l => l.name === 'Sky Rush')],
+  gauntletCoins: save.coins[LEVELS.findIndex(l => l.name === 'Gash Gauntlet')],
+}));
 await browser.close();
 assert.deepEqual(errors, []);
 assert.deepEqual(after.secrets, ['close', 'code', 'deaths', 'jumps', 'konami', 'title']);
 assert.deepEqual(after.locked, [], 'everything is unlockable');
-assert.equal(after.stars, 9, 'the two new levels add nine spendable stars after shop purchases');
-assert.equal(after.coins, 4, 'the two new levels add four spendable coins after shop purchases');
+assert.equal(after.stars, 35, 'the four new levels add 26 spendable stars after shop purchases');
+assert.equal(after.coins, 12, 'the four new levels add eight spendable coins after shop purchases');
 assert.equal(after.saved, 36, 'purchases persist');
-assert.equal(kept.version, 3, 'old saves migrate to the reordered level list');
+assert.equal(kept.version, 4, 'old saves migrate to the reordered level list');
 assert.deepEqual([kept.firstStepsBest, kept.skyRushBest], [100, 75], 'legacy completion percentages stay with their levels');
 assert.deepEqual(kept.sky, kept.skyIds, 'old saves keep their Sky Rush coins');
 assert.deepEqual(kept.gash, [kept.gashId], 'old saves keep their Gash Gauntlet coin');
-assert.deepEqual(keptV2, { version: 3, firstStepsBest: 100, skyRushBest: 75, skyCoins: [29], gauntletCoins: [28] }, 'version 2 progress migrates to the new order');
+assert.deepEqual(keptV2, { version: 4, firstStepsBest: 100, skyRushBest: 75, skyCoins: [29], gauntletCoins: [28] }, 'version 2 progress migrates to the new order');
+assert.deepEqual(keptV3, { version: 4, skyRushBest: 75, demonBest: 100, skyCoins: [29], gauntletCoins: [28] }, 'version 3 progress migrates to the added levels');
 console.log('OK');

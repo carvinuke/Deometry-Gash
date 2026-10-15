@@ -34,6 +34,7 @@ const PLAYER_SCREEN_X = 6;    // tiles from left edge
 const SPEED = 10;             // tiles / second
 const GRAVITY = -100;         // tiles / second^2
 const JUMP = 22;              // ~2.4 tiles high, ~4.4 tiles long
+const BOOST_ORB_JUMP = 26;    // cyan orbs add a little extra lift for planned mid-air routes
 const PAD = 28;               // yellow pad launch, ~3.9 tiles high
 const RED_PAD = 34;           // a stronger launch than the yellow pad, without the old extreme airtime
 const SHIP_UP = 60, SHIP_DOWN = 50, SHIP_MAX = 9;
@@ -47,7 +48,7 @@ document.fonts?.load(`24px ${FONT}`).catch(() => {}); // text drawn only on a ca
 const mod = (a, n) => ((a % n) + n) % n;
 
 // Level tiles: '#' block, '^' spike, 'v' hanging spike, 'p' yellow jump pad, 'r' red jump pad, 'o' jump orb (press while touching),
-// 'c' secret coin, portals 'S' ship, 'C' cube, 'B' ball, 'W' wave, '.' empty. seg() takes rows top to bottom; the last
+// 'b' cyan boost orb, 'c' secret coin, portals 'S' ship, 'C' cube, 'B' ball, 'W' wave, '.' empty. seg() takes rows top to bottom; the last
 // row sits on the ground. Short rows are padded with '.' on the right.
 const PORTAL_MODE = { S: 'ship', C: 'cube', B: 'ball', W: 'wave' };
 function seg(...rows) {
@@ -389,10 +390,83 @@ const LEVELS = [
     seg('....^^...^^..^....'),
     gap(16),
   ]),
+  buildLevel('Sunrise Run', 'Easy', 3, 42, [
+    gap(14),
+    seg('....^....'),
+    seg('....c........',
+        '..............',
+        '..^^...^^......'),
+    seg('.....o......',
+        '............',
+        '...^^^^.......'),
+    seg('....p^^^......'),
+    seg('......c.......',
+        '...............',
+        '..^^.....^^....'),
+    seg('...#....'),
+    gap(16),
+  ]),
+  buildLevel('Tidal Flow', 'Normal', 5, 195, [
+    gap(14),
+    seg('...^^...'),
+    seg('.....c..........',
+        '................',
+        '..^^....^^......'),
+    seg('....b..........',
+        '................',
+        '..^^^^^..........'),
+    seg('...p^^^^....'),
+    seg('........c.......',
+        '................',
+        '....^^...^^......'),
+    seg('.....b.......',
+        '..............',
+        '...^^^^........'),
+    gap(16),
+  ]),
+  buildLevel('Circuit Breaker', 'Hard', 6, 35, [
+    gap(14),
+    seg('..^^..^^...^...'),
+    seg('....c...........',
+        '................',
+        '..^^.....^^......'),
+    seg('......b.........',
+        '.................',
+        '...^^^^^^........'),
+    seg('...r^^^^^^......'),
+    seg('....o.....c......',
+        '..................',
+        '..^^^^^...^^......'),
+    seg('...p^^^^....o....'),
+    seg('..^^...^^..^^....'),
+    gap(16),
+  ]),
+  buildLevel('Abyssal Run', 'Demon', 12, 275, [
+    gap(14),
+    seg('..^^...^^...^^....'),
+    seg('....b....b.........',
+        '...................',
+        '..^^^^^^^^^^^^......'),
+    seg('...c...............',
+        '...................',
+        '...^^....^^.........'),
+    seg('....r^^^^^^.........'),
+    seg('......b....b........',
+        '....................',
+        '...^^^^^^^^^^^^^.....'),
+    seg('..##^^##^^##^^##....'),
+    seg('.....c..............',
+        '....................',
+        '..^^...^^...^^.......'),
+    seg('...p^^^^....o.......'),
+    seg('..^^..^^..^^...^^....'),
+    gap(18),
+  ]),
 ];
 
 const DIFFICULTY_RANK = { Easy: 0, Normal: 1, Hard: 2, Insane: 3, Demon: 4 };
 const LEGACY_LEVEL_ORDER = ['First Steps', 'Orb Garden', 'Sky Rush', 'Gash Gauntlet', 'Rolling Thunder', 'Wave Rider', 'Mode Mayhem', 'Demon Gash'];
+const LEVEL_ORDER_V3 = ['First Steps', 'Orb Garden', 'Rolling Thunder', 'Prism Path', 'Sky Rush', 'Neon Circuit', 'Wave Rider', 'Gash Gauntlet', 'Mode Mayhem', 'Demon Gash'];
 LEVELS.sort((a, b) => DIFFICULTY_RANK[a.difficulty] - DIFFICULTY_RANK[b.difficulty] || a.stars - b.stars || a.len - b.len);
 
 function newPlayer() { return { x: 0, y: 0, vy: 0, grounded: true, coyote: 0.1, jumpBuffer: 0, rot: 0, mode: 'cube', grav: 1, used: [], coins: [] }; }
@@ -431,7 +505,7 @@ function step(p, hold, lvl, justPressed = hold) {
       case '^': if (inX(0.35, 0.65) && inY(0, 0.3)) return 'dead'; break; // a small box at the base, like GD's, so triple spikes are fair
       case 'v': if (inX(0.35, 0.65) && inY(0.7, 1)) return 'dead'; break;
       case 'p': case 'r': if (p.mode === 'cube' && inX(0.2, 0.8) && inY(0, 0.3)) { p.vy = t.type === 'r' ? RED_PAD : PAD; p.grounded = false; } break;
-      case 'o': if (p.mode === 'cube' && (hold || p.jumpBuffer > 0) && inY(0.1, 0.9) && !p.used.includes(t.id)) { p.vy = JUMP; p.grounded = false; p.coyote = 0; p.jumpBuffer = 0; p.used = [...p.used, t.id]; } break;
+      case 'o': case 'b': if (p.mode === 'cube' && (hold || p.jumpBuffer > 0) && inY(0.1, 0.9) && !p.used.includes(t.id)) { p.vy = t.type === 'b' ? BOOST_ORB_JUMP : JUMP; p.grounded = false; p.coyote = 0; p.jumpBuffer = 0; p.used = [...p.used, t.id]; } break;
       case 'c': if (inY(0, 1) && !p.coins.includes(t.id)) p.coins = [...p.coins, t.id]; break;
       case 'S': case 'C': case 'B': case 'W': {
         const to = PORTAL_MODE[t.type];
@@ -465,87 +539,87 @@ const ITEMS = {
     { name: 'Ocean', stars: 2, body: '#2b8cff', inner: '#bff3ff', look: 'diamond' },
     { name: 'Ember', coins: 2, body: '#ff5a1f', inner: '#ffe14d', look: 'flame' },
     { name: 'Void', stars: 6, body: '#1b1b1b', inner: '#b84dff', look: 'core' },
-    { name: 'Gold', level: 7, body: '#ffcc33', inner: '#fff6c9', look: 'crown' },
+    { name: 'Gold', level: 10, body: '#ffcc33', inner: '#fff6c9', look: 'crown' },
     { name: 'Glitch', secret: 'title', body: 'glitch', inner: '#000000', look: 'glitch' },
     { name: 'Ninja', stars: 1, body: '#2a2a3a', inner: '#ff3b3b', look: 'ninja' },
     { name: 'Robot', coins: 1, body: '#9aa7b8', inner: '#ff2b2b', look: 'robot' },
     { name: 'Checker', stars: 1, body: '#f2f2f2', inner: '#222222', look: 'checker' },
-    { name: 'Bolt', level: 6, body: '#6a3dff', inner: '#ffe83a', look: 'bolt' },
-    { name: 'Skull', level: 9, body: '#e8e8e8', inner: '#111111', look: 'skull' },
+    { name: 'Bolt', level: 8, body: '#6a3dff', inner: '#ffe83a', look: 'bolt' },
+    { name: 'Skull', level: 12, body: '#e8e8e8', inner: '#111111', look: 'skull' },
     { name: 'Heart', stars: 2, body: '#ff7ab8', inner: '#ff1f5a', look: 'heart' },
     { name: 'Circuit', coins: 2, body: '#0f3b2e', inner: '#3dffb0', look: 'circuit' },
     { name: 'Moon', stars: 1, body: '#1a2a6c', inner: '#fff3a8', look: 'moon' },
     { name: 'Cat', secret: 'jumps', body: '#ff9a3c', inner: '#3b1d00', look: 'cat' },
-    { name: 'Prism', level: 4, body: '#6e44ff', inner: '#b6ffff', look: 'prism' },
-    { name: 'Jelly', level: 2, body: '#ff62c0', inner: '#fff0a6', look: 'jelly' },
-    { name: 'Orbit', level: 8, body: '#14223d', inner: '#6bffda', look: 'orbit' },
-    { name: 'Aegis', level: 1, body: '#2479ba', inner: '#9ff7ff', look: 'aegis' },
-    { name: 'Bloom', level: 2, body: '#e947aa', inner: '#fff1a8', look: 'bloom' },
-    { name: 'Nova', level: 9, body: '#3931aa', inner: '#ffe78b', look: 'nova' },
+    { name: 'Prism', level: 6, body: '#6e44ff', inner: '#b6ffff', look: 'prism' },
+    { name: 'Jelly', level: 3, body: '#ff62c0', inner: '#fff0a6', look: 'jelly' },
+    { name: 'Orbit', level: 11, body: '#14223d', inner: '#6bffda', look: 'orbit' },
+    { name: 'Aegis', level: 2, body: '#2479ba', inner: '#9ff7ff', look: 'aegis' },
+    { name: 'Bloom', level: 3, body: '#e947aa', inner: '#fff1a8', look: 'bloom' },
+    { name: 'Nova', level: 12, body: '#3931aa', inner: '#ffe78b', look: 'nova' },
   ],
   ship: [
     { name: 'Rocket', free: true, body: '#ff4fd8', inner: '#ffd400', look: 'rocket' },
-    { name: 'Mint', level: 1, body: '#3dffc1', inner: '#0b3d2e', look: 'rocket' },
+    { name: 'Mint', level: 2, body: '#3dffc1', inner: '#0b3d2e', look: 'rocket' },
     { name: 'Sky', stars: 3, body: '#9fd8ff', inner: '#ffffff', look: 'rocket' },
     { name: 'Blood', coins: 3, body: '#c4002b', inner: '#111111', look: 'rocket' },
     { name: 'Ghost', secret: 'deaths', body: '#ffffff66', inner: '#ffffffaa', look: 'rocket' },
     { name: 'Jet', stars: 2, body: '#d0d6e0', inner: '#2b6bff', look: 'jet' },
     { name: 'Shark', coins: 1, body: '#5f7d99', inner: '#ffffff', look: 'shark' },
-    { name: 'Bat', level: 8, body: '#3a2552', inner: '#ff3b6b', look: 'bat' },
+    { name: 'Bat', level: 11, body: '#3a2552', inner: '#ff3b6b', look: 'bat' },
     { name: 'Saucer', stars: 2, body: '#7dff3a', inner: '#a8f0ff', look: 'saucer' },
     { name: 'Duck', secret: 'konami', body: '#ffd84a', inner: '#ff8a1f', look: 'duck' },
-    { name: 'Manta', level: 7, body: '#3752d8', inner: '#9afaff', look: 'manta' },
-    { name: 'Mech', level: 6, body: '#5c687c', inner: '#ffcf4a', look: 'mech' },
+    { name: 'Manta', level: 10, body: '#3752d8', inner: '#9afaff', look: 'manta' },
+    { name: 'Mech', level: 8, body: '#5c687c', inner: '#ffcf4a', look: 'mech' },
   ],
   ball: [
     { name: 'Wheel', free: true, body: '#ffd400', inner: '#00e5ff', look: 'spokes' },
-    { name: 'Beach', level: 2, body: '#ffffff', inner: '#ff3b3b', look: 'beach' },
+    { name: 'Beach', level: 3, body: '#ffffff', inner: '#ff3b3b', look: 'beach' },
     { name: 'Saw', stars: 1, body: '#b8c0cc', inner: '#4a4f5a', look: 'saw' },
     { name: 'Eye', coins: 1, body: '#ffffff', inner: '#2b8cff', look: 'eye' },
     { name: 'Planet', stars: 2, body: '#ff9a3c', inner: '#ffe0a8', look: 'planet' },
     { name: 'Swirl', coins: 1, body: '#b84dff', inner: '#ffe14d', look: 'swirl' },
     { name: 'Ladybug', stars: 1, body: '#ff2b2b', inner: '#111111', look: 'ladybug' },
-    { name: 'Lava', level: 9, body: '#3a0a00', inner: '#ff6a00', look: 'lava' },
-    { name: 'Gyro', level: 4, body: '#ff4f8b', inner: '#a8fff0', look: 'gyro' },
-    { name: 'Eclipse', level: 8, body: '#18132e', inner: '#ffcc5c', look: 'eclipse' },
+    { name: 'Lava', level: 12, body: '#3a0a00', inner: '#ff6a00', look: 'lava' },
+    { name: 'Gyro', level: 6, body: '#ff4f8b', inner: '#a8fff0', look: 'gyro' },
+    { name: 'Eclipse', level: 11, body: '#18132e', inner: '#ffcc5c', look: 'eclipse' },
   ],
   wave: [
     { name: 'Dart', free: true, body: '#00e5ff', inner: '#ffd400', look: 'dart' },
-    { name: 'Arrow', level: 6, body: '#7dff3a', inner: '#1a5c00', look: 'arrow' },
+    { name: 'Arrow', level: 8, body: '#7dff3a', inner: '#1a5c00', look: 'arrow' },
     { name: 'Comet', stars: 1, body: '#ff5a1f', inner: '#ffe14d', look: 'comet' },
     { name: 'Fang', coins: 1, body: '#ffffff', inner: '#ff1e3c', look: 'fang' },
     { name: 'Kite', stars: 1, body: '#ff4fd8', inner: '#ffffff', look: 'kite' },
     { name: 'Blade', stars: 1, body: '#9aa7b8', inner: '#2b6bff', look: 'blade' },
     { name: 'Crystal', stars: 2, body: '#8fe8ff', inner: '#ffffff', look: 'crystal' },
     { name: 'Neon', coins: 1, body: '#111111', inner: '#39ff14', look: 'neon' },
-    { name: 'Phoenix', level: 2, body: '#ff633d', inner: '#ffe36e', look: 'phoenix' },
-    { name: 'Spiral', level: 9, body: '#7a42ff', inner: '#d5faff', look: 'spiral' },
+    { name: 'Phoenix', level: 3, body: '#ff633d', inner: '#ffe36e', look: 'phoenix' },
+    { name: 'Spiral', level: 12, body: '#7a42ff', inner: '#d5faff', look: 'spiral' },
   ],
   trail: [
     { name: 'None', free: true },
     { name: 'Streak', stars: 1 },
-    { name: 'Rainbow', level: 8 },
+    { name: 'Rainbow', level: 11 },
     { name: 'Sparkle', stars: 1 },
     { name: 'Fire', coins: 1 },
     { name: 'Bubbles', stars: 1 },
     { name: 'Pixels', coins: 1 },
     { name: 'Echo', stars: 2 },
-    { name: 'Stardust', level: 7 },
-    { name: 'Emberline', level: 8 },
+    { name: 'Stardust', level: 10 },
+    { name: 'Emberline', level: 11 },
   ],
   death: [
     { name: 'Burst', free: true },
-    { name: 'Confetti', level: 4 },
+    { name: 'Confetti', level: 6 },
     { name: 'Shockwave', stars: 4 },
     { name: 'Shatter', coins: 3 },
     { name: 'Gash', secret: 'code' },
     { name: 'Pixelate', stars: 1 },
     { name: 'Vortex', coins: 2 },
-    { name: 'Fireworks', level: 2 },
+    { name: 'Fireworks', level: 3 },
     { name: 'Lightning', stars: 2 },
     { name: 'Spirit', secret: 'close' },
-    { name: 'Nova', level: 6 },
-    { name: 'Void', level: 9 },
+    { name: 'Nova', level: 8 },
+    { name: 'Void', level: 12 },
   ],
 };
 const KINDS = ['cube', 'ship', 'ball', 'wave', 'trail', 'death'];
@@ -573,17 +647,23 @@ const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'Ar
 const SAVE_KEY = 'deometry-gash-save';
 const EQUIPPED = { cube: 0, ship: 0, ball: 0, wave: 0, trail: 0, death: 0 };
 const SETTINGS = { music: 0.7, sfx: 0.8, progress: true, shake: true };
-let save = { v: 3, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: EQUIPPED, settings: SETTINGS };
+let save = { v: 4, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: EQUIPPED, settings: SETTINGS };
 // Version 1 saves stored coin tile ids from before the portals moved down to where the player passes them.
 const COIN_IDS_V1 = { 2: { 34: 29, 72: 71 }, 3: { 4: 3, 32: 28 } };
-const reorderLevelProgress = values => Object.fromEntries(Object.entries(values || {}).flatMap(([oldIndex, value]) => {
-  const name = LEGACY_LEVEL_ORDER[Number(oldIndex)], newIndex = LEVELS.findIndex(level => level.name === name);
+const reorderLevelProgress = (values, sourceOrder) => Object.fromEntries(Object.entries(values || {}).flatMap(([oldIndex, value]) => {
+  const name = sourceOrder[Number(oldIndex)], newIndex = LEVELS.findIndex(level => level.name === name);
   return name && newIndex >= 0 ? [[newIndex, value]] : [];
 }));
 try {
   const old = JSON.parse(localStorage.getItem(SAVE_KEY));
-  if (old && !old.v) for (const i in old.coins) if (Array.isArray(old.coins[i])) old.coins[i] = old.coins[i].map(id => COIN_IDS_V1[i]?.[id] ?? id);
-  if (old && (!old.v || old.v < 3)) { old.best = reorderLevelProgress(old.best); old.coins = reorderLevelProgress(old.coins); old.v = 3; }
+  if (old && !old.v) {
+    for (const i in old.coins) if (Array.isArray(old.coins[i])) old.coins[i] = old.coins[i].map(id => COIN_IDS_V1[i]?.[id] ?? id);
+    old.best = reorderLevelProgress(old.best, LEGACY_LEVEL_ORDER); old.coins = reorderLevelProgress(old.coins, LEGACY_LEVEL_ORDER); old.v = 4;
+  } else if (old && old.v <= 2) {
+    old.best = reorderLevelProgress(old.best, LEGACY_LEVEL_ORDER); old.coins = reorderLevelProgress(old.coins, LEGACY_LEVEL_ORDER); old.v = 4;
+  } else if (old && old.v === 3) {
+    old.best = reorderLevelProgress(old.best, LEVEL_ORDER_V3); old.coins = reorderLevelProgress(old.coins, LEVEL_ORDER_V3); old.v = 4;
+  }
   save = { ...save, ...old };
 } catch {}
 save.equipped = { ...EQUIPPED, ...save.equipped }; // saves from before new kinds existed
@@ -712,6 +792,10 @@ const SONGS_BY_LEVEL = Object.fromEntries(LEGACY_LEVEL_ORDER.map((name, i) => [n
 Object.assign(SONGS_BY_LEVEL, {
   'Prism Path': { bpm: 132, root: 62, scale: MAJOR, chords: [0, 5, 3, 4], seed: 83 },
   'Neon Circuit': { bpm: 148, root: 54, scale: MINOR, chords: [0, 6, 4, 5], seed: 97, drive: true },
+  'Sunrise Run': { bpm: 116, root: 64, scale: MAJOR, chords: [0, 3, 4, 0], seed: 108, calm: true },
+  'Tidal Flow': { bpm: 130, root: 57, scale: MAJOR, chords: [0, 5, 3, 4], seed: 119 },
+  'Circuit Breaker': { bpm: 152, root: 51, scale: MINOR, chords: [0, 6, 3, 5], seed: 127, drive: true },
+  'Abyssal Run': { bpm: 172, root: 48, scale: MINOR, chords: [0, 1, 5, 6], seed: 143, drive: true },
 });
 SONGS.splice(0, SONGS.length, ...LEVELS.map(level => SONGS_BY_LEVEL[level.name]));
 function seeded(a) { return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -937,7 +1021,7 @@ function playEffects(prev) {
     if (p.grounded && Math.random() < 0.6) emit(particles, { x: p.x + 0.2, y: contact, vx: -3 - Math.random() * 2, vy: p.grav * (0.5 + Math.random()), life: 0.3, size: 4, color, shrink: true, add: true });
   }
   emitTrail(particles, p.x + 0.5, p.y + 0.5, skin('trail').name, color);
-  if (p.used.length > prev.used) { const o = level.tiles[p.used[p.used.length - 1]]; burstAt(o.x + 0.5, o.y + 0.5, '#ffd400'); sfx('orb'); }
+  if (p.used.length > prev.used) { const o = level.tiles[p.used[p.used.length - 1]]; burstAt(o.x + 0.5, o.y + 0.5, o.type === 'b' ? '#45edff' : '#ffd400'); sfx('orb'); }
   if ((p.vy === PAD || p.vy === RED_PAD) && prev.vy !== p.vy) { burstAt(p.x + 0.5, p.y + 0.1, p.vy === RED_PAD ? '#ff4545' : '#ffd400'); sfx('pad'); }
   if (p.coins.length > prev.coins) { const c = level.tiles[p.coins[p.coins.length - 1]]; burstAt(c.x + 0.5, c.y + 0.5, '#ffcc33', 18); sfx('coin'); }
   if (p.mode !== prev.mode) { burstAt(p.x + 0.5, p.y + 0.5, MODE_COLOR[p.mode], 16); sfx('portal'); }
@@ -1858,21 +1942,27 @@ function drawPad(x, y, time, red = false) {
   ctx.restore();
 }
 
-function drawOrb(x, y, used, time) {
+function drawOrb(x, y, used, time, boost = false) {
   const cx = x + T / 2, cy = y + T / 2;
+  const color = boost ? '#45edff' : '#ffd400', mid = boost ? '#72f5ff' : '#ffd400', dark = boost ? '#008da8' : '#ff8f00';
   ctx.save();
   if (!used) {
     const k = mod(time * 1.2, 1);
-    ctx.strokeStyle = `rgba(255,212,0,${0.7 * (1 - k)})`; ctx.lineWidth = 2;
+    ctx.strokeStyle = boost ? `rgba(69,237,255,${0.7 * (1 - k)})` : `rgba(255,212,0,${0.7 * (1 - k)})`; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(cx, cy, T * (0.36 + k * 0.3), 0, TAU); ctx.stroke();
-    ctx.shadowColor = '#ffd400'; ctx.shadowBlur = 18;
+    ctx.shadowColor = color; ctx.shadowBlur = 18;
   } else ctx.globalAlpha = 0.35;
   const g = ctx.createRadialGradient(cx - 4, cy - 5, 1, cx, cy, T * 0.33);
-  g.addColorStop(0, '#fffbe6'); g.addColorStop(0.45, '#ffd400'); g.addColorStop(1, '#ff8f00');
+  g.addColorStop(0, '#ffffff'); g.addColorStop(0.45, mid); g.addColorStop(1, dark);
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, T * 0.32, 0, TAU); ctx.fill();
   ctx.shadowBlur = 0; ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(cx, cy, T * 0.17, 0, TAU); ctx.stroke();
+  if (boost) {
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(time * 0.8); ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(0, -T * 0.17); ctx.lineTo(T * 0.17, 0); ctx.lineTo(0, T * 0.17); ctx.lineTo(-T * 0.17, 0); ctx.closePath(); ctx.stroke(); ctx.restore();
+  } else {
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, T * 0.17, 0, TAU); ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -1987,7 +2077,7 @@ function drawWorld(time) {
     switch (t.type) {
       case '^': case 'v': drawSpike(x, y, t.type === 'v', hue, spikeFill); break;
       case 'p': case 'r': drawPad(x, y, time, t.type === 'r'); break;
-      case 'o': drawOrb(x, y, player.used.includes(t.id), time); break;
+      case 'o': case 'b': drawOrb(x, y, player.used.includes(t.id), time, t.type === 'b'); break;
       case 'c': if (!player.coins.includes(t.id)) drawCoin(x, y, (save.coins[selected] || []).includes(t.id), time); break;
       case 'S': case 'C': case 'B': case 'W': if (t.tall) { drawPortal(t, x, y, false, time); portals.push([t, x, y]); } break;
     }
