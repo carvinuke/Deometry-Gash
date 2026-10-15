@@ -19,8 +19,8 @@ assert.deepEqual(before, [1, 1, 1, 1, 1, 1], 'only the free items start unlocked
 await page.keyboard.type('gash');
 for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA']) await page.keyboard.press(k);
 await page.keyboard.press('Escape');
-const box = await page.locator('canvas').boundingBox();
-for (let i = 0; i < 7; i++) await page.mouse.click(box.x + box.width / 2, box.y + 80 * box.height / 480);
+const v = await page.evaluate(() => VIEW); // layout point (480, 80) is the title
+for (let i = 0; i < 7; i++) await page.mouse.click((480 + v.x) * v.s, (80 + v.y) * v.s);
 // The 1000th jump is a real one.
 await page.evaluate(() => { startLevel(0); save.jumps = 999; });
 await page.keyboard.down('Space'); await page.waitForTimeout(200); await page.keyboard.up('Space');

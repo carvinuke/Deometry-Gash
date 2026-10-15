@@ -44,8 +44,17 @@ const results = await page.evaluate(() => LEVELS.flatMap(lvl => [false, true].ma
   }
   return { name: lvl.name, allCoins, idle: idleResult, beatable: go(newPlayer(), 0), furthest: +furthest.toFixed(1), length: lvl.len };
 })));
+// A triple spike on flat ground needs a jump window a person can hit (it used to be a single frame).
+const tripleSpikeFrames = await page.evaluate(() => {
+  const lvl = { tiles: [0, 1, 2].map(i => ({ x: 20 + i, y: 0, type: '^', id: i })), len: 30 };
+  let n = 0;
+  for (let f = 60; f < 130; f++) { const p = newPlayer(); let r = null; for (let i = 0; !r; i++) r = step(p, i === f, lvl); n += r === 'win'; }
+  return n;
+});
 await browser.close();
 console.table(results);
+console.log('frames that clear a triple spike:', tripleSpikeFrames);
+if (tripleSpikeFrames < 5) throw new Error('a triple spike should leave at least 5 frames to jump');
 if (errors.length) throw new Error('page errors: ' + errors.join('; '));
 for (const r of results) {
   if (r.idle !== 'dead') throw new Error(`${r.name}: standing still should die`);
