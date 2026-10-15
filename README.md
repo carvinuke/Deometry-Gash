@@ -18,11 +18,12 @@ A tiny Geometry Dash–style game in a single HTML file. No install, no build.
 
 ## What's in it
 
-- **8 levels**: First Steps (Easy), Orb Garden (Normal), Sky Rush (Hard), Gash Gauntlet (Insane), Rolling Thunder (Normal), Wave Rider (Hard), Mode Mayhem (Insane) and Demon Gash (Demon).
-- **Jump pads** (yellow pads) launch you high. **Jump orbs** (yellow rings) let you jump again mid-air if you press while touching one.
+- **14 levels**, ordered from easiest to hardest: First Steps and Sunrise Run (Easy); Orb Garden, Rolling Thunder, Prism Path and Tidal Flow (Normal); Sky Rush, Neon Circuit, Wave Rider and Circuit Breaker (Hard); Gash Gauntlet and Mode Mayhem (Insane); then Demon Gash and Abyssal Run (Demon).
+- **Jump pads**: yellow pads give a standard launch; red pads give a controlled stronger launch for longer obstacle runs. **Jump orbs** let you jump again mid-air if you press while touching one; cyan boost orbs add a little extra lift for planned routes.
 - **Portals** change how you move: **ship** (pink), **ball** (orange), **wave** (blue), and **cube** (green) to turn back.
 - **Secret coins**: 2 or 3 hidden in every level. They count once you finish the level with them.
-- **Shop** with 16 cubes, 10 ships, 8 balls, 8 waves, 8 trails and 10 death effects. Each one unlocks by:
+- **New hazards and scenery**: chunky cartoon chains hold suspended spike bars and downward spikes, falling spikes drop into your path, and saws and larger spikes add different jump timings. Little pole lights decorate routes across every difficulty and pulse with each song's beat. Abyssal Run now ends with a tighter Demon gauntlet. Hazards use collision areas matched to their art while the player keeps the same one-tile gameplay hitbox. The player sprite no longer has a soft outer glow.
+- **Shop** with 24 cubes, 14 ships, 12 balls, 11 waves, 12 trails and 14 death effects. Use the page arrows below the preview or the arrow keys to browse. New shape skins animate while keeping the same gameplay hitbox; custom silhouettes no longer draw the square cube bevel. Ship exhaust now follows each hull's tail or nozzle. The cube, ship, ball and wave collections each have new silhouettes, plus Aurora and Prism trails and Rift and Meteor deaths. Each item unlocks by:
   - beating a certain level,
   - spending ★ stars (earned by beating levels) or ◉ coins,
   - or finding one of 6 secrets. No spoilers.
@@ -37,11 +38,11 @@ Everything is drawn in code on a canvas (glowing blocks, animated portals, every
 ## Make your own level
 
 Levels are in `LEVELS` near the top of the script in `index.html`, built from `seg(...)` rows (top to bottom, the last row sits on the ground):
-`#` block, `^` spike, `v` hanging spike, `p` jump pad, `o` jump orb, `c` coin, `S` ship portal, `B` ball portal, `W` wave portal, `C` cube portal, `.` empty.
+`#` block, `^` spike, `v` chained hanging spike, `h` chained spike bar, `F` falling spike trap, `s` saw, `G` oversized spike, `i` non-colliding beat-pulsing pole light, `p` yellow jump pad, `r` red jump pad, `o` jump orb, `b` cyan boost orb, `c` coin, `S` ship portal, `B` ball portal, `W` wave portal, `C` cube portal, `.` empty. Falling traps are triggered four tiles before the player reaches them; chain bars, hanging spikes, saws, and giant spikes have collision shapes matched to their drawn size.
 Stack a portal letter in a column (3 or 4 tall) where the player passes; the portal works at any height, but that is where it is drawn.
-Each level's song is in `SONGS`, in the same order; a new level without one reuses a song from the start of the list.
+Each level's song is in `SONGS`, mapped to the level by name so changing the displayed difficulty order does not change its music.
 
-To check every level (and every coin) is still reachable, that motion stays smooth, and that the shop adds up (needs Node and Playwright, `npm i -D playwright`):
+The browser self-check searches for clear and all-coin routes, then separately checks jump windows, orb launches, smooth motion, and every red-pad lane across 12 horizontal frame phases. It also checks the new obstacle trigger/collision rules. The route search is a screening tool; the red-pad lane checks verify the clearance margins that a route search alone can miss. The shop check covers sorted levels, unlocks, and save migration (needs Node and Playwright, `npm i -D playwright`):
 
 ```
 node test/beatable.mjs

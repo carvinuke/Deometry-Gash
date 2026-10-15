@@ -15,14 +15,14 @@ await page.waitForTimeout(300);
 
 const results = await page.evaluate(() => LEVELS.flatMap(lvl => [false, true].map(allCoins => {
   const idle = newPlayer(); let idleResult;
-  for (let i = 0; i < 100000 && !idleResult; i++) idleResult = step(idle, false, lvl);
+  for (let i = 0; i < 100000 && !idleResult; i++) idleResult = step(idle, false, lvl, false);
 
-  // DFS over hold / release, branching only on frames where the choice changes the outcome.
-  // The memo key is coarse, so it can miss a solution but never invents one.
+  // This reachability search is a coarse screen, not a difficulty or timing proof.
+  // Dedicated runway-margin checks below cover the timing gap that this search missed.
   const seen = new Set(); let furthest = 0;
   const coins = lvl.tiles.filter(t => t.type === 'c').length;
   const won = (r, q) => r === 'win' && (!allCoins || q.coins.length === coins);
-  const key = (p, f) => [f, p.mode, p.grav, p.y.toFixed(1), p.vy.toFixed(0), p.used.length, p.coins.length].join('|');
+  const key = (p, f) => [f, p.mode, p.grav, p.y.toFixed(1), p.vy.toFixed(0), p.coyote.toFixed(2), p.jumpBuffer.toFixed(2), p.used.join(','), p.coins.join(',')].join('|');
   function go(p, f) {
     for (;;) {
       furthest = Math.max(furthest, p.x);
@@ -51,6 +51,56 @@ const tripleSpikeFrames = await page.evaluate(() => {
   for (let f = 60; f < 130; f++) { const p = newPlayer(); let r = null; for (let i = 0; !r; i++) r = step(p, i === f, lvl); n += r === 'win'; }
   return n;
 });
+const orbLaunches = await page.evaluate(() => {
+  const launch = type => {
+    const lvl = { tiles: [{ id: 0, x: 1, y: 2, type }], len: 10 };
+    const p = newPlayer(); p.x = 0.2; p.y = 1.2; p.vy = 5; p.grounded = false; p.coyote = 0;
+    step(p, true, lvl, true);
+    const first = p.vy;
+    step(p, true, lvl, false); // staying inside the orb cannot retrigger it
+    return { first, second: p.vy, used: p.used.length };
+  };
+  return { standard: launch('o'), boost: launch('b'), standardValue: JUMP, boostValue: BOOST_ORB_JUMP, redPad: RED_PAD, yellowPad: PAD };
+});
+const poleBeat = await page.evaluate(() => {
+  const beat = 60 / SONGS[selected % SONGS.length].bpm;
+  return { downbeat: beatPulse(0), midpoint: beatPulse(beat / 2) };
+});
+const obstacleChecks = await page.evaluate(() => {
+  const collide = (type, x, y, tileX = 5, tileY = 0) => {
+    const p = newPlayer(); p.x = x; p.y = y; p.grounded = false; p.vy = 0;
+    return step(p, false, { tiles: [{ id: 999, x: tileX, y: tileY, type }], len: 40 }, false);
+  };
+  const traps = { x: 5, y: 8 };
+  return {
+    levels: Object.fromEntries(LEVELS.map(l => [l.name, l.tiles.reduce((a, t) => (a[t.type] = (a[t.type] || 0) + 1, a), {})])),
+    ceilingBarHit: collide('h', 5, 2.2, 5, 3), ceilingBarClear: collide('h', 5, 0, 5, 3),
+    giantSpikeHit: collide('G', 5, 0), sawHit: collide('s', 5, 0),
+    fallingSpikeHit: collide('F', 4.65, 0, traps.x, traps.y), fallingSpikeClear: collide('F', 0, 0, traps.x, traps.y),
+    fallingSpikePositions: [fallingSpikeY(traps, 1), fallingSpikeY(traps, 3), fallingSpikeY(traps, 5)],
+    poleClear: collide('i', 5, 0),
+  };
+});
+// Red pads must clear their whole grounded spike runway with timing margin at every
+// frame phase. This catches levels that are theoretically reachable only on a razor edge.
+const redPadRunways = await page.evaluate(() => LEVELS.flatMap(lvl => lvl.tiles.filter(t => t.type === 'r').map(pad => {
+  let count = 0;
+  while (lvl.tiles.some(t => t.x === pad.x + 1 + count && t.y === 0 && t.type === '^')) count++;
+  const probe = { len: 15, tiles: lvl.tiles.filter(t => t.x >= pad.x && t.x < pad.x + 10).map(t => ({ ...t, x: t.x - pad.x + 3 })) };
+  const phases = [];
+  for (let phase = 0; phase < 1; phase += 1 / 12) {
+    const p = newPlayer(); p.x = 2 + phase; let result = null, launched = false, landing = null;
+    for (let f = 0; f < 180 && !result && p.x < 13; f++) {
+      const previousVy = p.vy;
+      result = step(p, false, probe, false);
+      if (p.vy === RED_PAD && previousVy !== RED_PAD) launched = true;
+      if (launched && p.grounded && landing === null) landing = p.x;
+    }
+    const margin = count && landing !== null ? landing - (3 + count + 0.65) : null;
+    phases.push({ result: result ?? (p.x >= 13 ? 'clear' : 'timeout'), launched, margin });
+  }
+  return { level: lvl.name, count, phases };
+})));
 // On a 144 Hz screen the cube should move the same distance every frame (it used to jump in uneven 60 Hz steps).
 const glide = await page.evaluate(() => {
   requestAnimationFrame = () => 0; // stop the game's own loop and draw frames by hand
@@ -63,11 +113,32 @@ const glide = await page.evaluate(() => {
 await browser.close();
 console.table(results);
 console.log('frames that clear a triple spike:', tripleSpikeFrames);
+console.log('orb launch velocities:', orbLaunches);
+console.log('pole beat pulse:', poleBeat);
+console.log('new obstacle checks:', obstacleChecks);
+console.log('red-pad lane results:', redPadRunways.map(r => ({ level: r.level, spikes: r.count,
+  minTiles: r.count ? +Math.min(...r.phases.map(p => p.margin ?? -Infinity)).toFixed(2) : 'n/a',
+  phases: r.phases.filter(p => p.result !== 'clear' || !p.launched).length })));
 if (tripleSpikeFrames < 5) throw new Error('a triple spike should leave at least 5 frames to jump');
+if (orbLaunches.standard.first !== orbLaunches.standardValue || orbLaunches.boost.first !== orbLaunches.boostValue || orbLaunches.boost.second >= orbLaunches.boost.first || orbLaunches.boost.used !== 1) throw new Error('cyan boost orbs should give one controlled stronger launch');
 if (glide > 0.001) throw new Error(`the cube moves unevenly between frames (spread ${glide} tiles)`);
 if (errors.length) throw new Error('page errors: ' + errors.join('; '));
+if (obstacleChecks.ceilingBarHit !== 'dead' || obstacleChecks.ceilingBarClear === 'dead' || obstacleChecks.giantSpikeHit !== 'dead' || obstacleChecks.sawHit !== 'dead' || obstacleChecks.fallingSpikeHit !== 'dead' || obstacleChecks.fallingSpikeClear === 'dead' || obstacleChecks.poleClear === 'dead') throw new Error('new obstacle or pole collision behavior is inconsistent');
+if (poleBeat.downbeat !== 1 || poleBeat.midpoint !== 0) throw new Error('pole lights should pop on the beat and relax between beats');
+if (obstacleChecks.fallingSpikePositions.some((y, i) => Math.abs(y - [8, 4, 0][i]) > 0.001)) throw new Error('falling spikes should trigger, fall at a fixed rate, and settle on the floor');
+for (const name of ['Orb Garden', 'Rolling Thunder', 'Prism Path', 'Tidal Flow']) if ((obstacleChecks.levels[name]?.h || 0) < 4 || !obstacleChecks.levels[name]?.i) throw new Error(`${name}: add hanging hazards and beat-pulsing poles to Normal routes`);
+for (const name of ['Sunrise Run', 'Neon Circuit', 'Circuit Breaker']) if (!obstacleChecks.levels[name]?.h || !obstacleChecks.levels[name]?.i) throw new Error(`${name}: aerial hazards and beat-pulsing poles should appear across difficulties`);
+for (const [name, counts] of Object.entries(obstacleChecks.levels)) if (!counts.i) throw new Error(`${name}: add a beat-pulsing pole light`);
+if (!obstacleChecks.levels['Orb Garden']?.s || !obstacleChecks.levels['Prism Path']?.G || !obstacleChecks.levels['Tidal Flow']?.F) throw new Error('the new hazards need representative level placements');
+for (const type of ['F', 'h', 'G', 's']) if (!obstacleChecks.levels['Abyssal Run']?.[type]) throw new Error(`Abyssal Run: missing Demon hazard ${type}`);
 for (const r of results) {
   if (r.idle !== 'dead') throw new Error(`${r.name}: standing still should die`);
   if (!r.beatable) throw new Error(`${r.name}: not beatable${r.allCoins ? ' with all coins' : ''} (got to x=${r.furthest})`);
+}
+for (const r of redPadRunways) {
+  const minMargin = r.count ? Math.min(...r.phases.map(p => p.margin ?? -Infinity)) : Infinity;
+  if (orbLaunches.redPad <= orbLaunches.yellowPad || orbLaunches.redPad > orbLaunches.yellowPad + 2 || r.count > 4 || minMargin < 0.5 || r.phases.some(p => p.result !== 'clear' || !p.launched)) {
+    throw new Error(`${r.level}: red pad lane needs a playable clearance margin (spikes=${r.count}, min=${minMargin})`);
+  }
 }
 console.log('OK');
