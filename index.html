@@ -35,6 +35,7 @@ const SPEED = 10;             // tiles / second
 const GRAVITY = -100;         // tiles / second^2
 const JUMP = 22;              // ~2.4 tiles high, ~4.4 tiles long
 const PAD = 28;               // yellow pad launch, ~3.9 tiles high
+const RED_PAD = 44;           // red pad clears the Orb Garden and Gauntlet obstacle runs
 const SHIP_UP = 60, SHIP_DOWN = 50, SHIP_MAX = 9;
 const BALL_G = 60, BALL_KICK = 6, BALL_MAX = 24; // the ball falls toward its gravity and flips it on a press
 const WAVE = SPEED;           // the wave moves at 45 degrees: up while held, down otherwise
@@ -45,7 +46,7 @@ const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
 document.fonts?.load(`24px ${FONT}`).catch(() => {}); // text drawn only on a canvas never triggers the font download
 const mod = (a, n) => ((a % n) + n) % n;
 
-// Level tiles: '#' block, '^' spike, 'v' hanging spike, 'p' jump pad, 'o' jump orb (press while touching),
+// Level tiles: '#' block, '^' spike, 'v' hanging spike, 'p' yellow jump pad, 'r' red jump pad, 'o' jump orb (press while touching),
 // 'c' secret coin, portals 'S' ship, 'C' cube, 'B' ball, 'W' wave, '.' empty. seg() takes rows top to bottom; the last
 // row sits on the ground. Short rows are padded with '.' on the right.
 const PORTAL_MODE = { S: 'ship', C: 'cube', B: 'ball', W: 'wave' };
@@ -115,9 +116,9 @@ const LEVELS = [
         '..................',
         '..^^^^^^^^^.......'),
     seg('..#^^^#^^^#^^^#....'),
-    seg('..p....o.......',
+    seg('.......o.......',
         '...............',
-        '...^^^^^^^^....'),
+        '..r^^^^^^^.....'),
     seg('...^^^..^^^.....'),
     gap(16),
   ]),
@@ -142,9 +143,9 @@ const LEVELS = [
     seg('....o.......',
         '............',
         '..^^^^^^....'),
-    seg('..p.....###......',
+    seg('.................',
         '........###......',
-        '........###^^^^..'),
+        '......r.###^^^...'),
     seg('.........###.c...###.....vvvv....###..............',
         '.........###.....vvv.............###..............',
         '.................................vvv..............',
@@ -394,7 +395,7 @@ function step(p, hold, lvl, justPressed = hold) {
     switch (t.type) {
       case '^': if (inX(0.35, 0.65) && inY(0, 0.3)) return 'dead'; break; // a small box at the base, like GD's, so triple spikes are fair
       case 'v': if (inX(0.35, 0.65) && inY(0.7, 1)) return 'dead'; break;
-      case 'p': if (p.mode === 'cube' && inX(0.2, 0.8) && inY(0, 0.3)) { p.vy = PAD; p.grounded = false; } break;
+      case 'p': case 'r': if (p.mode === 'cube' && inX(0.2, 0.8) && inY(0, 0.3)) { p.vy = t.type === 'r' ? RED_PAD : PAD; p.grounded = false; } break;
       case 'o': if (p.mode === 'cube' && (hold || p.jumpBuffer > 0) && inY(0.1, 0.9) && !p.used.includes(t.id)) { p.vy = JUMP; p.grounded = false; p.coyote = 0; p.jumpBuffer = 0; p.used = [...p.used, t.id]; } break;
       case 'c': if (inY(0, 1) && !p.coins.includes(t.id)) p.coins = [...p.coins, t.id]; break;
       case 'S': case 'C': case 'B': case 'W': {
@@ -874,7 +875,7 @@ function playEffects(prev) {
   if (p.mode === 'cube') {
     if (prev.grounded && !p.grounded && p.vy > 0) {
       spray(particles, 6, p.x + 0.5, p.y + 0.05, 3, { color: 'rgba(255,255,255,0.7)', size: 4, life: 0.3, g: -10 });
-      if (p.vy !== PAD) sfx('jump');
+      if (p.vy !== PAD && p.vy !== RED_PAD) sfx('jump');
       if (++save.jumps >= 1000) unlockSecret('jumps');
     } else if (!prev.grounded && p.grounded) spray(particles, 8, p.x + 0.5, p.y + 0.05, 4, { color: 'rgba(255,255,255,0.6)', size: 4, life: 0.25 });
     if (p.grounded && Math.random() < 0.7) emit(particles, { x: p.x + 0.05, y: p.y + 0.08, vx: -3 - Math.random() * 2, vy: 0.5 + Math.random() * 1.5, life: 0.35, size: 5, color, shrink: true, add: true });
@@ -888,7 +889,7 @@ function playEffects(prev) {
   }
   emitTrail(particles, p.x + 0.5, p.y + 0.5, skin('trail').name, color);
   if (p.used.length > prev.used) { const o = level.tiles[p.used[p.used.length - 1]]; burstAt(o.x + 0.5, o.y + 0.5, '#ffd400'); sfx('orb'); }
-  if (p.vy === PAD && prev.vy !== PAD) { burstAt(p.x + 0.5, p.y + 0.1, '#ffd400'); sfx('pad'); }
+  if ((p.vy === PAD || p.vy === RED_PAD) && prev.vy !== p.vy) { burstAt(p.x + 0.5, p.y + 0.1, p.vy === RED_PAD ? '#ff4545' : '#ffd400'); sfx('pad'); }
   if (p.coins.length > prev.coins) { const c = level.tiles[p.coins[p.coins.length - 1]]; burstAt(c.x + 0.5, c.y + 0.5, '#ffcc33', 18); sfx('coin'); }
   if (p.mode !== prev.mode) { burstAt(p.x + 0.5, p.y + 0.5, MODE_COLOR[p.mode], 16); sfx('portal'); }
 }
@@ -1726,18 +1727,20 @@ function drawSpike(x, y, down, hue, fill) {
   ctx.restore();
 }
 
-function drawPad(x, y, time) {
+function drawPad(x, y, time, red = false) {
   const cx = x + T / 2, base = y + T;
   for (let i = 0; i < 3; i++) { // sparks rising off the pad
     const k = mod(time * 1.4 + i / 3, 1);
-    ctx.fillStyle = `rgba(255,220,60,${(1 - k) * 0.8})`;
+    ctx.fillStyle = red ? `rgba(255,90,75,${(1 - k) * 0.85})` : `rgba(255,220,60,${(1 - k) * 0.8})`;
     ctx.fillRect(cx - 14 + i * 12, base - 8 - k * 34, 4, 4);
   }
   ctx.save();
-  ctx.shadowColor = '#ffd400'; ctx.shadowBlur = 14;
-  ctx.fillStyle = vgrad(base - 11, base, '#fff6a8', '#ffd400', '#ff9d00');
+  const accent = red ? '#ff4545' : '#ffd400';
+  ctx.shadowColor = accent; ctx.shadowBlur = red ? 17 : 14;
+  ctx.fillStyle = red ? vgrad(base - 11, base, '#ffd1ca', '#ff4545', '#9f1328') : vgrad(base - 11, base, '#fff6a8', '#ffd400', '#ff9d00');
   ctx.beginPath(); ctx.ellipse(cx, base - 1, T * 0.42, 10, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
   ctx.shadowBlur = 0; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cx, base - 2, T * 0.25, 4, 0, Math.PI, 0); ctx.strokeStyle = red ? 'rgba(255,235,235,0.85)' : 'rgba(255,255,220,0.8)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.restore();
 }
 
@@ -1869,7 +1872,7 @@ function drawWorld(time) {
     const x = sx(t.x), y = sy(t.y + 1);
     switch (t.type) {
       case '^': case 'v': drawSpike(x, y, t.type === 'v', hue, spikeFill); break;
-      case 'p': drawPad(x, y, time); break;
+      case 'p': case 'r': drawPad(x, y, time, t.type === 'r'); break;
       case 'o': drawOrb(x, y, player.used.includes(t.id), time); break;
       case 'c': if (!player.coins.includes(t.id)) drawCoin(x, y, (save.coins[selected] || []).includes(t.id), time); break;
       case 'S': case 'C': case 'B': case 'W': if (t.tall) { drawPortal(t, x, y, false, time); portals.push([t, x, y]); } break;
@@ -1945,7 +1948,8 @@ const GRID_X = 77, GRID_W = 806, GAP = 8, COLS = 8, BOX_W = (GRID_W - (COLS - 1)
 const SHOP_PAGE_SIZE = COLS * 2;
 const tabPos = i => ({ x: GRID_X + i * (TAB_W + GAP), y: 60, w: TAB_W, h: 40 });
 const boxPos = i => ({ x: GRID_X + (i % COLS) * (BOX_W + GAP), y: 110 + Math.floor(i / COLS) * (BOX_H + GAP), w: BOX_W, h: BOX_H });
-const STAGE = { x: GRID_X, y: 316, w: GRID_W, h: 124 };
+const STAGE = { x: GRID_X, y: 316, w: GRID_W, h: 112 };
+const SHOP_PREV = { x: W / 2 - 90, y: 434, w: 32, h: 26 }, SHOP_NEXT = { x: W / 2 + 58, y: 434, w: 32, h: 26 };
 const inBox = (b, x, y) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
 function hovered(b) { const h = inBox(b, mouse.x, mouse.y); if (h) cursorHot = true; return h; }
 
@@ -2190,10 +2194,23 @@ function drawShop(time) {
     else if (open) ui('Equip', cx, b.y + 88, 11, 'rgba(255,255,255,0.75)');
     else drawCost(it, cx, b.y + 88);
   });
-  const pages = Math.ceil(ITEMS[kind].length / SHOP_PAGE_SIZE);
-  if (pages > 1) ui(`Page ${Math.floor(pageStart / SHOP_PAGE_SIZE) + 1}/${pages}  ·  ← → to browse`, GRID_X + GRID_W - 10, 307, 12, '#ffd400', 'right');
+  drawShopPageControls(kind, pageStart);
   drawStage(time);
-  ui(describe(kind, shopPick), W / 2, 466, 14, '#fff');
+  ui(describe(kind, shopPick), W / 2, 470, 14, '#fff');
+}
+
+function drawShopPageControls(kind, pageStart) {
+  const pages = Math.ceil(ITEMS[kind].length / SHOP_PAGE_SIZE);
+  if (pages < 2) return;
+  const page = Math.floor(pageStart / SHOP_PAGE_SIZE), buttons = [[SHOP_PREV, -1, page === 0], [SHOP_NEXT, 1, page === pages - 1]];
+  for (const [b, dir, disabled] of buttons) {
+    const hot = !disabled && hovered(b), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    rr(b.x, b.y, b.w, b.h, 8);
+    ctx.fillStyle = disabled ? 'rgba(18,14,32,0.5)' : hot ? 'rgba(255,212,0,0.3)' : 'rgba(8,8,22,0.7)'; ctx.fill();
+    ctx.strokeStyle = disabled ? 'rgba(255,255,255,0.12)' : hot ? '#ffd400' : 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1.5; ctx.stroke();
+    poly([[cx - dir * 4, cy - 7], [cx + dir * 4, cy], [cx - dir * 4, cy + 7]], disabled ? 'rgba(255,255,255,0.24)' : '#fff', 0);
+  }
+  ui(`${page + 1} / ${pages}`, W / 2, 453, 13, '#ffd400');
 }
 
 // The shop's stage plays the picked item on a little floor: the icon in its mode, the trail, or the death effect.
@@ -2324,6 +2341,11 @@ function pauseAction(id) {
   else go('levels');
 }
 function shopSelect(tab, i) { shopTab = tab; shopPick = Math.max(0, Math.min(ITEMS[KINDS[tab]].length - 1, i)); stageClock = 0; stageParticles = []; }
+function browseShopPage(direction) {
+  const kind = KINDS[shopTab], pages = Math.ceil(ITEMS[kind].length / SHOP_PAGE_SIZE), current = Math.floor(shopPick / SHOP_PAGE_SIZE);
+  const page = Math.max(0, Math.min(pages - 1, current + direction));
+  if (page !== current) { shopSelect(shopTab, page * SHOP_PAGE_SIZE); sfx('click'); }
+}
 function openShop() { go('shop'); shopSelect(shopTab, shopPick); }
 const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
 addEventListener('keydown', e => {
@@ -2391,8 +2413,11 @@ canvas.addEventListener('pointerdown', e => {
   if (state === 'pause') { const b = PAUSE_BTNS.find(b => hit(b)); return b ? pauseAction(b.id) : settingsPointer(266, mx, my); }
   if (state === 'shop') {
     if (hit(BACK_BTN)) return go('menu');
+    const kind = KINDS[shopTab], pages = Math.ceil(ITEMS[kind].length / SHOP_PAGE_SIZE);
+    if (pages > 1 && hit(SHOP_PREV)) { browseShopPage(-1); return; }
+    if (pages > 1 && hit(SHOP_NEXT)) { browseShopPage(1); return; }
     KINDS.forEach((k, i) => { if (hit(tabPos(i))) { shopSelect(i, save.equipped[k]); sfx('click'); } });
-    const kind = KINDS[shopTab], start = Math.floor(shopPick / SHOP_PAGE_SIZE) * SHOP_PAGE_SIZE;
+    const start = Math.floor(shopPick / SHOP_PAGE_SIZE) * SHOP_PAGE_SIZE;
     ITEMS[kind].slice(start, start + SHOP_PAGE_SIZE).forEach((_, slot) => { const i = start + slot; if (hit(boxPos(slot))) { shopSelect(shopTab, i); buyOrEquip(kind, i); } });
     return;
   }

@@ -19,10 +19,10 @@ A tiny Geometry Dash–style game in a single HTML file. No install, no build.
 ## What's in it
 
 - **8 levels**: First Steps (Easy), Orb Garden (Normal), Sky Rush (Hard), Gash Gauntlet (Insane), Rolling Thunder (Normal), Wave Rider (Hard), Mode Mayhem (Insane) and Demon Gash (Demon).
-- **Jump pads** (yellow pads) launch you high. **Jump orbs** (yellow rings) let you jump again mid-air if you press while touching one.
+- **Jump pads**: yellow pads give a standard launch; red pads launch higher to clear longer obstacle runs. **Jump orbs** (yellow rings) let you jump again mid-air if you press while touching one.
 - **Portals** change how you move: **ship** (pink), **ball** (orange), **wave** (blue), and **cube** (green) to turn back.
 - **Secret coins**: 2 or 3 hidden in every level. They count once you finish the level with them.
-- **Shop** with 19 cubes, 12 ships, 10 balls, 10 waves, 10 trails and 12 death effects. Browse the pages with the arrow keys. New shape skins animate while keeping the same gameplay hitbox. Each item unlocks by:
+- **Shop** with 19 cubes, 12 ships, 10 balls, 10 waves, 10 trails and 12 death effects. Use the page arrows below the preview or the arrow keys to browse. New shape skins animate while keeping the same gameplay hitbox. Each item unlocks by:
   - beating a certain level,
   - spending ★ stars (earned by beating levels) or ◉ coins,
   - or finding one of 6 secrets. No spoilers.
@@ -37,7 +37,7 @@ Everything is drawn in code on a canvas (glowing blocks, animated portals, every
 ## Make your own level
 
 Levels are in `LEVELS` near the top of the script in `index.html`, built from `seg(...)` rows (top to bottom, the last row sits on the ground):
-`#` block, `^` spike, `v` hanging spike, `p` jump pad, `o` jump orb, `c` coin, `S` ship portal, `B` ball portal, `W` wave portal, `C` cube portal, `.` empty.
+`#` block, `^` spike, `v` hanging spike, `p` yellow jump pad, `r` red jump pad, `o` jump orb, `c` coin, `S` ship portal, `B` ball portal, `W` wave portal, `C` cube portal, `.` empty.
 Stack a portal letter in a column (3 or 4 tall) where the player passes; the portal works at any height, but that is where it is drawn.
 Each level's song is in `SONGS`, in the same order; a new level without one reuses a song from the start of the list.
 
