@@ -22,7 +22,7 @@ const results = await page.evaluate(() => LEVELS.flatMap(lvl => [false, true].ma
   const seen = new Set(); let furthest = 0;
   const coins = lvl.tiles.filter(t => t.type === 'c').length;
   const won = (r, q) => r === 'win' && (!allCoins || q.coins.length === coins);
-  const key = (p, f) => [f, p.mode, p.grav, p.y.toFixed(1), p.vy.toFixed(0), p.used.length, p.coins.length].join('|');
+  const key = (p, f) => [f, p.mode, p.grav, p.y.toFixed(1), p.vy.toFixed(0), p.coyote.toFixed(2), p.jumpBuffer.toFixed(2), p.used.length, p.coins.length].join('|');
   function go(p, f) {
     for (;;) {
       furthest = Math.max(furthest, p.x);

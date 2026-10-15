@@ -33,7 +33,7 @@ const GROUND = H - 40;
 const PLAYER_SCREEN_X = 6;    // tiles from left edge
 const SPEED = 10;             // tiles / second
 const GRAVITY = -100;         // tiles / second^2
-const JUMP = 21;              // ~2.2 tiles high, ~4 tiles long
+const JUMP = 22;              // ~2.4 tiles high, ~4.4 tiles long
 const PAD = 28;               // yellow pad launch, ~3.9 tiles high
 const SHIP_UP = 60, SHIP_DOWN = 50, SHIP_MAX = 9;
 const BALL_G = 60, BALL_KICK = 6, BALL_MAX = 24; // the ball falls toward its gravity and flips it on a press
@@ -359,15 +359,21 @@ const LEVELS = [
   ]),
 ];
 
-function newPlayer() { return { x: 0, y: 0, vy: 0, grounded: true, rot: 0, mode: 'cube', grav: 1, used: [], coins: [] }; }
+function newPlayer() { return { x: 0, y: 0, vy: 0, grounded: true, coyote: 0.1, jumpBuffer: 0, rot: 0, mode: 'cube', grav: 1, used: [], coins: [] }; }
 const clamp = (v, m) => Math.max(-m, Math.min(m, v));
 
 // Advances one frame. Returns 'dead', 'win' or null. Only mutates p, so tests can drive it.
 // The cube jumps, the ship flies up while held, the ball flips its gravity and the wave climbs while held.
 // Every mode but the cube has a ceiling and can slide along the underside of blocks.
-function step(p, hold, lvl) {
+function step(p, hold, lvl, justPressed = hold) {
   const m = p.mode;
-  if (m === 'cube' && hold && p.grounded) p.vy = JUMP;
+  if (justPressed) p.jumpBuffer = 0.1;
+  else p.jumpBuffer = Math.max(0, p.jumpBuffer - DT);
+  if (p.grounded) p.coyote = 0.1;
+  else p.coyote = Math.max(0, p.coyote - DT);
+  if (m === 'cube' && (hold || p.jumpBuffer > 0) && (p.grounded || p.coyote > 0)) {
+    p.vy = JUMP; p.grounded = false; p.coyote = 0; p.jumpBuffer = 0;
+  }
   if (m === 'ball' && hold && p.grounded) { p.grav = -p.grav; p.vy = -p.grav * BALL_KICK; }
   const prevY = p.y;
   p.x += SPEED * DT;
@@ -389,7 +395,7 @@ function step(p, hold, lvl) {
       case '^': if (inX(0.35, 0.65) && inY(0, 0.3)) return 'dead'; break; // a small box at the base, like GD's, so triple spikes are fair
       case 'v': if (inX(0.35, 0.65) && inY(0.7, 1)) return 'dead'; break;
       case 'p': if (p.mode === 'cube' && inX(0.2, 0.8) && inY(0, 0.3)) { p.vy = PAD; p.grounded = false; } break;
-      case 'o': if (p.mode === 'cube' && hold && inY(0.1, 0.9) && !p.used.includes(t.id)) { p.vy = JUMP; p.grounded = false; p.used = [...p.used, t.id]; } break;
+      case 'o': if (p.mode === 'cube' && (hold || p.jumpBuffer > 0) && inY(0.1, 0.9) && !p.used.includes(t.id)) { p.vy = JUMP; p.grounded = false; p.coyote = 0; p.jumpBuffer = 0; p.used = [...p.used, t.id]; } break;
       case 'c': if (inY(0, 1) && !p.coins.includes(t.id)) p.coins = [...p.coins, t.id]; break;
       case 'S': case 'C': case 'B': case 'W': {
         const to = PORTAL_MODE[t.type];
@@ -434,6 +440,9 @@ const ITEMS = {
     { name: 'Circuit', coins: 2, body: '#0f3b2e', inner: '#3dffb0', look: 'circuit' },
     { name: 'Moon', stars: 1, body: '#1a2a6c', inner: '#fff3a8', look: 'moon' },
     { name: 'Cat', secret: 'jumps', body: '#ff9a3c', inner: '#3b1d00', look: 'cat' },
+    { name: 'Prism', level: 2, body: '#6e44ff', inner: '#b6ffff', look: 'prism' },
+    { name: 'Jelly', level: 4, body: '#ff62c0', inner: '#fff0a6', look: 'jelly' },
+    { name: 'Orbit', level: 6, body: '#14223d', inner: '#6bffda', look: 'orbit' },
   ],
   ship: [
     { name: 'Rocket', free: true, body: '#ff4fd8', inner: '#ffd400', look: 'rocket' },
@@ -446,6 +455,8 @@ const ITEMS = {
     { name: 'Bat', level: 6, body: '#3a2552', inner: '#ff3b6b', look: 'bat' },
     { name: 'Saucer', stars: 2, body: '#7dff3a', inner: '#a8f0ff', look: 'saucer' },
     { name: 'Duck', secret: 'konami', body: '#ffd84a', inner: '#ff8a1f', look: 'duck' },
+    { name: 'Manta', level: 3, body: '#3752d8', inner: '#9afaff', look: 'manta' },
+    { name: 'Mech', level: 5, body: '#5c687c', inner: '#ffcf4a', look: 'mech' },
   ],
   ball: [
     { name: 'Wheel', free: true, body: '#ffd400', inner: '#00e5ff', look: 'spokes' },
@@ -456,6 +467,8 @@ const ITEMS = {
     { name: 'Swirl', coins: 1, body: '#b84dff', inner: '#ffe14d', look: 'swirl' },
     { name: 'Ladybug', stars: 1, body: '#ff2b2b', inner: '#111111', look: 'ladybug' },
     { name: 'Lava', level: 7, body: '#3a0a00', inner: '#ff6a00', look: 'lava' },
+    { name: 'Gyro', level: 2, body: '#ff4f8b', inner: '#a8fff0', look: 'gyro' },
+    { name: 'Eclipse', level: 6, body: '#18132e', inner: '#ffcc5c', look: 'eclipse' },
   ],
   wave: [
     { name: 'Dart', free: true, body: '#00e5ff', inner: '#ffd400', look: 'dart' },
@@ -466,6 +479,8 @@ const ITEMS = {
     { name: 'Blade', stars: 1, body: '#9aa7b8', inner: '#2b6bff', look: 'blade' },
     { name: 'Crystal', stars: 2, body: '#8fe8ff', inner: '#ffffff', look: 'crystal' },
     { name: 'Neon', coins: 1, body: '#111111', inner: '#39ff14', look: 'neon' },
+    { name: 'Phoenix', level: 4, body: '#ff633d', inner: '#ffe36e', look: 'phoenix' },
+    { name: 'Spiral', level: 7, body: '#7a42ff', inner: '#d5faff', look: 'spiral' },
   ],
   trail: [
     { name: 'None', free: true },
@@ -476,6 +491,8 @@ const ITEMS = {
     { name: 'Bubbles', stars: 1 },
     { name: 'Pixels', coins: 1 },
     { name: 'Echo', stars: 2 },
+    { name: 'Stardust', level: 3 },
+    { name: 'Emberline', level: 6 },
   ],
   death: [
     { name: 'Burst', free: true },
@@ -488,6 +505,8 @@ const ITEMS = {
     { name: 'Fireworks', level: 4 },
     { name: 'Lightning', stars: 2 },
     { name: 'Spirit', secret: 'close' },
+    { name: 'Nova', level: 5 },
+    { name: 'Void', level: 7 },
   ],
 };
 const KINDS = ['cube', 'ship', 'ball', 'wave', 'trail', 'death'];
@@ -569,13 +588,13 @@ function buyOrEquip(kind, i) {
 }
 
 // ---- Game state ----
-let state = 'menu', selected = 0, level = LEVELS[0], player = newPlayer(), stateTime = 0, attempts = 1, holding = false;
+let state = 'menu', selected = 0, level = LEVELS[0], player = newPlayer(), stateTime = 0, attempts = 1, holding = false, jumpPressed = false, activePointerId = null;
 let particles = [], history = [], winNote = '', shopTab = 0, shopPick = 0, titleClicks = 0, typed = '', keys = [];
 let visRot = 0, shake = 0, ceilAnim = 0, menuScroll = 0, mouse = { x: -1, y: -1 }, cursorHot = false, drag = null;
 
 function startLevel(i) {
   selected = i; level = LEVELS[i]; player = newPlayer(); attempts = 1; particles = []; history = [];
-  visRot = 0; shake = 0; ceilAnim = 0; state = 'play'; stateTime = 0; holding = false; was = { x: 0, y: 0, rot: 0 };
+  visRot = 0; shake = 0; ceilAnim = 0; state = 'play'; stateTime = 0; holding = false; jumpPressed = false; activePointerId = null; was = { x: 0, y: 0, rot: 0 };
   playSong(SONGS[i % SONGS.length]);
 }
 function respawn() { player = newPlayer(); visRot = 0; state = 'play'; attempts++; history = []; playSong(SONGS[selected % SONGS.length]); }
@@ -790,6 +809,14 @@ function deathEffect(list, x, y, name, color) {
       emit(list, { x, y, vy: 2.4, life: 1.4, size: 30, shape: 'spirit', color: 'rgba(255,255,255,0.92)' });
       spray(list, 10, x, y, 4, { shape: 'sparkle', color: '#ffffff', size: 9, add: true });
       break;
+    case 'Nova':
+      emit(list, { x, y, ring: 9, life: 0.45, color: '#fff1a0', add: true });
+      spray(list, 36, x, y, 13, () => ({ color: ['#fff1a0', '#ff8c42', '#ff52a2'][Math.floor(Math.random() * 3)], shape: 'star', size: 7 + Math.random() * 5, add: true, shrink: true }));
+      break;
+    case 'Void':
+      emit(list, { x, y, ring: -3, life: 0.7, color: '#bb8cff', add: true });
+      for (let i = 0; i < 28; i++) emit(list, { orbit: { x, y, r: 1 + Math.random() * 2, a: Math.random() * TAU, spin: -7 }, life: 0.6, size: 6, color: i % 4 ? '#9e6bff' : '#ffffff', add: true, shrink: true });
+      break;
   }
 }
 
@@ -801,6 +828,8 @@ function emitTrail(list, x, y, name, color) {
     case 'Fire': emit(list, { x: x - 0.35, y: y + (r() - 0.5) * 0.5, vx: -2 - r() * 2, vy: 1 + r() * 2, life: 0.3 + r() * 0.15, size: 12 + r() * 6, shape: 'blob', color: r() < 0.5 ? '#ff9a1f' : '#ff4a1f', add: true, shrink: true }); break;
     case 'Bubbles': if (r() < 0.2) emit(list, { x: x - 0.3, y: y + (r() - 0.5) * 0.6, vx: -1.5, vy: 1 + r(), life: 0.9, size: 6 + r() * 8, shape: 'circle', color: 'rgba(170,230,255,0.9)' }); break;
     case 'Pixels': if (r() < 0.5) emit(list, { x: x - 0.4, y: y + (r() - 0.5) * 0.7, vx: -2 - r() * 2, vy: r() * 2, g: -14, life: 0.6, size: 5, color: r() < 0.5 ? color : '#ffffff' }); break;
+    case 'Stardust': if (r() < 0.65) emit(list, { x: x - 0.35, y: y + (r() - 0.5) * 0.7, vx: -1.5 - r() * 2, vy: (r() - 0.5) * 2, life: 0.7, size: 6 + r() * 6, shape: 'star', color: r() < 0.6 ? '#fff2a8' : '#ffffff', add: true, shrink: true }); break;
+    case 'Emberline': emit(list, { x: x - 0.3, y: y + (r() - 0.5) * 0.5, vx: -2 - r() * 2, vy: 0.7 + r() * 2, g: -4, life: 0.45, size: 8 + r() * 7, shape: 'sparkle', color: r() < 0.5 ? '#ff8c42' : '#ffe36e', add: true, shrink: true }); break;
   }
 }
 function drawTrail(hist, name, toX, toY, scale, time, drawIcon) {
@@ -1082,6 +1111,28 @@ const LOOKS = {
     for (const s of [-1, 1]) for (const d of [-1.5, 1.5]) { ctx.moveTo(s * 10, 5 + d); ctx.lineTo(s * 18, 4 + d * 2); } // whiskers
     ctx.stroke(); ctx.lineCap = 'butt';
   },
+  prism(body, inner) {
+    poly([[0, -17], [14, -8], [11, 10], [0, 18], [-13, 9], [-15, -8]], inner, 2);
+    poly([[0, -17], [0, 1], [14, -8]], 'rgba(255,255,255,0.55)', 0);
+    poly([[0, 1], [0, 18], [-13, 9]], alpha(solid(body), 0.65), 0);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(0, 18); ctx.moveTo(-15, -8); ctx.lineTo(14, -8); ctx.stroke();
+  },
+  jelly(body, inner, t) {
+    const pulse = Math.sin(t * 6), wobble = Math.sin(t * 9) * 2;
+    ctx.save(); ctx.scale(1 + pulse * 0.045, 1 - pulse * 0.045);
+    ctx.beginPath(); ctx.moveTo(-17, 12); ctx.quadraticCurveTo(-24 + wobble, -5, -10, -16); ctx.quadraticCurveTo(0, -23 + wobble, 11, -15); ctx.quadraticCurveTo(23 - wobble, -4, 17, 12); ctx.quadraticCurveTo(8, 21, 0, 15); ctx.quadraticCurveTo(-9, 22, -17, 12);
+    ctx.strokeStyle = inner; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.ellipse(-6, -7, 4, 2, -0.4, 0, TAU); ctx.fill();
+    ctx.restore();
+  },
+  orbit(body, inner, t) {
+    for (let i = 0; i < 3; i++) {
+      ctx.save(); ctx.rotate(t * (i % 2 ? -0.8 : 0.8) + i * TAU / 3);
+      ctx.strokeStyle = alpha(solid(inner), 0.85); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(0, 0, 19, 7, 0, 0, TAU); ctx.stroke();
+      ctx.fillStyle = i ? body : '#fff'; ctx.beginPath(); ctx.arc(19, 0, 3.5, 0, TAU); ctx.fill(); ctx.restore();
+    }
+    ctx.beginPath(); ctx.arc(0, 0, 5, 0, TAU); ctx.fillStyle = inner; ctx.fill();
+  },
 };
 
 function drawCube(cx, cy, rot, s, size = T, glow = false) {
@@ -1090,13 +1141,27 @@ function drawCube(cx, cy, rot, s, size = T, glow = false) {
   if (glow) { ctx.shadowColor = alpha(solid(body), 0.75); ctx.shadowBlur = 16; }
   const g = ctx.createLinearGradient(-h, -h, h, h);
   g.addColorStop(0, shade(body, 0.35)); g.addColorStop(0.55, body); g.addColorStop(1, shade(body, -0.35));
-  ctx.fillStyle = g; ctx.fillRect(-h, -h, T, T);
+  const t = performance.now() / 1000, custom = ['prism', 'jelly', 'orbit'].includes(s.look);
+  ctx.fillStyle = g;
+  if (s.look === 'prism') poly([[0, -h], [h, -h * 0.48], [h * 0.76, h * 0.55], [0, h], [-h * 0.76, h * 0.55], [-h, -h * 0.48]], g, 3);
+  else if (s.look === 'jelly') {
+    const wobble = Math.sin(t * 9) * 2;
+    ctx.beginPath(); ctx.moveTo(-h * 0.72, h * 0.75); ctx.quadraticCurveTo(-h - wobble, 0, -h * 0.5, -h * 0.78); ctx.quadraticCurveTo(0, -h - wobble, h * 0.68, -h * 0.72); ctx.quadraticCurveTo(h + wobble, 0, h * 0.72, h * 0.72); ctx.quadraticCurveTo(0, h + wobble, -h * 0.72, h * 0.75); ctx.fill();
+  } else if (s.look === 'orbit') poly([[0, -h], [h * 0.7, -h * 0.7], [h, 0], [h * 0.7, h * 0.7], [0, h], [-h * 0.7, h * 0.7], [-h, 0], [-h * 0.7, -h * 0.7]], g, 3);
+  else ctx.fillRect(-h, -h, T, T);
   ctx.shadowBlur = 0;
-  LOOKS[s.look](body, s.inner, performance.now() / 1000);
+  LOOKS[s.look](body, s.inner, t);
   ctx.lineWidth = 2; // bevel: lit top-left edge, shaded bottom-right edge
   ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.beginPath(); ctx.moveTo(-h + 4.5, h - 7); ctx.lineTo(-h + 4.5, -h + 4.5); ctx.lineTo(h - 7, -h + 4.5); ctx.stroke();
   ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.moveTo(h - 4.5, -h + 7); ctx.lineTo(h - 4.5, h - 4.5); ctx.lineTo(-h + 7, h - 4.5); ctx.stroke();
-  ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(-h + 1.5, -h + 1.5, T - 3, T - 3);
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+  if (custom) {
+    ctx.beginPath();
+    if (s.look === 'prism') { ctx.moveTo(0, -h); ctx.lineTo(h, -h * 0.48); ctx.lineTo(h * 0.76, h * 0.55); ctx.lineTo(0, h); ctx.lineTo(-h * 0.76, h * 0.55); ctx.lineTo(-h, -h * 0.48); }
+    else if (s.look === 'orbit') { ctx.moveTo(0, -h); ctx.lineTo(h * 0.7, -h * 0.7); ctx.lineTo(h, 0); ctx.lineTo(h * 0.7, h * 0.7); ctx.lineTo(0, h); ctx.lineTo(-h * 0.7, h * 0.7); ctx.lineTo(-h, 0); ctx.lineTo(-h * 0.7, -h * 0.7); }
+    else { const wobble = Math.sin(t * 9) * 2; ctx.moveTo(-h * 0.72, h * 0.75); ctx.quadraticCurveTo(-h - wobble, 0, -h * 0.5, -h * 0.78); ctx.quadraticCurveTo(0, -h - wobble, h * 0.68, -h * 0.72); ctx.quadraticCurveTo(h + wobble, 0, h * 0.72, h * 0.72); ctx.quadraticCurveTo(0, h + wobble, -h * 0.72, h * 0.75); }
+    ctx.closePath(); ctx.stroke();
+  } else ctx.strokeRect(-h + 1.5, -h + 1.5, T - 3, T - 3);
   ctx.restore();
 }
 
@@ -1174,8 +1239,27 @@ const SHIPS = {
     ctx.beginPath(); ctx.ellipse(0, 0, 9, 4.5, 0, 0, TAU); ctx.fillStyle = shade(body, -0.15); ctx.fill(); ctx.lineWidth = 2; ctx.stroke();
     ctx.restore();
   },
+  manta(body, inner, t) {
+    const flap = Math.sin(t * 7) * 5;
+    poly([[-24, 4], [-13, -4], [-3, -3], [8, -5], [27, 4], [10, 13], [-12, 12]], vgrad(-5, 13, shade(body, 0.35), body, shade(body, -0.35)), 3);
+    ctx.shadowBlur = 0;
+    poly([[-8, 3], [-21, -13 + flap], [-7, -7], [1, -2]], shade(body, 0.1), 2.5);
+    poly([[-7, 7], [-20, 18 - flap], [-5, 12], [2, 8]], shade(body, -0.2), 2.5);
+    poly([[4, 3], [18, -8 - flap * 0.5], [12, 2], [7, 7]], shade(body, 0.15), 2);
+    ctx.strokeStyle = inner; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-12, 5); ctx.quadraticCurveTo(2, 0, 20, 5); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(16, 1, 1.5, 0, TAU); ctx.fill();
+  },
+  mech(body, inner, t) {
+    poly([[-25, -4], [-15, -11], [12, -11], [26, 2], [18, 12], [-21, 12]], vgrad(-11, 12, shade(body, 0.4), body, shade(body, -0.4)), 3);
+    ctx.shadowBlur = 0;
+    poly([[-13, -9], [-18, -18], [-8, -11], [-4, -12], [0, -18], [6, -11]], shade(body, -0.2), 2.5);
+    box(-12, -5, 22, 5, '#121827', 2);
+    ctx.fillStyle = inner; ctx.shadowColor = inner; ctx.shadowBlur = 8; ctx.fillRect(0, -4, 7, 3); ctx.shadowBlur = 0;
+    for (const x of [-18, -8, 2, 12]) box(x, 7, 3, 3, inner, 1);
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(8, -8); ctx.lineTo(20, 1); ctx.stroke();
+  },
 };
-const PILOT = { jet: [-3, -6, 16], bat: [-2, -8, 18], saucer: [-3, -4, 15], duck: [-6, -7, 17] }; // where a hull seats the cube
+const PILOT = { jet: [-3, -6, 16], bat: [-2, -8, 18], saucer: [-3, -4, 15], duck: [-6, -7, 17], manta: [-3, -8, 15], mech: [-3, -6, 16] }; // where a hull seats the cube
 
 function drawShip(cx, cy, rot, s, size = T, glow = false) {
   const body = s.body, [px, py, ps] = PILOT[s.look] || [-3, -9, 20];
@@ -1250,6 +1334,20 @@ const BALLS = {
       ctx.beginPath(); pts.forEach(([x, y], i) => ctx[i ? 'lineTo' : 'moveTo'](x, y)); ctx.stroke();
     }
     ctx.shadowBlur = 0;
+  },
+  gyro(body, inner, t) {
+    ctx.save(); ctx.rotate(t * 1.7);
+    ctx.strokeStyle = inner; ctx.lineWidth = 3;
+    for (const r of [7, 13, 18]) { ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.43, 0, 0, TAU); ctx.stroke(); }
+    ctx.fillStyle = '#fff'; for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; ctx.beginPath(); ctx.arc(Math.cos(a) * 16, Math.sin(a) * 7, 2.4, 0, TAU); ctx.fill(); }
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(0, 0, 4, 0, TAU); ctx.fillStyle = body; ctx.fill();
+  },
+  eclipse(body, inner, t) {
+    ctx.beginPath(); ctx.arc(0, 0, 12, 0, TAU); ctx.fillStyle = shade(body, -0.35); ctx.fill();
+    ctx.strokeStyle = inner; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, 0, 24, 7, Math.sin(t) * 0.2, 0, TAU); ctx.stroke();
+    ctx.save(); ctx.rotate(t * 1.4); sparkle(0, -14, 4, '#fff5cf'); ctx.restore();
+    ctx.beginPath(); ctx.arc(-4, -5, 2, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill();
   },
 };
 function ballPath(look) {
@@ -1344,6 +1442,19 @@ const WAVES = {
     ctx.shadowBlur = 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
     ctx.strokeStyle = inner; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4, 0); ctx.stroke();
   },
+  phoenix(body, inner, t) {
+    const flap = Math.sin(t * 12) * 4;
+    poly([[18, 0], [5, -5], [-4, -16 - flap], [-9, -5], [-19, -11], [-13, 0], [-19, 11], [-9, 5], [-4, 16 + flap], [5, 5]], vgrad(-16, 16, '#fff0a0', body, shade(body, -0.3)), 2.5);
+    ctx.shadowBlur = 0; poly([[16, 0], [-3, -3], [-11, 0], [-3, 3]], inner, 0);
+    for (let i = 0; i < 3; i++) sparkle(-12 - i * 4, Math.sin(t * 10 + i) * 3, 2.5 - i * 0.4, '#fff1b0');
+  },
+  spiral(body, inner, t) {
+    ctx.beginPath();
+    for (let i = 0; i <= 40; i++) { const a = i / 40 * TAU * 1.5 + t * 1.5, r = 2 + i / 40 * 16; const x = Math.cos(a) * r, y = Math.sin(a) * r * 0.72; if (!i) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.strokeStyle = body; ctx.lineWidth = 6; ctx.stroke(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, TAU); ctx.fillStyle = inner; ctx.fill();
+    ctx.fillStyle = inner; ctx.beginPath(); ctx.arc(Math.cos(t * 1.5) * 18, Math.sin(t * 1.5) * 13, 3, 0, TAU); ctx.fill();
+  },
 };
 function drawWave(cx, cy, rot, s, size = T, glow = false) {
   const body = bodyColor(s);
@@ -1394,6 +1505,10 @@ function drawTrailIcon(name, cx, cy) {
       break;
     case 'Pixels': for (const [x, y, c] of [[-15, 5, '#ffd400'], [-8, -5, '#fff'], [-1, 7, '#ffd400'], [5, -3, '#fff'], [11, 8, '#ffd400'], [15, -10, '#fff']]) box(x - 3, y - 3, 6, 6, c, 1.5); break;
     case 'Echo': [0.25, 0.5, 1].forEach((a, i) => { ctx.globalAlpha = base * a; box(-18 + i * 9, -7, 14, 14, '#ffd400', 2); }); break;
+    case 'Stardust': for (const [x, y] of [[-14, 8], [-4, -9], [8, 4], [16, -10]]) sparkle(x, y, 4.5, '#fff2a8'); break;
+    case 'Emberline':
+      ctx.strokeStyle = '#ff9a42'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-20, 4); ctx.bezierCurveTo(-10, -12, 4, 14, 20, -4); ctx.stroke();
+      for (const [x, y] of [[-12, -4], [0, 5], [12, -1]]) sparkle(x, y, 3, '#fff1a0'); break;
   }
   ctx.restore();
 }
@@ -1449,6 +1564,13 @@ function drawDeathIcon(name, cx, cy) {
       poly([[4, -18], [-8, 1], [0, 1], [-5, 18], [9, -4], [1, -4]], '#e6f6ff', 2);
       break;
     case 'Spirit': drawSpirit(0, 2, 34, '#ffffff'); break;
+    case 'Nova':
+      for (let i = 0; i < 12; i++) { const a = i * TAU / 12; ctx.strokeStyle = i % 2 ? '#ff8c42' : '#fff1a0'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 5, Math.sin(a) * 5); ctx.lineTo(Math.cos(a) * 19, Math.sin(a) * 19); ctx.stroke(); }
+      sparkle(0, 0, 7, '#fff'); break;
+    case 'Void':
+      ctx.strokeStyle = '#bb8cff'; ctx.lineWidth = 3; ctx.beginPath();
+      for (let i = 0; i <= 40; i++) { const a = i / 40 * TAU * 1.4, r = 2 + i / 40 * 17; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      ctx.stroke(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 3, 0, TAU); ctx.fill(); break;
   }
   ctx.restore();
 }
@@ -1820,6 +1942,7 @@ const TITLE_BOX = { x: W / 2 - 260, y: 38, w: 520, h: 80 };
 const PAUSE_BTNS = [['restart', W / 2 - 130, 32], ['resume', W / 2, 44], ['levels', W / 2 + 130, 32]].map(([id, x, r]) => ({ id, x: x - r, y: 184 - r, w: 2 * r, h: 2 * r }));
 const pauseBtn = () => ({ x: W + VIEW.x - 52, y: 6 - VIEW.y, w: 44, h: 40 }); // in the screen's top-right corner, like GD
 const GRID_X = 77, GRID_W = 806, GAP = 8, COLS = 8, BOX_W = (GRID_W - (COLS - 1) * GAP) / COLS, BOX_H = 94, TAB_W = (GRID_W - 5 * GAP) / 6;
+const SHOP_PAGE_SIZE = COLS * 2;
 const tabPos = i => ({ x: GRID_X + i * (TAB_W + GAP), y: 60, w: TAB_W, h: 40 });
 const boxPos = i => ({ x: GRID_X + (i % COLS) * (BOX_W + GAP), y: 110 + Math.floor(i / COLS) * (BOX_H + GAP), w: BOX_W, h: BOX_H });
 const STAGE = { x: GRID_X, y: 316, w: GRID_W, h: 124 };
@@ -2043,8 +2166,9 @@ function drawShop(time) {
   });
 
   const kind = KINDS[shopTab];
-  ITEMS[kind].forEach((it, i) => {
-    const b = boxPos(i), open = unlocked(kind, i), on = save.equipped[kind] === i, sel = i === shopPick, hot = hovered(b);
+  const pageStart = Math.floor(shopPick / SHOP_PAGE_SIZE) * SHOP_PAGE_SIZE;
+  ITEMS[kind].slice(pageStart, pageStart + SHOP_PAGE_SIZE).forEach((it, slot) => {
+    const i = pageStart + slot, b = boxPos(slot), open = unlocked(kind, i), on = save.equipped[kind] === i, sel = i === shopPick, hot = hovered(b);
     const cx = b.x + b.w / 2, cy = b.y + 36 + (sel ? Math.sin(time * 4) * 3 : 0);
     ctx.save();
     if (sel) { ctx.shadowColor = '#ffd400'; ctx.shadowBlur = 18; }
@@ -2053,6 +2177,7 @@ function drawShop(time) {
     ctx.fill();
     ctx.restore();
     rr(b.x, b.y, b.w, b.h, 12); ctx.strokeStyle = sel ? '#ffd400' : on ? '#6dff5a' : 'rgba(255,255,255,0.25)'; ctx.lineWidth = sel ? 3.5 : 2; ctx.stroke();
+    ctx.fillStyle = on ? '#6dff5a' : sel ? '#ffd400' : 'rgba(255,255,255,0.35)'; ctx.fillRect(b.x + 9, b.y + 5, b.w - 18, 2);
     ctx.globalAlpha = open ? 1 : 0.35;
     if (kind === 'trail') drawTrailIcon(it.name, cx, cy);
     else if (kind === 'death') drawDeathIcon(it.name, cx, cy);
@@ -2065,6 +2190,8 @@ function drawShop(time) {
     else if (open) ui('Equip', cx, b.y + 88, 11, 'rgba(255,255,255,0.75)');
     else drawCost(it, cx, b.y + 88);
   });
+  const pages = Math.ceil(ITEMS[kind].length / SHOP_PAGE_SIZE);
+  if (pages > 1) ui(`Page ${Math.floor(pageStart / SHOP_PAGE_SIZE) + 1}/${pages}  ·  ← → to browse`, GRID_X + GRID_W - 10, 307, 12, '#ffd400', 'right');
   drawStage(time);
   ui(describe(kind, shopPick), W / 2, 466, 14, '#fff');
 }
@@ -2154,7 +2281,8 @@ function frame(now) {
     was = { x: player.x, y: player.y, rot: visRot, mode: player.mode }; // frames drawn before the next step blend from here
     if (state === 'play') {
       const prev = { grounded: player.grounded, vy: player.vy, mode: player.mode, grav: player.grav, used: player.used.length, coins: player.coins.length };
-      const r = step(player, holding, level);
+      const r = step(player, holding, level, jumpPressed);
+      jumpPressed = false;
       if (!r) playEffects(prev);
       if (r === 'dead') die();
       if (r === 'win') finishLevel();
@@ -2188,7 +2316,7 @@ function press() {
   else if (state === 'levels') startLevel(selected);
   else if (state === 'shop') buyOrEquip(KINDS[shopTab], shopPick);
   else if (state === 'win') { if (stateTime > 0.5) go('levels'); }
-  else if (state === 'play' || state === 'dead') holding = true;
+  else if (state === 'play' || state === 'dead') { holding = true; jumpPressed = true; }
 }
 function pauseAction(id) {
   if (id === 'resume') { state = 'play'; sfx('click'); }
@@ -2197,7 +2325,7 @@ function pauseAction(id) {
 }
 function shopSelect(tab, i) { shopTab = tab; shopPick = Math.max(0, Math.min(ITEMS[KINDS[tab]].length - 1, i)); stageClock = 0; stageParticles = []; }
 function openShop() { go('shop'); shopSelect(shopTab, shopPick); }
-const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW', 'Enter'];
+const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
 addEventListener('keydown', e => {
   audio(); // the first key press is allowed to start the sound
   keys = [...keys, e.code].slice(-KONAMI.length);
@@ -2232,6 +2360,7 @@ addEventListener('keydown', e => {
       return;
     }
   }
+  if (e.code === 'Enter') { e.preventDefault(); if (!e.repeat && state !== 'play' && state !== 'dead') press(); return; }
   if (JUMP_KEYS.includes(e.code)) { e.preventDefault(); if (!e.repeat) press(); }
 });
 addEventListener('keyup', e => { if (JUMP_KEYS.includes(e.code)) holding = false; });
@@ -2239,6 +2368,9 @@ function toCanvas(e) { const r = canvas.getBoundingClientRect(); return { x: (e.
 canvas.addEventListener('pointermove', e => { mouse = toCanvas(e); if (drag) setSlider(mouse.x); });
 canvas.addEventListener('pointerleave', () => { mouse = { x: -1, y: -1 }; });
 canvas.addEventListener('pointerdown', e => {
+  if (!e.isPrimary || e.button !== 0 || activePointerId !== null) return;
+  activePointerId = e.pointerId;
+  canvas.setPointerCapture?.(e.pointerId);
   audio(); // the first tap is allowed to start the sound
   const { x: mx, y: my } = mouse = toCanvas(e), hit = b => inBox(b, mx, my);
   if (state === 'menu') {
@@ -2260,18 +2392,25 @@ canvas.addEventListener('pointerdown', e => {
   if (state === 'shop') {
     if (hit(BACK_BTN)) return go('menu');
     KINDS.forEach((k, i) => { if (hit(tabPos(i))) { shopSelect(i, save.equipped[k]); sfx('click'); } });
-    ITEMS[KINDS[shopTab]].forEach((_, i) => { if (hit(boxPos(i))) { shopSelect(shopTab, i); buyOrEquip(KINDS[shopTab], i); } });
+    const kind = KINDS[shopTab], start = Math.floor(shopPick / SHOP_PAGE_SIZE) * SHOP_PAGE_SIZE;
+    ITEMS[kind].slice(start, start + SHOP_PAGE_SIZE).forEach((_, slot) => { const i = start + slot; if (hit(boxPos(slot))) { shopSelect(shopTab, i); buyOrEquip(kind, i); } });
     return;
   }
   if ((state === 'play' || state === 'dead') && hit(pauseBtn())) return pause();
   press();
 });
-addEventListener('pointerup', () => { audio(); holding = false; if (drag) { drag = null; persist(); sfx('click'); } }); // a tap only counts as a user action when it lifts, so touch screens start the sound here
+addEventListener('pointerup', e => {
+  if (e.pointerId !== activePointerId) return;
+  audio(); holding = false; activePointerId = null;
+  if (drag) { drag = null; persist(); sfx('click'); }
+}); // a tap only counts as a user action when it lifts, so touch screens start the sound here
+addEventListener('pointercancel', e => { if (e.pointerId === activePointerId) { holding = false; jumpPressed = false; activePointerId = null; drag = null; } });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('click', e => { // browsers only allow full screen from a click
   const y = { settings: 100, pause: 266 }[state], m = toCanvas(e), t = y && settingsLayout(y).toggles.find(t => t.key === 'fullscreen');
   if (t && inBox(t, m.x, m.y)) document.fullscreenElement ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.().catch(() => {});
 });
-addEventListener('blur', () => { holding = false; pause(); }); // switching away pauses the level, like GD
+addEventListener('blur', () => { holding = false; jumpPressed = false; activePointerId = null; pause(); }); // switching away pauses the level, like GD
 </script>
 </body>
 </html>

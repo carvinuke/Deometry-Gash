@@ -21,9 +21,12 @@ for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'A
 await page.keyboard.press('Escape');
 const v = await page.evaluate(() => VIEW); // layout point (480, 80) is the title
 for (let i = 0; i < 7; i++) await page.mouse.click((480 + v.x) * v.s, (80 + v.y) * v.s);
-// The 1000th jump is a real one.
-await page.evaluate(() => { startLevel(0); save.jumps = 999; });
-await page.keyboard.down('Space'); await page.waitForTimeout(200); await page.keyboard.up('Space');
+// The 1000th jump uses the same physics step as play, without depending on a live display refresh.
+await page.evaluate(() => {
+  startLevel(0); save.jumps = 999;
+  const prev = { grounded: player.grounded, vy: player.vy, mode: player.mode, grav: player.grav, used: player.used.length, coins: player.coins.length };
+  step(player, true, level, true); playEffects(prev);
+});
 await page.keyboard.press('Escape');
 
 const after = await page.evaluate(() => {

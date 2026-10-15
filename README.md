@@ -22,7 +22,7 @@ A tiny Geometry Dash–style game in a single HTML file. No install, no build.
 - **Jump pads** (yellow pads) launch you high. **Jump orbs** (yellow rings) let you jump again mid-air if you press while touching one.
 - **Portals** change how you move: **ship** (pink), **ball** (orange), **wave** (blue), and **cube** (green) to turn back.
 - **Secret coins**: 2 or 3 hidden in every level. They count once you finish the level with them.
-- **Shop** with 16 cubes, 10 ships, 8 balls, 8 waves, 8 trails and 10 death effects. Each one unlocks by:
+- **Shop** with 19 cubes, 12 ships, 10 balls, 10 waves, 10 trails and 12 death effects. Browse the pages with the arrow keys. New shape skins animate while keeping the same gameplay hitbox. Each item unlocks by:
   - beating a certain level,
   - spending ★ stars (earned by beating levels) or ◉ coins,
   - or finding one of 6 secrets. No spoilers.
