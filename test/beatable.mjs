@@ -15,10 +15,10 @@ await page.waitForTimeout(300);
 
 const results = await page.evaluate(() => LEVELS.flatMap(lvl => [false, true].map(allCoins => {
   const idle = newPlayer(); let idleResult;
-  for (let i = 0; i < 100000 && !idleResult; i++) idleResult = step(idle, false, lvl);
+  for (let i = 0; i < 100000 && !idleResult; i++) idleResult = step(idle, false, lvl, false);
 
-  // DFS over hold / release, branching only on frames where the choice changes the outcome.
-  // The memo key is coarse, so it can miss a solution but never invents one.
+  // This reachability search is a coarse screen, not a difficulty or timing proof.
+  // Dedicated runway-margin checks below cover the timing gap that this search missed.
   const seen = new Set(); let furthest = 0;
   const coins = lvl.tiles.filter(t => t.type === 'c').length;
   const won = (r, q) => r === 'win' && (!allCoins || q.coins.length === coins);
@@ -60,8 +60,28 @@ const orbLaunches = await page.evaluate(() => {
     step(p, true, lvl, false); // staying inside the orb cannot retrigger it
     return { first, second: p.vy, used: p.used.length };
   };
-  return { standard: launch('o'), boost: launch('b'), standardValue: JUMP, boostValue: BOOST_ORB_JUMP };
+  return { standard: launch('o'), boost: launch('b'), standardValue: JUMP, boostValue: BOOST_ORB_JUMP, redPad: RED_PAD, yellowPad: PAD };
 });
+// Red pads must clear their whole grounded spike runway with timing margin at every
+// frame phase. This catches levels that are theoretically reachable only on a razor edge.
+const redPadRunways = await page.evaluate(() => LEVELS.flatMap(lvl => lvl.tiles.filter(t => t.type === 'r').map(pad => {
+  let count = 0;
+  while (lvl.tiles.some(t => t.x === pad.x + 1 + count && t.y === 0 && t.type === '^')) count++;
+  const probe = { len: 15, tiles: lvl.tiles.filter(t => t.x >= pad.x && t.x < pad.x + 10).map(t => ({ ...t, x: t.x - pad.x + 3 })) };
+  const phases = [];
+  for (let phase = 0; phase < 1; phase += 1 / 12) {
+    const p = newPlayer(); p.x = 2 + phase; let result = null, launched = false, landing = null;
+    for (let f = 0; f < 180 && !result && p.x < 13; f++) {
+      const previousVy = p.vy;
+      result = step(p, false, probe, false);
+      if (p.vy === RED_PAD && previousVy !== RED_PAD) launched = true;
+      if (launched && p.grounded && landing === null) landing = p.x;
+    }
+    const margin = count && landing !== null ? landing - (3 + count + 0.65) : null;
+    phases.push({ result: result ?? (p.x >= 13 ? 'clear' : 'timeout'), launched, margin });
+  }
+  return { level: lvl.name, count, phases };
+})));
 // On a 144 Hz screen the cube should move the same distance every frame (it used to jump in uneven 60 Hz steps).
 const glide = await page.evaluate(() => {
   requestAnimationFrame = () => 0; // stop the game's own loop and draw frames by hand
@@ -75,6 +95,9 @@ await browser.close();
 console.table(results);
 console.log('frames that clear a triple spike:', tripleSpikeFrames);
 console.log('orb launch velocities:', orbLaunches);
+console.log('red-pad lane results:', redPadRunways.map(r => ({ level: r.level, spikes: r.count,
+  minTiles: r.count ? +Math.min(...r.phases.map(p => p.margin ?? -Infinity)).toFixed(2) : 'n/a',
+  phases: r.phases.filter(p => p.result !== 'clear' || !p.launched).length })));
 if (tripleSpikeFrames < 5) throw new Error('a triple spike should leave at least 5 frames to jump');
 if (orbLaunches.standard.first !== orbLaunches.standardValue || orbLaunches.boost.first !== orbLaunches.boostValue || orbLaunches.boost.second >= orbLaunches.boost.first || orbLaunches.boost.used !== 1) throw new Error('cyan boost orbs should give one controlled stronger launch');
 if (glide > 0.001) throw new Error(`the cube moves unevenly between frames (spread ${glide} tiles)`);
@@ -82,5 +105,11 @@ if (errors.length) throw new Error('page errors: ' + errors.join('; '));
 for (const r of results) {
   if (r.idle !== 'dead') throw new Error(`${r.name}: standing still should die`);
   if (!r.beatable) throw new Error(`${r.name}: not beatable${r.allCoins ? ' with all coins' : ''} (got to x=${r.furthest})`);
+}
+for (const r of redPadRunways) {
+  const minMargin = r.count ? Math.min(...r.phases.map(p => p.margin ?? -Infinity)) : Infinity;
+  if (orbLaunches.redPad <= orbLaunches.yellowPad || orbLaunches.redPad > orbLaunches.yellowPad + 2 || r.count > 4 || minMargin < 0.5 || r.phases.some(p => p.result !== 'clear' || !p.launched)) {
+    throw new Error(`${r.level}: red pad lane needs a playable clearance margin (spikes=${r.count}, min=${minMargin})`);
+  }
 }
 console.log('OK');
