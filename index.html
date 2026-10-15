@@ -444,6 +444,9 @@ const ITEMS = {
     { name: 'Prism', level: 2, body: '#6e44ff', inner: '#b6ffff', look: 'prism' },
     { name: 'Jelly', level: 4, body: '#ff62c0', inner: '#fff0a6', look: 'jelly' },
     { name: 'Orbit', level: 6, body: '#14223d', inner: '#6bffda', look: 'orbit' },
+    { name: 'Aegis', level: 1, body: '#2479ba', inner: '#9ff7ff', look: 'aegis' },
+    { name: 'Bloom', level: 4, body: '#e947aa', inner: '#fff1a8', look: 'bloom' },
+    { name: 'Nova', level: 7, body: '#3931aa', inner: '#ffe78b', look: 'nova' },
   ],
   ship: [
     { name: 'Rocket', free: true, body: '#ff4fd8', inner: '#ffd400', look: 'rocket' },
@@ -1134,7 +1137,72 @@ const LOOKS = {
     }
     ctx.beginPath(); ctx.arc(0, 0, 5, 0, TAU); ctx.fillStyle = inner; ctx.fill();
   },
+  aegis(body, inner) {
+    poly([[0, -15], [10, -11], [8, 2], [0, 14], [-8, 2], [-10, -11]], inner, 1.5);
+    poly([[0, -13], [0, 1], [8, -10]], 'rgba(255,255,255,0.55)', 0);
+    poly([[0, 1], [0, 13], [-7, 2]], alpha(solid(body), 0.7), 0);
+    sparkle(0, -1, 3, '#fff');
+  },
+  bloom(body, inner, t) {
+    ctx.save(); ctx.rotate(t * 0.28);
+    ctx.strokeStyle = alpha(solid(inner), 0.72); ctx.lineWidth = 1.6;
+    for (let i = 0; i < 6; i++) {
+      ctx.save(); ctx.rotate(i * TAU / 6);
+      ctx.beginPath(); ctx.ellipse(0, -9, 3.4, 7, 0, 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(0, 0, 5.5, 0, TAU); ctx.fillStyle = inner; ctx.fill();
+    ctx.beginPath(); ctx.arc(-1.5, -1.5, 1.7, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill();
+  },
+  nova(body, inner, t) {
+    const pulse = 1 + Math.sin(t * 5) * 0.08;
+    ctx.save(); ctx.scale(pulse, pulse);
+    ctx.beginPath(); ctx.arc(0, 0, 7.5, 0, TAU); ctx.fillStyle = inner; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 4; i++) {
+      ctx.save(); ctx.rotate(i * Math.PI / 4);
+      ctx.beginPath(); ctx.moveTo(-13, 0); ctx.lineTo(13, 0); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+    sparkle(-2, -2, 3.5, '#fff'); sparkle(8, -9, 2.5, '#fff9d6');
+  },
 };
+
+function traceCustomCube(look, h, t) {
+  ctx.beginPath();
+  if (look === 'prism') {
+    ctx.moveTo(0, -h); ctx.lineTo(h, -h * 0.48); ctx.lineTo(h * 0.76, h * 0.55); ctx.lineTo(0, h); ctx.lineTo(-h * 0.76, h * 0.55); ctx.lineTo(-h, -h * 0.48);
+  } else if (look === 'jelly') {
+    const wobble = Math.sin(t * 9) * 2;
+    ctx.moveTo(-h * 0.72, h * 0.75); ctx.quadraticCurveTo(-h - wobble, 0, -h * 0.5, -h * 0.78);
+    ctx.quadraticCurveTo(0, -h - wobble, h * 0.68, -h * 0.72); ctx.quadraticCurveTo(h + wobble, 0, h * 0.72, h * 0.72);
+    ctx.quadraticCurveTo(0, h + wobble, -h * 0.72, h * 0.75);
+  } else if (look === 'orbit') {
+    ctx.moveTo(0, -h); ctx.lineTo(h * 0.7, -h * 0.7); ctx.lineTo(h, 0); ctx.lineTo(h * 0.7, h * 0.7);
+    ctx.lineTo(0, h); ctx.lineTo(-h * 0.7, h * 0.7); ctx.lineTo(-h, 0); ctx.lineTo(-h * 0.7, -h * 0.7);
+  } else if (look === 'aegis') {
+    ctx.moveTo(0, -h); ctx.lineTo(h * 0.84, -h * 0.68); ctx.lineTo(h * 0.76, h * 0.16);
+    ctx.quadraticCurveTo(h * 0.53, h * 0.72, 0, h); ctx.quadraticCurveTo(-h * 0.53, h * 0.72, -h * 0.76, h * 0.16);
+    ctx.lineTo(-h * 0.84, -h * 0.68);
+  } else if (look === 'bloom') {
+    ctx.moveTo(0, -h * 0.9); ctx.bezierCurveTo(h * 0.22, -h * 1.08, h * 0.48, -h * 0.9, h * 0.5, -h * 0.62);
+    ctx.bezierCurveTo(h * 1.02, -h * 0.82, h * 1.08, -h * 0.35, h * 0.72, -h * 0.13);
+    ctx.bezierCurveTo(h * 1.08, h * 0.18, h * 0.93, h * 0.65, h * 0.52, h * 0.55);
+    ctx.bezierCurveTo(h * 0.42, h * 1.05, -h * 0.04, h * 1.08, -h * 0.2, h * 0.68);
+    ctx.bezierCurveTo(-h * 0.65, h * 1.02, -h * 1.02, h * 0.65, -h * 0.68, h * 0.34);
+    ctx.bezierCurveTo(-h * 1.05, h * 0.08, -h * 0.92, -h * 0.36, -h * 0.54, -h * 0.46);
+    ctx.bezierCurveTo(-h * 0.57, -h * 0.92, -h * 0.18, -h * 1.06, 0, -h * 0.9);
+  } else if (look === 'nova') {
+    for (let i = 0; i < 16; i++) {
+      const a = -Math.PI / 2 + i * TAU / 16, r = h * (i % 2 ? 0.55 : (i % 4 === 0 ? 1 : 0.82));
+      const x = Math.cos(a) * r, y = Math.sin(a) * r;
+      if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    }
+  }
+  ctx.closePath();
+}
 
 function drawCube(cx, cy, rot, s, size = T, glow = false) {
   const body = bodyColor(s), h = T / 2;
@@ -1142,31 +1210,25 @@ function drawCube(cx, cy, rot, s, size = T, glow = false) {
   if (glow) { ctx.shadowColor = alpha(solid(body), 0.75); ctx.shadowBlur = 16; }
   const g = ctx.createLinearGradient(-h, -h, h, h);
   g.addColorStop(0, shade(body, 0.35)); g.addColorStop(0.55, body); g.addColorStop(1, shade(body, -0.35));
-  const t = performance.now() / 1000, custom = ['prism', 'jelly', 'orbit'].includes(s.look);
+  const t = performance.now() / 1000, custom = ['prism', 'jelly', 'orbit', 'aegis', 'bloom', 'nova'].includes(s.look);
   ctx.fillStyle = g;
-  if (s.look === 'prism') poly([[0, -h], [h, -h * 0.48], [h * 0.76, h * 0.55], [0, h], [-h * 0.76, h * 0.55], [-h, -h * 0.48]], g, 3);
-  else if (s.look === 'jelly') {
-    const wobble = Math.sin(t * 9) * 2;
-    ctx.beginPath(); ctx.moveTo(-h * 0.72, h * 0.75); ctx.quadraticCurveTo(-h - wobble, 0, -h * 0.5, -h * 0.78); ctx.quadraticCurveTo(0, -h - wobble, h * 0.68, -h * 0.72); ctx.quadraticCurveTo(h + wobble, 0, h * 0.72, h * 0.72); ctx.quadraticCurveTo(0, h + wobble, -h * 0.72, h * 0.75); ctx.fill();
-  } else if (s.look === 'orbit') poly([[0, -h], [h * 0.7, -h * 0.7], [h, 0], [h * 0.7, h * 0.7], [0, h], [-h * 0.7, h * 0.7], [-h, 0], [-h * 0.7, -h * 0.7]], g, 3);
+  if (custom) { traceCustomCube(s.look, h, t); ctx.fill(); }
   else ctx.fillRect(-h, -h, T, T);
   ctx.shadowBlur = 0;
   LOOKS[s.look](body, s.inner, t);
-  ctx.lineWidth = 2; // bevel: lit top-left edge, shaded bottom-right edge
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.beginPath(); ctx.moveTo(-h + 4.5, h - 7); ctx.lineTo(-h + 4.5, -h + 4.5); ctx.lineTo(h - 7, -h + 4.5); ctx.stroke();
-  ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.moveTo(h - 4.5, -h + 7); ctx.lineTo(h - 4.5, h - 4.5); ctx.lineTo(-h + 7, h - 4.5); ctx.stroke();
+  if (!custom) {
+    ctx.lineWidth = 2; // bevel: lit top-left edge, shaded bottom-right edge
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.beginPath(); ctx.moveTo(-h + 4.5, h - 7); ctx.lineTo(-h + 4.5, -h + 4.5); ctx.lineTo(h - 7, -h + 4.5); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.moveTo(h - 4.5, -h + 7); ctx.lineTo(h - 4.5, h - 4.5); ctx.lineTo(-h + 7, h - 4.5); ctx.stroke();
+  }
   ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
   if (custom) {
-    ctx.beginPath();
-    if (s.look === 'prism') { ctx.moveTo(0, -h); ctx.lineTo(h, -h * 0.48); ctx.lineTo(h * 0.76, h * 0.55); ctx.lineTo(0, h); ctx.lineTo(-h * 0.76, h * 0.55); ctx.lineTo(-h, -h * 0.48); }
-    else if (s.look === 'orbit') { ctx.moveTo(0, -h); ctx.lineTo(h * 0.7, -h * 0.7); ctx.lineTo(h, 0); ctx.lineTo(h * 0.7, h * 0.7); ctx.lineTo(0, h); ctx.lineTo(-h * 0.7, h * 0.7); ctx.lineTo(-h, 0); ctx.lineTo(-h * 0.7, -h * 0.7); }
-    else { const wobble = Math.sin(t * 9) * 2; ctx.moveTo(-h * 0.72, h * 0.75); ctx.quadraticCurveTo(-h - wobble, 0, -h * 0.5, -h * 0.78); ctx.quadraticCurveTo(0, -h - wobble, h * 0.68, -h * 0.72); ctx.quadraticCurveTo(h + wobble, 0, h * 0.72, h * 0.72); ctx.quadraticCurveTo(0, h + wobble, -h * 0.72, h * 0.75); }
-    ctx.closePath(); ctx.stroke();
+    traceCustomCube(s.look, h, t); ctx.stroke();
   } else ctx.strokeRect(-h + 1.5, -h + 1.5, T - 3, T - 3);
   ctx.restore();
 }
 
-// Ship hulls, drawn around the pilot cube with the exhaust at the back (x -27, y 6.5). The first shape gets the glow.
+// Ship hulls are drawn around their cockpit pilots. The first shape gets the glow; EXHAUST below sets each plume's anchor.
 const SHIPS = {
   rocket(body, inner) {
     poly([[-24, 0], [-8, -4], [12, -4], [24, 7], [10, 13], [-18, 13], [-24, 7]], vgrad(-4, 13, shade(body, 0.4), body, shade(body, -0.35)), 3);
@@ -1260,7 +1322,11 @@ const SHIPS = {
     ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(8, -8); ctx.lineTo(20, 1); ctx.stroke();
   },
 };
-const PILOT = { jet: [-3, -6, 16], bat: [-2, -8, 18], saucer: [-3, -4, 15], duck: [-6, -7, 17], manta: [-3, -8, 15], mech: [-3, -6, 16] }; // where a hull seats the cube
+const PILOT = { jet: [-3, -6, 16], bat: [-2, -8, 18], saucer: [-3, -4, 15], duck: [-6, -7, 17], manta: [-3, -8, 15], mech: [-3, -6, 16] }; // cockpit placement, independent of the collision box
+const EXHAUST = {
+  rocket: [-29, 6.5], jet: [-29, 6.5], shark: [-24, 6], bat: [-20, 6],
+  saucer: [-28, 7.5], duck: [-28, -1], manta: [-24, 7], mech: [-26, 2],
+};
 
 function drawShip(cx, cy, rot, s, size = T, glow = false) {
   const body = s.body, [px, py, ps] = PILOT[s.look] || [-3, -9, 20];
@@ -1271,10 +1337,12 @@ function drawShip(cx, cy, rot, s, size = T, glow = false) {
   ctx.restore();
 }
 
-function drawFlame(cx, cy, rot, strong) {
+function drawFlame(cx, cy, rot, strong, look = 'rocket') {
   ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
-  const L = (strong ? 26 : 14) + Math.random() * 8, bx = -27, by = 6.5;
-  const g = ctx.createLinearGradient(bx, 0, bx - L, 0);
+  const [bx, by] = EXHAUST[look] || EXHAUST.rocket;
+  const t = performance.now() / 1000, flicker = 0.86 + (Math.sin(t * 34) + Math.sin(t * 51 + 1.7)) * 0.07;
+  const L = (strong ? 27 : 15) * flicker;
+  const g = ctx.createLinearGradient(bx, by, bx - L, by);
   g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.3, 'rgba(255,212,0,0.9)');
   g.addColorStop(0.7, 'rgba(255,90,0,0.6)'); g.addColorStop(1, 'rgba(255,60,0,0)');
   ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g;
@@ -1882,7 +1950,7 @@ function drawWorld(time) {
     const cx = q => sx(q.x) + T / 2, cy = q => sy(q.y) - T / 2, trail = [...history.slice(0, -1), me];
     drawTrail(trail, skin('trail').name, cx, cy, 1, time, (q, x, y) => ICON[q.mode](x, y, q.rot, skin(q.mode), T));
     if (me.mode === 'wave') drawWaveTrail(trail, cx, cy, mainColor(skin('wave')));
-    if (me.mode === 'ship' && state === 'play') drawFlame(cx(me), cy(me), me.rot, holding);
+    if (me.mode === 'ship' && state === 'play') drawFlame(cx(me), cy(me), me.rot, holding, skin('ship').look);
     ICON[me.mode](cx(me), cy(me), me.rot, skin(me.mode), T, true);
   }
   for (const [t, x, y] of portals) drawPortal(t, x, y, true, time);
@@ -2262,7 +2330,7 @@ function drawStage(time) {
   if (!dead) {
     drawTrail(hist, L.trail, cx, cy, ST / T, time, (q, x, y) => ICON[q.mode](x, y, q.rot, L.icon, ST));
     if (L.mode === 'wave') drawWaveTrail(hist, cx, cy, mainColor(L.icon), ST / T);
-    if (L.mode === 'ship') { ctx.save(); ctx.translate(cx(me), cy(me)); ctx.scale(ST / T, ST / T); drawFlame(0, 0, me.rot, true); ctx.restore(); }
+    if (L.mode === 'ship') { ctx.save(); ctx.translate(cx(me), cy(me)); ctx.scale(ST / T, ST / T); drawFlame(0, 0, me.rot, true, L.icon.look); ctx.restore(); }
     ICON[L.mode](cx(me), cy(me), me.rot, L.icon, ST, true);
   }
   drawParticles(stageParticles, toX, toY, ST / T);

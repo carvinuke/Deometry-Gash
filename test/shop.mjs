@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
 import assert from 'assert/strict';
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
 const page = await browser.newPage();
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
@@ -14,6 +14,10 @@ await page.reload();
 
 const before = await page.evaluate(() => KINDS.map(k => ITEMS[k].filter((_, i) => unlocked(k, i)).length));
 assert.deepEqual(before, [1, 1, 1, 1, 1, 1], 'only the free items start unlocked');
+const shapedCubes = await page.evaluate(() => ITEMS.cube.filter(it => ['prism', 'jelly', 'orbit', 'aegis', 'bloom', 'nova'].includes(it.look)).map(it => it.look));
+assert.deepEqual(shapedCubes, ['prism', 'jelly', 'orbit', 'aegis', 'bloom', 'nova'], 'all custom silhouettes are listed in the cube shop');
+const exhaustAnchors = await page.evaluate(() => Object.keys(SHIPS).every(look => Array.isArray(EXHAUST[look]) && EXHAUST[look].length === 2));
+assert.equal(exhaustAnchors, true, 'every ship skin has a tailored exhaust anchor');
 
 // Type the secret word (the 's' opens the shop, which still listens), enter the ancient code there, go back, then click the title 7 times.
 await page.keyboard.type('gash');
