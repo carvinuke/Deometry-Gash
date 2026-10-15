@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
 import assert from 'assert/strict';
 
-const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
+const browser = await chromium.launch();
 const page = await browser.newPage();
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
