@@ -75,7 +75,12 @@ function buildLevel(name, difficulty, stars, hue, segs) {
       t.tall = n;
     }
   }
-  return { name, difficulty, stars, hue, tiles, len: rows[0].length, coinTiles: tiles.filter(t => t.type === 'c') };
+  const columns = new Map();
+  for (const t of tiles) {
+    if (!columns.has(t.x)) columns.set(t.x, []);
+    columns.get(t.x).push(t);
+  }
+  return { name, difficulty, stars, hue, tiles, columns, len: rows[0].length, coinTiles: tiles.filter(t => t.type === 'c') };
 }
 
 const LEVELS = [
@@ -359,16 +364,18 @@ const LEVELS = [
   ]),
 ];
 
-function newPlayer() { return { x: 0, y: 0, vy: 0, grounded: true, rot: 0, mode: 'cube', grav: 1, used: [], coins: [] }; }
+function newPlayer() { return { x: 0, y: 0, vy: 0, grounded: true, rot: 0, mode: 'cube', grav: 1, used: [], coins: [], inputHeld: false }; }
 const clamp = (v, m) => Math.max(-m, Math.min(m, v));
 
 // Advances one frame. Returns 'dead', 'win' or null. Only mutates p, so tests can drive it.
 // The cube jumps, the ship flies up while held, the ball flips its gravity and the wave climbs while held.
 // Every mode but the cube has a ceiling and can slide along the underside of blocks.
 function step(p, hold, lvl) {
+  const pressed = hold && !p.inputHeld;
+  p.inputHeld = hold;
   const m = p.mode;
-  if (m === 'cube' && hold && p.grounded) p.vy = JUMP;
-  if (m === 'ball' && hold && p.grounded) { p.grav = -p.grav; p.vy = -p.grav * BALL_KICK; }
+  if (m === 'cube' && pressed && p.grounded) p.vy = JUMP;
+  if (m === 'ball' && pressed) { p.grav = -p.grav; p.vy = -p.grav * BALL_KICK; }
   const prevY = p.y;
   p.x += SPEED * DT;
   if (m === 'ship') p.vy = clamp(p.vy + (hold ? SHIP_UP : -SHIP_DOWN) * DT, SHIP_MAX);
@@ -381,7 +388,15 @@ function step(p, hold, lvl) {
   if (p.y <= 0) { p.y = 0; p.vy = 0; p.grounded = !flipped; }
   if (m !== 'cube' && p.y >= ROWS - 1) { p.y = ROWS - 1; p.vy = 0; p.grounded = flipped; }
 
-  for (const t of lvl.tiles) {
+  let candidates = lvl.tiles;
+  if (lvl.columns) {
+    candidates = [];
+    const first = Math.max(0, Math.floor(p.x));
+    const last = Math.floor(p.x + 1);
+    for (let x = first; x <= last; x++) candidates.push(...(lvl.columns.get(x) || []));
+    candidates.sort((a, b) => a.id - b.id);
+  }
+  for (const t of candidates) {
     if (p.x + 1 <= t.x + 0.001 || p.x >= t.x + 1 - 0.001) continue;
     const inX = (a, b) => p.x + 1 > t.x + a && p.x < t.x + b;
     const inY = (a, b) => p.y < t.y + b && p.y + 1 > t.y + a;
@@ -389,7 +404,7 @@ function step(p, hold, lvl) {
       case '^': if (inX(0.35, 0.65) && inY(0, 0.3)) return 'dead'; break; // a small box at the base, like GD's, so triple spikes are fair
       case 'v': if (inX(0.35, 0.65) && inY(0.7, 1)) return 'dead'; break;
       case 'p': if (p.mode === 'cube' && inX(0.2, 0.8) && inY(0, 0.3)) { p.vy = PAD; p.grounded = false; } break;
-      case 'o': if (p.mode === 'cube' && hold && inY(0.1, 0.9) && !p.used.includes(t.id)) { p.vy = JUMP; p.grounded = false; p.used = [...p.used, t.id]; } break;
+      case 'o': if (p.mode === 'cube' && pressed && inY(0.1, 0.9) && !p.used.includes(t.id)) { p.vy = JUMP; p.grounded = false; p.used = [...p.used, t.id]; } break;
       case 'c': if (inY(0, 1) && !p.coins.includes(t.id)) p.coins = [...p.coins, t.id]; break;
       case 'S': case 'C': case 'B': case 'W': {
         const to = PORTAL_MODE[t.type];
@@ -434,6 +449,7 @@ const ITEMS = {
     { name: 'Circuit', coins: 2, body: '#0f3b2e', inner: '#3dffb0', look: 'circuit' },
     { name: 'Moon', stars: 1, body: '#1a2a6c', inner: '#fff3a8', look: 'moon' },
     { name: 'Cat', secret: 'jumps', body: '#ff9a3c', inner: '#3b1d00', look: 'cat' },
+    { name: 'Prism', level: 7, body: '#673cff', inner: '#8fffff', look: 'circuit' },
   ],
   ship: [
     { name: 'Rocket', free: true, body: '#ff4fd8', inner: '#ffd400', look: 'rocket' },
@@ -446,6 +462,7 @@ const ITEMS = {
     { name: 'Bat', level: 6, body: '#3a2552', inner: '#ff3b6b', look: 'bat' },
     { name: 'Saucer', stars: 2, body: '#7dff3a', inner: '#a8f0ff', look: 'saucer' },
     { name: 'Duck', secret: 'konami', body: '#ffd84a', inner: '#ff8a1f', look: 'duck' },
+    { name: 'Aurora', level: 7, body: '#25e6b8', inner: '#b84dff', look: 'saucer' },
   ],
   ball: [
     { name: 'Wheel', free: true, body: '#ffd400', inner: '#00e5ff', look: 'spokes' },
@@ -456,6 +473,7 @@ const ITEMS = {
     { name: 'Swirl', coins: 1, body: '#b84dff', inner: '#ffe14d', look: 'swirl' },
     { name: 'Ladybug', stars: 1, body: '#ff2b2b', inner: '#111111', look: 'ladybug' },
     { name: 'Lava', level: 7, body: '#3a0a00', inner: '#ff6a00', look: 'lava' },
+    { name: 'Eclipse', level: 7, body: '#20204a', inner: '#ffcf66', look: 'planet' },
   ],
   wave: [
     { name: 'Dart', free: true, body: '#00e5ff', inner: '#ffd400', look: 'dart' },
@@ -466,6 +484,7 @@ const ITEMS = {
     { name: 'Blade', stars: 1, body: '#9aa7b8', inner: '#2b6bff', look: 'blade' },
     { name: 'Crystal', stars: 2, body: '#8fe8ff', inner: '#ffffff', look: 'crystal' },
     { name: 'Neon', coins: 1, body: '#111111', inner: '#39ff14', look: 'neon' },
+    { name: 'Starfall', level: 7, body: '#ff4fd8', inner: '#ffffff', look: 'crystal' },
   ],
   trail: [
     { name: 'None', free: true },
@@ -1739,7 +1758,14 @@ function drawWorld(time) {
   if (attempts === 1) ui('Hold Space, ↑ or click to jump · Esc to pause', sx(2.6), sy(4.2), 16, 'rgba(255,255,255,0.85)', 'left');
   drawFinish(sx(level.len));
 
-  const vis = level.tiles.filter(t => t.x > camX - 3 - VIEW.x / T && t.x < camX + (W + VIEW.x) / T + 1);
+  const vis = [];
+  const fromTile = Math.max(0, Math.floor(camX - 3 - VIEW.x / T));
+  const toTile = Math.min(level.len, Math.ceil(camX + (W + VIEW.x) / T + 1));
+  if (level.columns) {
+    for (let x = fromTile; x < toTile; x++) vis.push(...(level.columns.get(x) || []));
+  } else {
+    vis.push(...level.tiles.filter(t => t.x > camX - 3 - VIEW.x / T && t.x < camX + (W + VIEW.x) / T + 1));
+  }
   drawBlocks(vis.filter(t => t.type === '#'), sx, sy, hue);
   const spikeFill = vgrad(0, T, `hsl(${hue},45%,22%)`, '#050508');
   const portals = [];
