@@ -514,7 +514,8 @@ const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'Ar
 // ---- Save data (stays in this browser) ----
 const SAVE_KEY = 'deometry-gash-save';
 const EQUIPPED = { cube: 0, ship: 0, ball: 0, wave: 0, trail: 0, death: 0 };
-let save = { v: 2, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: EQUIPPED };
+const SETTINGS = { music: 0.7, sfx: 0.8, progress: true, shake: true };
+let save = { v: 2, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: EQUIPPED, settings: SETTINGS };
 // Version 1 saves stored coin tile ids from before the portals moved down to where the player passes them.
 const COIN_IDS_V1 = { 2: { 34: 29, 72: 71 }, 3: { 4: 3, 32: 28 } };
 try {
@@ -523,6 +524,7 @@ try {
   save = { ...save, ...old };
 } catch {}
 save.equipped = { ...EQUIPPED, ...save.equipped }; // saves from before new kinds existed
+save.settings = { ...SETTINGS, ...save.settings };
 const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch {} };
 
 const beaten = i => save.best[i] === 100;
@@ -551,7 +553,7 @@ let toast = null;
 function say(text) { toast = { text, t: 2.5 }; }
 function unlockSecret(id) {
   if (save.secrets.includes(id)) return;
-  save.secrets.push(id); persist();
+  save.secrets.push(id); persist(); sfx('secret');
   const it = KINDS.map(k => ITEMS[k].find(x => x.secret === id)).find(Boolean);
   say(`Secret found: ${SECRETS[id]}! Unlocked ${it.name}.`);
 }
@@ -560,28 +562,123 @@ function buyOrEquip(kind, i) {
   if (!unlocked(kind, i)) {
     if (it.stars && starBalance() >= it.stars) save.owned.push(`${kind}:${i}`);
     else if (it.coins && coinBalance() >= it.coins) save.owned.push(`${kind}:${i}`);
-    else return say(it.stars ? 'Not enough stars. Beat levels to earn more.' : it.coins ? 'Not enough coins. Find them hidden in levels.' : it.secret ? 'This one is a secret...' : `Locked: beat ${LEVELS[it.level].name}.`);
-    say(`Bought ${it.name}!`);
-  }
+    else { sfx('nope'); return say(it.stars ? 'Not enough stars. Beat levels to earn more.' : it.coins ? 'Not enough coins. Find them hidden in levels.' : it.secret ? 'This one is a secret...' : `Locked: beat ${LEVELS[it.level].name}.`); }
+    say(`Bought ${it.name}!`); sfx('buy');
+  } else sfx('click');
   save.equipped[kind] = i; persist();
 }
 
 // ---- Game state ----
 let state = 'menu', selected = 0, level = LEVELS[0], player = newPlayer(), stateTime = 0, attempts = 1, holding = false;
 let particles = [], history = [], winNote = '', shopTab = 0, shopPick = 0, titleClicks = 0, typed = '', keys = [];
-let visRot = 0, shake = 0, ceilAnim = 0, menuScroll = 0, mouse = { x: -1, y: -1 }, cursorHot = false;
+let visRot = 0, shake = 0, ceilAnim = 0, menuScroll = 0, mouse = { x: -1, y: -1 }, cursorHot = false, drag = null;
 
 function startLevel(i) {
   selected = i; level = LEVELS[i]; player = newPlayer(); attempts = 1; particles = []; history = [];
-  visRot = 0; shake = 0; ceilAnim = 0; state = 'play'; stateTime = 0; holding = false;
+  visRot = 0; shake = 0; ceilAnim = 0; state = 'play'; stateTime = 0; holding = false; was = { x: 0, y: 0, rot: 0 };
+  playSong(SONGS[i]);
 }
+function respawn() { player = newPlayer(); visRot = 0; state = 'play'; attempts++; history = []; playSong(SONGS[selected]); }
+function pause() { // only during a level; a pause during the crash skips straight to the next attempt
+  if (state === 'dead') respawn();
+  if (state === 'play') { state = 'pause'; holding = false; sfx('click'); }
+}
+function go(to) { state = to; holding = false; sfx('click'); }
 const progress = () => Math.min(100, Math.floor(player.x / level.len * 100));
+
+// ---- Sound and music ----
+// Everything is synthesized with Web Audio, so the game still needs no files. Browsers only allow sound after a key or tap.
+let AC = null, sfxBus, musicBus, noiseBuf, song = null;
+function audio() {
+  if (!AC) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    AC = new Ctx();
+    const master = AC.createDynamicsCompressor(); master.connect(AC.destination);
+    sfxBus = AC.createGain(); musicBus = AC.createGain(); sfxBus.connect(master); musicBus.connect(master);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    setVolumes();
+  }
+  if (AC.state !== 'running') AC.resume().catch(() => {});
+  return AC;
+}
+function setVolumes() { if (AC) { sfxBus.gain.value = save.settings.sfx; musicBus.gain.value = save.settings.music * 0.6; } }
+const hz = m => 440 * 2 ** ((m - 69) / 12);
+// One synth note: a waveform or noise, an optional pitch slide and filter, a fast attack and an exponential fade.
+function tone(bus, t, { f = 440, to = f, type = 'square', dur = 0.15, vol = 0.3, noise = false, lowpass = 0, highpass = 0 }) {
+  const src = noise ? AC.createBufferSource() : AC.createOscillator(), g = AC.createGain();
+  if (noise) src.buffer = noiseBuf;
+  else { src.type = type; src.frequency.setValueAtTime(f, t); if (to !== f) src.frequency.exponentialRampToValueAtTime(to, t + dur); }
+  let out = src;
+  if (lowpass || highpass) { const fl = AC.createBiquadFilter(); fl.type = lowpass ? 'lowpass' : 'highpass'; fl.frequency.value = lowpass || highpass; out.connect(fl); out = fl; }
+  out.connect(g); g.connect(bus);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.start(t); src.stop(t + dur + 0.05);
+}
+const SFX = {
+  jump: t => tone(sfxBus, t, { f: 300, to: 540, type: 'triangle', dur: 0.08, vol: 0.28 }),
+  flip: t => tone(sfxBus, t, { f: 520, to: 260, type: 'triangle', dur: 0.09, vol: 0.28 }),
+  orb: t => { tone(sfxBus, t, { f: 660, to: 1320, type: 'square', dur: 0.09, vol: 0.12 }); tone(sfxBus, t + 0.03, { f: 1320, type: 'sine', dur: 0.3, vol: 0.18 }); },
+  pad: t => tone(sfxBus, t, { f: 150, to: 880, type: 'triangle', dur: 0.24, vol: 0.35 }),
+  portal: t => { tone(sfxBus, t, { noise: true, highpass: 1500, dur: 0.4, vol: 0.16 }); tone(sfxBus, t, { f: 220, to: 880, type: 'sine', dur: 0.35, vol: 0.22 }); },
+  coin: t => { tone(sfxBus, t, { f: 988, type: 'square', dur: 0.09, vol: 0.12 }); tone(sfxBus, t + 0.08, { f: 1319, type: 'square', dur: 0.35, vol: 0.12 }); },
+  death: t => { tone(sfxBus, t, { noise: true, lowpass: 1400, dur: 0.6, vol: 0.55 }); tone(sfxBus, t, { f: 150, to: 35, type: 'sawtooth', dur: 0.45, vol: 0.3 }); },
+  win: t => [523, 659, 784, 1047].forEach((f, i) => tone(sfxBus, t + i * 0.1, { f, type: 'square', dur: i === 3 ? 0.7 : 0.18, vol: 0.13 })),
+  click: t => tone(sfxBus, t, { f: 1100, to: 700, type: 'triangle', dur: 0.05, vol: 0.2 }),
+  buy: t => { tone(sfxBus, t, { f: 784, type: 'square', dur: 0.08, vol: 0.12 }); tone(sfxBus, t + 0.07, { f: 1175, type: 'square', dur: 0.3, vol: 0.12 }); },
+  nope: t => tone(sfxBus, t, { f: 220, to: 150, type: 'square', dur: 0.18, vol: 0.12 }),
+  secret: t => [784, 988, 1175, 1568].forEach((f, i) => tone(sfxBus, t + i * 0.07, { f, type: 'triangle', dur: 0.35, vol: 0.2 })),
+};
+function sfx(name) { if (AC?.state === 'running' && save.settings.sfx > 0) SFX[name](AC.currentTime); }
+
+// Every level has its own looping tune, made from a tempo, a key, a 4-bar chord loop and a seed for the melody.
+const MAJOR = [0, 2, 4, 5, 7, 9, 11], MINOR = [0, 2, 3, 5, 7, 8, 10];
+const MENU_SONG = { bpm: 104, root: 57, scale: MINOR, chords: [0, 5, 2, 6], seed: 5, calm: true };
+const SONGS = [ // in LEVELS order; drive means four-on-the-floor drums and a busier bass
+  { bpm: 120, root: 60, scale: MAJOR, chords: [0, 4, 5, 3], seed: 1 },
+  { bpm: 126, root: 55, scale: MAJOR, chords: [5, 3, 0, 4], seed: 7 },
+  { bpm: 138, root: 52, scale: MINOR, chords: [0, 5, 6, 4], seed: 12 },
+  { bpm: 150, root: 50, scale: MINOR, chords: [0, 0, 5, 6], seed: 21, drive: true },
+  { bpm: 128, root: 53, scale: MAJOR, chords: [0, 5, 3, 4], seed: 33 },
+  { bpm: 144, root: 59, scale: MINOR, chords: [0, 6, 5, 6], seed: 44 },
+  { bpm: 155, root: 49, scale: MINOR, chords: [0, 3, 5, 4], seed: 58, drive: true },
+  { bpm: 165, root: 50, scale: MINOR, chords: [0, 1, 0, 6], seed: 66, drive: true },
+];
+function seeded(a) { return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function playSong(def) { // starts a tune from the top; it plays once the audio is running
+  const rnd = seeded(def.seed), line = [];
+  for (let i = 0, d = 9; i < 32; i++) line.push(rnd() < (i % 4 === 0 ? 0.85 : i % 2 ? 0.2 : 0.45) ? d = Math.max(5, Math.min(13, d + Math.round((rnd() - 0.5) * 5))) : null); // a 2-bar melody in scale steps, with rests
+  song = { def, line, start: 0, next: 0 };
+}
+function playStep({ def: s, line }, i, t) { // one 16th note of drums, bass, arpeggio and melody
+  const sd = 60 / s.bpm / 4, b = i % 16, ch = s.chords[(i >> 4) % 4], bus = musicBus;
+  const note = n => s.root + s.scale[mod(n, 7)] + 12 * Math.floor(n / 7); // n scale steps above the root
+  if (s.drive ? b % 4 === 0 : s.calm ? b === 0 || b === 10 : b === 0 || b === 8 || b === 10) tone(bus, t, { f: 150, to: 42, type: 'sine', dur: 0.2, vol: 0.75 });
+  if (b === 4 || b === 12) { tone(bus, t, { noise: true, highpass: 1400, dur: 0.15, vol: s.calm ? 0.12 : 0.3 }); tone(bus, t, { f: 200, to: 140, type: 'triangle', dur: 0.08, vol: 0.18 }); }
+  if (!s.calm && (s.drive || b % 2 === 0)) tone(bus, t, { noise: true, highpass: 7000, dur: b % 4 === 2 ? 0.1 : 0.03, vol: 0.06 });
+  if (b % 2 === 0) tone(bus, t, { f: hz(note(ch) - 12 + (s.drive && b % 4 === 2 ? 12 : 0)), type: 'sawtooth', lowpass: 600, dur: sd * 1.8, vol: 0.2 });
+  if (!s.calm || b % 2 === 0) tone(bus, t, { f: hz(note(ch + [0, 2, 4, 7][b % 4]) + 12), type: 'square', lowpass: 2400, dur: sd * 0.9, vol: 0.03 });
+  let m = line[i % 32];
+  if (m === null) return;
+  if (i % 64 >= 48) m -= 2; // the second time through, the last bar steps down so the loop resolves
+  if (b % 4 === 0) m = [ch, ch + 2, ch + 4, ch + 7, ch + 9, ch + 11].reduce((a, c) => Math.abs(c - m) < Math.abs(a - m) ? c : a); // land on a chord note on the beat
+  tone(bus, t, { f: hz(note(m)), type: s.calm ? 'triangle' : 'square', dur: sd * 1.8, vol: s.calm ? 0.12 : 0.07 });
+}
+function tickMusic() { // schedules the notes due in the next moment; called every frame
+  if (!AC || AC.state !== 'running') return;
+  if (['menu', 'levels', 'shop', 'settings'].includes(state) && song?.def !== MENU_SONG) playSong(MENU_SONG);
+  if (!song || state === 'pause' || save.settings.music <= 0) return;
+  const sd = 60 / song.def.bpm / 4, now = AC.currentTime;
+  if (song.start + song.next * sd < now) song.start = now + 0.05 - song.next * sd; // just started, or back from a pause: carry on from here
+  while (song.start + song.next * sd < now + 0.15) { playStep(song, song.next, song.start + song.next * sd); song.next++; }
+}
 
 // ---- Particles ----
 // Particles use tile units with y pointing up. Optional flags: ring (expanding circle), slash (angle of a cut),
 // spin (rotating square), add (additive glow), shrink, outline, shape ('circle', 'blob', 'sparkle', 'star' or 'spirit'),
 // bolt (points of a jagged line), orbit (spirals into a point) and burst (sparks to spray when it expires).
-function emit(list, o) { list.push({ x: 0, y: 0, vx: 0, vy: 0, g: 0, age: 0, life: 0.6, size: 6, color: '#fff', ...o }); }
+function emit(list, o) { const q = { x: 0, y: 0, vx: 0, vy: 0, g: 0, age: 0, life: 0.6, size: 6, color: '#fff', ...o }; q.lx = q.x; q.ly = q.y; list.push(q); }
 function spray(list, n, x, y, speed, o = {}) {
   for (let i = 0; i < n; i++) {
     const a = Math.random() * TAU, s = speed * (0.3 + Math.random() * 0.7);
@@ -591,7 +688,7 @@ function spray(list, n, x, y, speed, o = {}) {
 function updateParticles(list) {
   const out = [];
   for (const q of list) {
-    q.age += DT;
+    q.age += DT; q.lx = q.x; q.ly = q.y; // the last position, so frames between steps can blend
     if (q.orbit) { const o = q.orbit, r = o.r * Math.max(0, 1 - q.age / q.life), a = o.a + q.age * o.spin; q.x = o.x + Math.cos(a) * r; q.y = o.y + Math.sin(a) * r; }
     else { q.vy += q.g * DT; q.x += q.vx * DT; q.y += q.vy * DT; }
     if (q.age < q.life) out.push(q);
@@ -601,7 +698,7 @@ function updateParticles(list) {
 }
 function drawParticles(list, toX, toY, scale = 1) {
   for (const q of list) {
-    const k = q.age / q.life, px = toX(q), py = toY(q), s = q.size * scale * (q.shrink ? 1 - k : 1);
+    const k = q.age / q.life, at = { x: q.lx + (q.x - q.lx) * tween, y: q.ly + (q.y - q.ly) * tween }, px = toX(at), py = toY(at), s = q.size * scale * (q.shrink ? 1 - k : 1);
     ctx.globalAlpha = Math.max(0, 1 - k);
     ctx.globalCompositeOperation = q.add ? 'lighter' : 'source-over';
     if (q.ring) {
@@ -748,6 +845,7 @@ function playEffects(prev) {
   if (p.mode === 'cube') {
     if (prev.grounded && !p.grounded && p.vy > 0) {
       spray(particles, 6, p.x + 0.5, p.y + 0.05, 3, { color: 'rgba(255,255,255,0.7)', size: 4, life: 0.3, g: -10 });
+      if (p.vy !== PAD) sfx('jump');
       if (++save.jumps >= 1000) unlockSecret('jumps');
     } else if (!prev.grounded && p.grounded) spray(particles, 8, p.x + 0.5, p.y + 0.05, 4, { color: 'rgba(255,255,255,0.6)', size: 4, life: 0.25 });
     if (p.grounded && Math.random() < 0.7) emit(particles, { x: p.x + 0.05, y: p.y + 0.08, vx: -3 - Math.random() * 2, vy: 0.5 + Math.random() * 1.5, life: 0.35, size: 5, color, shrink: true, add: true });
@@ -756,17 +854,18 @@ function playEffects(prev) {
     if (Math.random() < 0.35) emit(particles, { x: p.x - 0.1, y: p.y + 0.38, vx: -5, vy: (Math.random() - 0.3) * 1.5, life: 0.7, size: 10, color: 'rgba(210,210,230,0.25)', shrink: true });
   } else if (p.mode === 'ball') {
     const contact = p.y + (p.grav > 0 ? 0.05 : 0.95);
-    if (p.grav !== prev.grav) spray(particles, 8, p.x + 0.5, p.y + (p.grav > 0 ? 0.95 : 0.05), 4, { color: 'rgba(255,255,255,0.7)', size: 4, life: 0.3 });
+    if (p.grav !== prev.grav) { spray(particles, 8, p.x + 0.5, p.y + (p.grav > 0 ? 0.95 : 0.05), 4, { color: 'rgba(255,255,255,0.7)', size: 4, life: 0.3 }); sfx('flip'); }
     if (p.grounded && Math.random() < 0.6) emit(particles, { x: p.x + 0.2, y: contact, vx: -3 - Math.random() * 2, vy: p.grav * (0.5 + Math.random()), life: 0.3, size: 4, color, shrink: true, add: true });
   }
   emitTrail(particles, p.x + 0.5, p.y + 0.5, skin('trail').name, color);
-  if (p.used.length > prev.used) { const o = level.tiles[p.used[p.used.length - 1]]; burstAt(o.x + 0.5, o.y + 0.5, '#ffd400'); }
-  if (p.vy === PAD && prev.vy !== PAD) burstAt(p.x + 0.5, p.y + 0.1, '#ffd400');
-  if (p.coins.length > prev.coins) { const c = level.tiles[p.coins[p.coins.length - 1]]; burstAt(c.x + 0.5, c.y + 0.5, '#ffcc33', 18); }
-  if (p.mode !== prev.mode) burstAt(p.x + 0.5, p.y + 0.5, MODE_COLOR[p.mode], 16);
+  if (p.used.length > prev.used) { const o = level.tiles[p.used[p.used.length - 1]]; burstAt(o.x + 0.5, o.y + 0.5, '#ffd400'); sfx('orb'); }
+  if (p.vy === PAD && prev.vy !== PAD) { burstAt(p.x + 0.5, p.y + 0.1, '#ffd400'); sfx('pad'); }
+  if (p.coins.length > prev.coins) { const c = level.tiles[p.coins[p.coins.length - 1]]; burstAt(c.x + 0.5, c.y + 0.5, '#ffcc33', 18); sfx('coin'); }
+  if (p.mode !== prev.mode) { burstAt(p.x + 0.5, p.y + 0.5, MODE_COLOR[p.mode], 16); sfx('portal'); }
 }
 
 function finishLevel() {
+  song = null; sfx('win');
   const firstClear = !beaten(selected);
   const had = save.coins[selected] || [];
   const coins = [...new Set([...had, ...player.coins])];
@@ -793,7 +892,8 @@ function die() {
   if (save.deaths >= 50) unlockSecret('deaths');
   if (pct >= 90) unlockSecret('close');
   deathEffect(particles, player.x + 0.5, player.y + 0.5, skin('death').name, mainColor(skin(player.mode)));
-  if (!REDUCED_MOTION) shake = 0.35;
+  if (!REDUCED_MOTION && save.settings.shake) shake = 0.35;
+  song = null; sfx('death');
 }
 
 // ---- Color and shape helpers ----
@@ -1623,9 +1723,12 @@ function drawFinish(fx) {
 }
 
 function drawWorld(time) {
-  const camX = player.x - PLAYER_SCREEN_X;
+  // Physics takes 60 steps a second; drawing the player part way to its next spot keeps motion smooth at any refresh rate.
+  const blend = Math.abs(player.x - was.x) < 1 && was.mode === player.mode ? tween : 1; // not across a respawn or a portal
+  const me = { ...player, x: was.x + (player.x - was.x) * blend, y: was.y + (player.y - was.y) * blend, rot: was.rot + (visRot - was.rot) * blend };
+  const camX = me.x - PLAYER_SCREEN_X;
   const sx = x => (x - camX) * T, sy = y => GROUND - y * T;
-  const hue = level.hue + Math.sin(player.x / 15) * 20;
+  const hue = level.hue + Math.sin(me.x / 15) * 20;
   const worldParticles = () => drawParticles(particles, q => sx(q.x), q => sy(q.y));
   ctx.save();
   if (shake > 0) ctx.translate((Math.random() - 0.5) * shake * 36, (Math.random() - 0.5) * shake * 36);
@@ -1633,7 +1736,7 @@ function drawWorld(time) {
   drawFloor(hue, camX, GROUND, false);
   if (ceilAnim > 0.01) drawFloor(hue, camX, sy(ROWS) - (1 - ceilAnim) * (100 + VIEW.y), true);
   ctx.globalAlpha = 0.9; txt(`Attempt ${attempts}`, sx(2.5), sy(5), 46, '#fff', 'left', 8); ctx.globalAlpha = 1;
-  if (attempts === 1) ui('Hold Space, ↑ or click to jump · Esc for the menu', sx(2.6), sy(4.2), 16, 'rgba(255,255,255,0.85)', 'left');
+  if (attempts === 1) ui('Hold Space, ↑ or click to jump · Esc to pause', sx(2.6), sy(4.2), 16, 'rgba(255,255,255,0.85)', 'left');
   drawFinish(sx(level.len));
 
   const vis = level.tiles.filter(t => t.x > camX - 3 - VIEW.x / T && t.x < camX + (W + VIEW.x) / T + 1);
@@ -1651,11 +1754,11 @@ function drawWorld(time) {
     }
   }
   if (state !== 'dead') {
-    const cx = q => sx(q.x) + T / 2, cy = q => sy(q.y) - T / 2;
-    drawTrail(history, skin('trail').name, cx, cy, 1, time, (q, x, y) => ICON[q.mode](x, y, q.rot, skin(q.mode), T));
-    if (player.mode === 'wave') drawWaveTrail(history, cx, cy, mainColor(skin('wave')));
-    if (player.mode === 'ship' && state === 'play') drawFlame(cx(player), cy(player), player.rot, holding);
-    ICON[player.mode](cx(player), cy(player), visRot, skin(player.mode), T, true);
+    const cx = q => sx(q.x) + T / 2, cy = q => sy(q.y) - T / 2, trail = [...history.slice(0, -1), me];
+    drawTrail(trail, skin('trail').name, cx, cy, 1, time, (q, x, y) => ICON[q.mode](x, y, q.rot, skin(q.mode), T));
+    if (me.mode === 'wave') drawWaveTrail(trail, cx, cy, mainColor(skin('wave')));
+    if (me.mode === 'ship' && state === 'play') drawFlame(cx(me), cy(me), me.rot, holding);
+    ICON[me.mode](cx(me), cy(me), me.rot, skin(me.mode), T, true);
   }
   for (const [t, x, y] of portals) drawPortal(t, x, y, true, time);
   if (state !== 'win') worldParticles();
@@ -1672,13 +1775,21 @@ function drawWorld(time) {
 
 function drawHUD() {
   const pct = progress(), bx = W / 2 - 150, by = 14 - VIEW.y;
-  rr(bx, by, 300, 14, 7); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
-  if (pct > 0) { rr(bx + 2, by + 2, Math.max(10, 296 * pct / 100), 10, 5); ctx.fillStyle = vgrad(by, by + 14, '#c3ff7a', '#3fcf2a'); ctx.fill(); }
-  txt(`${pct}%`, bx + 345, by + 15, 22, '#fff', 'center', 5);
+  if (save.settings.progress) {
+    rr(bx, by, 300, 14, 7); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+    if (pct > 0) { rr(bx + 2, by + 2, Math.max(10, 296 * pct / 100), 10, 5); ctx.fillStyle = vgrad(by, by + 14, '#c3ff7a', '#3fcf2a'); ctx.fill(); }
+    txt(`${pct}%`, bx + 345, by + 15, 22, '#fff', 'center', 5);
+  }
   txt(level.name, 16 - VIEW.x, 32 - VIEW.y, 22, '#fff', 'left', 5);
   const banked = save.coins[selected] || [];
-  level.coinTiles.forEach((c, i) => drawCoinIcon(W + VIEW.x - 24 - i * 28, 24 - VIEW.y, 10, player.coins.includes(c.id) ? 'new' : banked.includes(c.id) ? 'old' : 'none'));
+  level.coinTiles.forEach((c, i) => drawCoinIcon(W + VIEW.x - 80 - i * 28, 24 - VIEW.y, 10, player.coins.includes(c.id) ? 'new' : banked.includes(c.id) ? 'old' : 'none'));
+  if (state === 'play' || state === 'dead') {
+    const b = pauseBtn();
+    rr(b.x, b.y, b.w, b.h, 10); ctx.fillStyle = hovered(b) ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.fillRect(b.x + 14, b.y + 11, 5, 18); ctx.fillRect(b.x + 25, b.y + 11, 5, 18);
+  }
 }
 
 function drawWinPanel() {
@@ -1695,17 +1806,19 @@ function drawWinPanel() {
   ctx.font = `26px ${FONT}`; // shrink a long note (several unlocks) to fit the panel
   if (winNote) txt(winNote, W / 2, py + 186, Math.min(26, 26 * (pw - 40) / ctx.measureText(winNote).width), '#ffd400', 'center', 5);
   ctx.globalAlpha = a * (0.6 + 0.4 * Math.sin(stateTime * 5));
-  ui('Press jump for the menu', W / 2, py + ph - 16, 14, '#fff');
+  ui('Press jump to continue', W / 2, py + ph - 16, 14, '#fff');
   ctx.restore();
 }
 
-// ---- Menu and shop ----
-const CARD_W = 200, CARD_H = 188, CARD_Y = 152, CARD_STEP = 224; // the level cards slide like a carousel
+// ---- Menus: title screen, level select, shop, settings and the pause menu ----
+const CARD_W = 470, CARD_H = 232, CARD_Y = 96, CARD_STEP = 640; // the level select slides one big card at a time
 const cardRect = i => ({ x: W / 2 - CARD_W / 2 + (i - menuScroll) * CARD_STEP, y: CARD_Y, w: CARD_W, h: CARD_H });
-const PREV_BTN = { x: 12, y: CARD_Y + 66, w: 44, h: 56 }, NEXT_BTN = { x: W - 56, y: CARD_Y + 66, w: 44, h: 56 };
-const SHOP_BTN = { x: W / 2 - 110, y: 368, w: 220, h: 54 };
+const PREV_BTN = { x: W / 2 - CARD_W / 2 - 76, y: CARD_Y + 86, w: 48, h: 60 }, NEXT_BTN = { x: W / 2 + CARD_W / 2 + 28, y: CARD_Y + 86, w: 48, h: 60 };
+const PLAY_BTN = { x: W / 2 - 80, y: 150, w: 160, h: 160 }, SHOP_BTN = { x: W / 2 - 256, y: 170, w: 120, h: 120 }, GEAR_BTN = { x: W / 2 + 136, y: 170, w: 120, h: 120 };
 const BACK_BTN = { x: 16, y: 12, w: 104, h: 36 };
 const TITLE_BOX = { x: W / 2 - 260, y: 38, w: 520, h: 80 };
+const PAUSE_BTNS = [['restart', W / 2 - 130, 32], ['resume', W / 2, 44], ['levels', W / 2 + 130, 32]].map(([id, x, r]) => ({ id, x: x - r, y: 184 - r, w: 2 * r, h: 2 * r }));
+const pauseBtn = () => ({ x: W + VIEW.x - 52, y: 6 - VIEW.y, w: 44, h: 40 }); // in the screen's top-right corner, like GD
 const GRID_X = 77, GRID_W = 806, GAP = 8, COLS = 8, BOX_W = (GRID_W - (COLS - 1) * GAP) / COLS, BOX_H = 94, TAB_W = (GRID_W - 5 * GAP) / 6;
 const tabPos = i => ({ x: GRID_X + i * (TAB_W + GAP), y: 60, w: TAB_W, h: 40 });
 const boxPos = i => ({ x: GRID_X + (i % COLS) * (BOX_W + GAP), y: 110 + Math.floor(i / COLS) * (BOX_H + GAP), w: BOX_W, h: BOX_H });
@@ -1727,7 +1840,40 @@ function drawRunner(time) { // the equipped cube hopping along the menu floor
   drawCube(x, GROUND - T / 2 - jump * 70, rot, skin('cube'), T, true);
 }
 
-function drawMenu(time) {
+function panel(x, y, w, h) {
+  rr(x, y, w, h, 18); ctx.fillStyle = 'rgba(12,10,30,0.75)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 2; ctx.stroke();
+}
+function backButton() {
+  const bb = BACK_BTN;
+  rr(bb.x, bb.y, bb.w, bb.h, 12); ctx.fillStyle = hovered(bb) ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.4)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke();
+  txt('← Back', bb.x + bb.w / 2, bb.y + 25, 19, '#fff', 'center', 4);
+}
+function drawArrow(b, d) {
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  rr(b.x, b.y, b.w, b.h, 12); ctx.fillStyle = hovered(b) ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.5)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+  poly([[cx - d * 7, cy - 13], [cx + d * 9, cy], [cx - d * 7, cy + 13]], '#fff', 2.5);
+}
+function drawGear(cx, cy, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) for (const [da, k] of [[-0.24, 0.72], [-0.14, 1], [0.14, 1], [0.24, 0.72]]) { const a = (i + 0.5) * TAU / 8 + da; ctx.lineTo(cx + Math.cos(a) * r * k, cy + Math.sin(a) * r * k); }
+  ctx.closePath(); ctx.moveTo(cx + r * 0.3, cy); ctx.arc(cx, cy, r * 0.3, 0, TAU, true);
+  ctx.fillStyle = '#fff'; ctx.fill('evenodd'); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.stroke();
+}
+function menuButton(b, label, color, icon) { // a big rounded square with an icon, and its name underneath
+  const y = b.y - (hovered(b) ? 4 : 0), cx = b.x + b.w / 2;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 6;
+  rr(b.x, y, b.w, b.h, 24); ctx.fillStyle = vgrad(y, y + b.h, shade(color, 0.35), shade(color, -0.4)); ctx.fill();
+  ctx.restore();
+  rr(b.x, y, b.w, b.h, 24); ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.stroke();
+  rr(b.x + 8, y + 7, b.w - 16, b.h * 0.4, 16); ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill();
+  icon(cx, y + b.h / 2);
+  txt(label, cx, b.y + b.h + 34, 26, '#fff', 'center', 6);
+}
+
+function drawTitle(time) {
   const hue = 225 + Math.sin(time * 0.12) * 45, camX = time * 3;
   drawBackground(hue, camX, time);
   drawFloor(hue, camX, GROUND, false);
@@ -1738,55 +1884,132 @@ function drawMenu(time) {
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowOffsetY = 6;
   txt('DEOMETRY GASH', W / 2 + jitter, 102 + bob, 66, vgrad(52 + bob, 102 + bob, '#fff7b0', '#ffd400', '#ff7a00'), 'center', 10);
   ctx.restore();
-  ui('← → to choose · Enter or click to play · S opens the shop', W / 2, 136, 14, 'rgba(255,255,255,0.8)');
 
+  // like GD's main menu: a big round play button between the shop and the settings
+  const p = PLAY_BTN, cx = p.x + p.w / 2, cy = p.y + p.h / 2, r = 72 + (hovered(p) ? 5 : 0) + Math.sin(time * 3) * 2;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 7;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fillStyle = vgrad(cy - r, cy + r, '#c6ff7a', '#3fcf2a', '#1d7a1a'); ctx.fill();
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.strokeStyle = '#000'; ctx.lineWidth = 5; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, r - 10, 0, TAU); ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3; ctx.stroke();
+  poly([[cx - 20, cy - 32], [cx + 34, cy], [cx - 20, cy + 32]], '#fff', 4);
+  menuButton(SHOP_BTN, 'Shop', '#b84dff', (x, y) => drawCube(x, y, 0, skin('cube'), 54, true));
+  menuButton(GEAR_BTN, 'Settings', '#2b8cff', (x, y) => drawGear(x, y, 34));
+  ui('Enter to play  ·  S for the shop  ·  O for settings', W / 2, 380, 14, 'rgba(255,255,255,0.75)');
+  ui(`Levels beaten ${LEVELS.filter((_, i) => beaten(i)).length}/${LEVELS.length}   ·   Coins found ${sum(Object.values(save.coins), c => c.length)}/${totalCoins}   ·   Secrets found ${save.secrets.length}/${Object.keys(SECRETS).length}`, W / 2, 466, 13, 'rgba(255,255,255,0.75)');
+}
+
+function drawLevels(time) {
+  const i0 = Math.floor(menuScroll), f = menuScroll - i0, h0 = LEVELS[mod(i0, LEVELS.length)].hue, h1 = LEVELS[mod(i0 + 1, LEVELS.length)].hue;
+  const hue = h0 + (mod(h1 - h0 + 180, 360) - 180) * f, camX = time * 3; // the background takes on each level's color
+  drawBackground(hue, camX, time);
+  drawFloor(hue, camX, GROUND, false);
+  ctx.fillStyle = vignette(); fillScreen();
+  backButton(); drawBalance();
   LEVELS.forEach((l, i) => {
-    const { x } = cardRect(i);
-    if (x > W + VIEW.x || x + CARD_W < -VIEW.x) return;
-    const sel = i === selected, hot = hovered(cardRect(i)), y = CARD_Y - (sel ? 6 : hot ? 3 : 0), cx = x + CARD_W / 2;
-    ctx.save(); ctx.globalAlpha = Math.max(0.3, 1 - Math.abs(i - menuScroll) * 0.28); // cards fade toward the edges
-    ctx.save();
-    if (sel) { ctx.shadowColor = '#ffd400'; ctx.shadowBlur = 22; } else { ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 6; }
-    rr(x, y, CARD_W, CARD_H, 16);
-    ctx.fillStyle = vgrad(y, y + CARD_H, `hsl(${l.hue},65%,${sel ? 46 : 38}%)`, `hsl(${l.hue},70%,${sel ? 22 : 16}%)`); ctx.fill();
+    const c = cardRect(i);
+    if (c.x > W + VIEW.x || c.x + c.w < -VIEW.x) return;
+    const sel = i === selected, x = c.x, y = c.y - (hovered(c) ? 4 : 0), cx = x + CARD_W / 2;
+    ctx.save(); ctx.globalAlpha = Math.max(0.25, 1 - Math.abs(i - menuScroll) * 0.6); // the neighbors peek in, faded
+    ctx.save(); ctx.shadowColor = sel ? 'rgba(255,212,0,0.6)' : 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = sel ? 0 : 6;
+    rr(x, y, CARD_W, CARD_H, 24); ctx.fillStyle = vgrad(y, y + CARD_H, `hsl(${l.hue},65%,46%)`, `hsl(${l.hue},70%,18%)`); ctx.fill();
     ctx.restore();
-    ctx.save(); rr(x, y, CARD_W, CARD_H, 16); ctx.clip(); // glossy top
+    ctx.save(); rr(x, y, CARD_W, CARD_H, 24); ctx.clip(); // glossy top
     ctx.fillStyle = vgrad(y, y + CARD_H * 0.45, 'rgba(255,255,255,0.2)', 'rgba(255,255,255,0)'); ctx.fillRect(x, y, CARD_W, CARD_H * 0.45);
     ctx.restore();
-    rr(x, y, CARD_W, CARD_H, 16); ctx.strokeStyle = sel ? '#ffd400' : hot ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.35)'; ctx.lineWidth = sel ? 4 : 2; ctx.stroke();
-    txt(l.name, cx, y + 36, 24, '#fff', 'center', 5);
-    drawFace(cx, y + 80, 21, l.difficulty);
-    txt(l.difficulty, cx, y + 122, 18, shade(FACE[l.difficulty], 0.45), 'center', 4);
-    drawStar(cx - 42, y + 140, 8); txt(String(l.stars), cx - 30, y + 146, 18, '#fff', 'left', 4);
+    rr(x, y, CARD_W, CARD_H, 24); ctx.strokeStyle = sel ? '#ffd400' : 'rgba(255,255,255,0.4)'; ctx.lineWidth = sel ? 4 : 2; ctx.stroke();
+    txt(l.name, cx, y + 54, 40, '#fff', 'center', 7);
+    drawFace(x + 110, y + 124, 36, l.difficulty);
+    txt(l.difficulty, x + 110, y + 186, 22, shade(FACE[l.difficulty], 0.45), 'center', 4);
+    drawStar(x + 236, y + 112, 14); txt(`${l.stars} stars`, x + 258, y + 122, 28, '#fff', 'left', 5);
     const got = save.coins[i] || [];
-    l.coinTiles.forEach((c, j) => drawCoinIcon(cx + 16 + j * 22, y + 140, 8, got.includes(c.id) ? 'new' : 'none'));
-    const b = save.best[i] || 0;
-    rr(x + 20, y + 156, CARD_W - 40, 9, 4.5); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
-    if (b) { rr(x + 20, y + 156, Math.max(9, (CARD_W - 40) * b / 100), 9, 4.5); ctx.fillStyle = b === 100 ? '#ffd400' : '#6dff5a'; ctx.fill(); }
-    ui(b === 100 ? 'Complete!' : `Best ${b}%`, cx, y + 181, 13, '#fff');
+    l.coinTiles.forEach((t, j) => drawCoinIcon(x + 250 + j * 40, y + 158, 14, got.includes(t.id) ? 'new' : 'none'));
+    const best = save.best[i] || 0, bx = x + 30, by = y + 200, bw = CARD_W - 60;
+    rr(bx, by, bw, 16, 8); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
+    if (best) { rr(bx, by, Math.max(16, bw * best / 100), 16, 8); ctx.fillStyle = best === 100 ? vgrad(by, by + 16, '#fff7b0', '#ffd400') : vgrad(by, by + 16, '#c3ff7a', '#3fcf2a'); ctx.fill(); }
+    ui(best === 100 ? 'Complete!' : `Best ${best}%`, cx, by + 13, 12, best === 100 ? '#5a3a00' : '#fff');
     ctx.restore();
   });
-  for (const [b, d] of [[PREV_BTN, -1], [NEXT_BTN, 1]]) {
-    const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
-    rr(b.x, b.y, b.w, b.h, 12); ctx.fillStyle = hovered(b) ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.5)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
-    poly([[cx - d * 6, cy - 11], [cx + d * 8, cy], [cx - d * 6, cy + 11]], '#fff', 2.5);
-  }
+  drawArrow(PREV_BTN, -1); drawArrow(NEXT_BTN, 1);
   LEVELS.forEach((_, i) => {
-    ctx.beginPath(); ctx.arc(W / 2 + (i - (LEVELS.length - 1) / 2) * 18, 354, i === selected ? 5 : 3.5, 0, TAU);
+    ctx.beginPath(); ctx.arc(W / 2 + (i - (LEVELS.length - 1) / 2) * 20, CARD_Y + CARD_H + 30, i === selected ? 6 : 4, 0, TAU);
     ctx.fillStyle = i === selected ? '#ffd400' : 'rgba(255,255,255,0.45)'; ctx.fill();
   });
+  ui('Enter or click the card to play  ·  ← → to choose  ·  Esc to go back', W / 2, CARD_Y + CARD_H + 70, 14, 'rgba(255,255,255,0.8)');
+}
 
-  const sb = SHOP_BTN, lift = hovered(sb) ? 3 : 0, by = sb.y - lift;
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowOffsetY = 5; ctx.shadowBlur = 8;
-  rr(sb.x, by, sb.w, sb.h, 16); ctx.fillStyle = vgrad(by, by + sb.h, '#9dff6a', '#2fb52a'); ctx.fill();
-  ctx.restore();
-  rr(sb.x, by, sb.w, sb.h, 16); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.stroke();
-  rr(sb.x + 6, by + 5, sb.w - 12, sb.h / 2 - 5, 10); ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fill();
-  txt('SHOP', W / 2, by + 37, 30, '#fff', 'center', 6);
-  drawCube(sb.x + 34, by + sb.h / 2, Math.sin(time * 2) * 0.12, skin('cube'), 28);
-  drawShip(sb.x + sb.w - 36, by + sb.h / 2 + 2, Math.sin(time * 2 + 1) * 0.1, skin('ship'), 30);
-  ui(`Coins found ${sum(Object.values(save.coins), c => c.length)}/${totalCoins}   ·   Secrets found ${save.secrets.length}/${Object.keys(SECRETS).length}`, W / 2, 466, 13, 'rgba(255,255,255,0.75)');
+// Settings: the same sliders and switches sit on the settings screen and in the pause menu.
+const SLIDERS = [['music', 'Music'], ['sfx', 'Sound effects']], TOGGLES = [['progress', 'Progress bar'], ['shake', 'Screen shake'], ['fullscreen', 'Full screen']];
+const settingsLayout = y => ({
+  sliders: SLIDERS.map(([key, label], i) => ({ key, label, x: W / 2 - 90, y: y + i * 44, w: 280, h: 26 })),
+  toggles: TOGGLES.map(([key, label], i) => ({ key, label, x: W / 2 - 285 + i * 195, y: y + 98, w: 180, h: 40 })),
+});
+const isOn = key => key === 'fullscreen' ? !!document.fullscreenElement : save.settings[key];
+function drawSettings(y) {
+  const { sliders, toggles } = settingsLayout(y);
+  for (const s of sliders) {
+    const v = save.settings[s.key], hot = hovered(s) || drag?.key === s.key;
+    ui(s.label, s.x - 26, s.y + 18, 17, '#fff', 'right');
+    rr(s.x, s.y + 8, s.w, 10, 5); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    if (v > 0) { rr(s.x, s.y + 8, Math.max(10, s.w * v), 10, 5); ctx.fillStyle = vgrad(s.y + 8, s.y + 18, '#c3ff7a', '#3fcf2a'); ctx.fill(); }
+    ctx.beginPath(); ctx.arc(s.x + s.w * v, s.y + 13, hot ? 13 : 11, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.stroke();
+    ui(`${Math.round(v * 100)}%`, s.x + s.w + 24, s.y + 18, 15, 'rgba(255,255,255,0.8)', 'left');
+  }
+  for (const t of toggles) {
+    const on = isOn(t.key);
+    rr(t.x, t.y, t.w, t.h, 12); ctx.fillStyle = hovered(t) ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.35)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 2; ctx.stroke();
+    rr(t.x + 10, t.y + 9, 22, 22, 6); ctx.fillStyle = on ? '#3fcf2a' : 'rgba(0,0,0,0.5)'; ctx.fill(); ctx.strokeStyle = on ? '#000' : 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2.5; ctx.stroke();
+    if (on) { ctx.beginPath(); ctx.moveTo(t.x + 15, t.y + 20); ctx.lineTo(t.x + 20, t.y + 25); ctx.lineTo(t.x + 28, t.y + 14); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt'; }
+    ui(t.label, t.x + 42, t.y + 26, 16, '#fff', 'left');
+  }
+}
+function setSlider(mx) { save.settings[drag.key] = Math.round(Math.max(0, Math.min(1, (mx - drag.x) / drag.w)) * 20) / 20; setVolumes(); }
+function settingsPointer(y, mx, my) {
+  const { sliders, toggles } = settingsLayout(y);
+  drag = sliders.find(s => inBox({ x: s.x - 14, y: s.y - 6, w: s.w + 28, h: s.h + 12 }, mx, my)) || null;
+  if (drag) return setSlider(mx);
+  const t = toggles.find(t => inBox(t, mx, my));
+  if (!t) return;
+  if (t.key !== 'fullscreen') { save.settings[t.key] = !save.settings[t.key]; persist(); } // full screen waits for the click (see Input)
+  sfx('click');
+}
+
+function drawSettingsScreen(time) {
+  const hue = 205 + Math.sin(time * 0.12) * 30;
+  drawBackground(hue, time * 2, time);
+  drawFloor(hue, time * 2, GROUND, false);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; fillScreen();
+  ctx.fillStyle = vignette(); fillScreen();
+  backButton();
+  txt('SETTINGS', W / 2, 46, 40, vgrad(14, 46, '#fff7b0', '#ffd400', '#ff7a00'), 'center', 7);
+  panel(110, 72, 740, 196);
+  drawSettings(100);
+  panel(110, 284, 740, 156);
+  txt('Controls', W / 2, 318, 24, '#fff', 'center', 4);
+  [['Space, ↑, W or click', 'jump, fly the ship, flip the ball, steer the wave'], ['Esc', 'pause a level, or go back in menus'], ['← →', 'choose a level or a shop item'], ['S  ·  O', 'open the shop  ·  settings, from the title screen']]
+    .forEach(([k, v], i) => { ui(k, W / 2 - 40, 350 + i * 24, 15, '#ffd400', 'right'); ui(v, W / 2 - 20, 350 + i * 24, 15, '#fff', 'left'); });
+}
+
+function drawPause() { // drawn over the frozen level, like GD's pause menu
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; fillScreen();
+  panel(150, 30, 660, 420);
+  txt(level.name, W / 2, 82, 38, '#fff', 'center', 6);
+  const best = save.best[selected] || 0, bx = W / 2 - 170;
+  rr(bx, 98, 340, 16, 8); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+  if (best) { rr(bx, 98, Math.max(16, 340 * best / 100), 16, 8); ctx.fillStyle = vgrad(98, 114, '#c3ff7a', '#3fcf2a'); ctx.fill(); }
+  ui(`Best ${best}%   ·   Attempt ${attempts}`, W / 2, 111, 12, '#fff');
+  for (const b of PAUSE_BTNS) {
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2, r = b.w / 2 + (hovered(b) ? 3 : 0), main = b.id === 'resume';
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fillStyle = vgrad(cy - r, cy + r, main ? '#c6ff7a' : '#9fd8ff', main ? '#2fb52a' : '#2b6bff'); ctx.fill();
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff';
+    if (main) poly([[cx - 13, cy - 21], [cx + 22, cy], [cx - 13, cy + 21]], '#fff', 3);
+    else if (b.id === 'restart') { ctx.beginPath(); ctx.arc(cx, cy, 13, -1.2, 4.3); ctx.lineWidth = 5; ctx.stroke(); poly([[cx + 4, cy - 16], [cx - 8.5, cy - 19.5], [cx - 2, cy - 4.5]], '#fff', 0); }
+    else for (const k of [-1, 0, 1]) { rr(cx - 14, cy - 3 + k * 9, 28, 6, 3); ctx.fill(); }
+    ui({ restart: 'Restart  (R)', resume: 'Resume  (Esc)', levels: 'Levels  (Q)' }[b.id], cx, b.y + b.h + 24, 13, '#fff');
+  }
+  drawSettings(266);
 }
 
 function fitText(s, size, maxW) { ctx.font = `600 ${size}px system-ui, sans-serif`; return Math.min(size, size * maxW / ctx.measureText(s).width); }
@@ -1806,10 +2029,7 @@ function drawShop(time) {
   drawFloor(hue, time * 2, GROUND, false);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; fillScreen();
   ctx.fillStyle = vignette(); fillScreen();
-  const bb = BACK_BTN, hot = hovered(bb);
-  rr(bb.x, bb.y, bb.w, bb.h, 12); ctx.fillStyle = hot ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.4)'; ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke();
-  txt('← Back', bb.x + bb.w / 2, bb.y + 25, 19, '#fff', 'center', 4);
+  backButton();
   txt('SHOP', W / 2, 46, 40, vgrad(14, 46, '#fff7b0', '#ffd400', '#ff7a00'), 'center', 7);
   drawBalance();
 
@@ -1856,7 +2076,7 @@ function stageLook() {
   const kind = KINDS[shopTab], it = ITEMS[kind][shopPick], mode = MODE_KINDS.includes(kind) ? kind : 'cube';
   return { mode, icon: kind === mode ? it : skin(mode), trail: kind === 'trail' ? it.name : skin('trail').name, death: kind === 'death' ? it.name : null };
 }
-const stageTime = L => L.death ? Math.floor(stageClock / 2.2) * 1.2 + Math.min(mod(stageClock, 2.2), 1.2) : stageClock; // dies at 1.2 s, respawns at 2.2 s
+const stageTime = (L, c = stageClock) => L.death ? Math.floor(c / 2.2) * 1.2 + Math.min(mod(c, 2.2), 1.2) : c; // dies at 1.2 s, respawns at 2.2 s
 function stagePose(mode, t) { // height above the floor (tiles) and rotation at time t
   const top = STAGE_ROWS - 1;
   if (mode === 'ship') return { y: 1.1 + Math.sin(t * 2.2) * 0.9, rot: -Math.cos(t * 2.2) * 0.35 };
@@ -1881,7 +2101,7 @@ function drawStage(time) {
   ui(on ? 'Equipped' : open ? 'Unlocked: press Enter to equip' : it.stars ? `Costs ${it.stars} stars` : it.coins ? `Costs ${it.coins} coins` : it.secret ? 'Secret' : `Beat ${LEVELS[it.level].name}`,
     S.x + 24, S.y + 86, 13, on ? '#6dff5a' : '#ffd400', 'left');
 
-  const floor = S.y + S.h - 18, ceil = floor - STAGE_ROWS * ST, t = stageTime(L), x = t * SP, dead = L.death && mod(stageClock, 2.2) >= 1.2;
+  const c = stageClock + tween * DT, floor = S.y + S.h - 18, ceil = floor - STAGE_ROWS * ST, t = stageTime(L, c), x = t * SP, dead = L.death && mod(c, 2.2) >= 1.2;
   const toX = q => RUN_X + (q.x - x) * ST, toY = q => floor - q.y * ST, cx = q => toX(q) + ST / 2, cy = q => toY(q) - ST / 2;
   ctx.save(); ctx.beginPath(); ctx.rect(LANE_X, S.y + 2, S.x + S.w - LANE_X - 2, S.h - 4); ctx.clip();
   ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(LANE_X, floor, S.w, S.h);
@@ -1890,7 +2110,7 @@ function drawStage(time) {
   ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(LANE_X, floor - 1, S.w, 2);
   if (L.mode !== 'cube') { ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(LANE_X, S.y, S.w, ceil - S.y); ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(LANE_X, ceil - 1, S.w, 2); }
   if (L.death) { // the spike it runs into
-    ctx.save(); ctx.translate(toX({ x: (Math.floor(stageClock / 2.2) + 1) * 1.2 * SP + 0.6 }), floor - ST); ctx.scale(ST / T, ST / T);
+    ctx.save(); ctx.translate(toX({ x: (Math.floor(c / 2.2) + 1) * 1.2 * SP + 0.6 }), floor - ST); ctx.scale(ST / T, ST / T);
     drawSpike(0, 0, false, 260, vgrad(0, T, 'hsl(260,45%,22%)', '#050508')); ctx.restore();
   }
   const hist = [...Array(41)].map((_, k) => { const tt = t - (40 - k) * DT, q = L.death ? { y: 0, rot: 0 } : stagePose(L.mode, tt); return { x: tt * SP, y: q.y, mode: L.mode, rot: q.rot }; });
@@ -1919,16 +2139,19 @@ function drawToast() {
 }
 
 // ---- Loop ----
-let last = performance.now(), acc = 0, clock = 0;
+let last = performance.now(), acc = 0, clock = 0, tween = 1, was = { x: 0, y: 0, rot: 0 };
 function frame(now) {
   acc += Math.min(0.25, (now - last) / 1000); last = now;
   while (acc >= DT) {
-    acc -= DT; stateTime += DT; clock += DT;
+    acc -= DT; clock += DT;
     if (toast && (toast.t -= DT) <= 0) toast = null;
+    menuScroll += (selected - menuScroll) * 0.18;
+    if (state === 'pause') continue; // the level stands still behind the pause menu
+    stateTime += DT;
     shake = Math.max(0, shake - DT);
     particles = updateParticles(particles);
     ceilAnim += ((player.mode !== 'cube' ? 1 : 0) - ceilAnim) * 0.12;
-    menuScroll += (selected - menuScroll) * 0.18;
+    was = { x: player.x, y: player.y, rot: visRot, mode: player.mode }; // frames drawn before the next step blend from here
     if (state === 'play') {
       const prev = { grounded: player.grounded, vy: player.vy, mode: player.mode, grav: player.grav, used: player.used.length, coins: player.coins.length };
       const r = step(player, holding, level);
@@ -1936,17 +2159,23 @@ function frame(now) {
       if (r === 'dead') die();
       if (r === 'win') finishLevel();
       if (r) { state = r; stateTime = 0; }
-    } else if (state === 'dead' && stateTime > 0.8) {
-      player = newPlayer(); visRot = 0; state = 'play'; attempts++; history = [];
-    }
+    } else if (state === 'dead' && stateTime > 0.8) respawn();
     // ease the cube's landing snap instead of popping to the nearest quarter turn
     visRot = player.mode === 'cube' && player.grounded ? visRot + (player.rot - visRot) * 0.35 : player.rot;
     if (state === 'play') { history.push({ x: player.x, y: player.y, mode: player.mode, rot: visRot }); if (history.length > 60) history.shift(); }
     if (state === 'shop') tickStage();
   }
+  if (state !== 'pause') tween = acc / DT; // how far the next physics step has come, for drawing in between
+  tickMusic();
   ctx.setTransform(VIEW.k, 0, 0, VIEW.k, VIEW.x * VIEW.k, VIEW.y * VIEW.k);
   cursorHot = false;
-  if (state === 'menu') drawMenu(clock); else if (state === 'shop') drawShop(clock); else drawWorld(clock);
+  const time = clock + acc;
+  if (state === 'menu') drawTitle(time);
+  else if (state === 'levels') drawLevels(time);
+  else if (state === 'shop') drawShop(time);
+  else if (state === 'settings') drawSettingsScreen(time);
+  else drawWorld(time);
+  if (state === 'pause') drawPause();
   drawToast();
   canvas.style.cursor = cursorHot ? 'pointer' : 'default';
   requestAnimationFrame(frame);
@@ -1955,26 +2184,45 @@ requestAnimationFrame(frame);
 
 // ---- Input ----
 function press() {
-  if (state === 'menu') startLevel(selected);
+  if (state === 'menu') go('levels');
+  else if (state === 'levels') startLevel(selected);
   else if (state === 'shop') buyOrEquip(KINDS[shopTab], shopPick);
-  else if (state === 'win' && stateTime > 0.5) state = 'menu';
-  else holding = true;
+  else if (state === 'win') { if (stateTime > 0.5) go('levels'); }
+  else if (state === 'play' || state === 'dead') holding = true;
+}
+function pauseAction(id) {
+  if (id === 'resume') { state = 'play'; sfx('click'); }
+  else if (id === 'restart') startLevel(selected);
+  else go('levels');
 }
 function shopSelect(tab, i) { shopTab = tab; shopPick = Math.max(0, Math.min(ITEMS[KINDS[tab]].length - 1, i)); stageClock = 0; stageParticles = []; }
-function openShop() { state = 'shop'; shopSelect(shopTab, shopPick); }
+function openShop() { go('shop'); shopSelect(shopTab, shopPick); }
 const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW', 'Enter'];
 addEventListener('keydown', e => {
+  audio(); // the first key press is allowed to start the sound
   keys = [...keys, e.code].slice(-KONAMI.length);
   if (keys.join() === KONAMI.join()) unlockSecret('konami');
-  if (e.code === 'Escape' || (state === 'shop' && e.code === 'Backspace')) { state = 'menu'; holding = false; return; }
-  if ((state === 'menu' || state === 'shop') && e.key.length === 1) {
+  if (state === 'pause') {
+    if (['Escape', 'Enter', 'Space'].includes(e.code)) { e.preventDefault(); if (!e.repeat) pauseAction('resume'); }
+    else if (e.code === 'KeyR') pauseAction('restart');
+    else if (e.code === 'KeyQ' || e.code === 'Backspace') pauseAction('levels');
+    return;
+  }
+  if (e.code === 'Escape' || e.code === 'Backspace') {
+    if (state === 'play' || state === 'dead') pause();
+    else if (state === 'win') go('levels');
+    else if (state !== 'menu') go('menu');
+    return;
+  }
+  if (['menu', 'levels', 'shop'].includes(state) && e.key.length === 1) {
     typed = (typed + e.key.toLowerCase()).slice(-4);
     if (typed === 'gash') unlockSecret('code');
   }
   if (state === 'menu') {
-    if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') selected = mod(selected + (e.code === 'ArrowLeft' ? -1 : 1), LEVELS.length);
-    if (e.code === 'KeyS') { openShop(); return; }
+    if (e.code === 'KeyS') return openShop();
+    if (e.code === 'KeyO') return go('settings');
   }
+  if (state === 'levels' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { selected = mod(selected + (e.code === 'ArrowLeft' ? -1 : 1), LEVELS.length); sfx('click'); }
   if (state === 'shop') { // up and down switch tabs (landing on what is equipped), left and right pick an item
     const d = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[e.code];
     if (d) {
@@ -1988,28 +2236,42 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { if (JUMP_KEYS.includes(e.code)) holding = false; });
 function toCanvas(e) { const r = canvas.getBoundingClientRect(); return { x: (e.clientX - r.left) / VIEW.s - VIEW.x, y: (e.clientY - r.top) / VIEW.s - VIEW.y }; }
-canvas.addEventListener('pointermove', e => { mouse = toCanvas(e); });
+canvas.addEventListener('pointermove', e => { mouse = toCanvas(e); if (drag) setSlider(mouse.x); });
 canvas.addEventListener('pointerleave', () => { mouse = { x: -1, y: -1 }; });
 canvas.addEventListener('pointerdown', e => {
-  const { x: mx, y: my } = mouse = toCanvas(e);
+  audio(); // the first tap is allowed to start the sound
+  const { x: mx, y: my } = mouse = toCanvas(e), hit = b => inBox(b, mx, my);
   if (state === 'menu') {
-    if (inBox(SHOP_BTN, mx, my)) { openShop(); return; }
-    if (inBox(PREV_BTN, mx, my) || inBox(NEXT_BTN, mx, my)) { selected = mod(selected + (mx < W / 2 ? -1 : 1), LEVELS.length); return; }
-    if (inBox(TITLE_BOX, mx, my) && ++titleClicks >= 7) { titleClicks = 0; unlockSecret('title'); }
-    const i = LEVELS.findIndex((_, i) => inBox(cardRect(i), mx, my));
-    if (i === selected) startLevel(i); else if (i >= 0) selected = i; // the first click on another card brings it to the middle
+    if (hit(PLAY_BTN)) go('levels');
+    else if (hit(SHOP_BTN)) openShop();
+    else if (hit(GEAR_BTN)) go('settings');
+    else if (hit(TITLE_BOX) && ++titleClicks >= 7) { titleClicks = 0; unlockSecret('title'); }
     return;
   }
+  if (state === 'levels') {
+    if (hit(BACK_BTN)) return go('menu');
+    if (hit(PREV_BTN) || hit(NEXT_BTN)) { selected = mod(selected + (mx < W / 2 ? -1 : 1), LEVELS.length); return sfx('click'); }
+    const i = LEVELS.findIndex((_, i) => hit(cardRect(i)));
+    if (i === selected) startLevel(i); else if (i >= 0) { selected = i; sfx('click'); } // the first click on another card brings it to the middle
+    return;
+  }
+  if (state === 'settings') return hit(BACK_BTN) ? go('menu') : settingsPointer(100, mx, my);
+  if (state === 'pause') { const b = PAUSE_BTNS.find(b => hit(b)); return b ? pauseAction(b.id) : settingsPointer(266, mx, my); }
   if (state === 'shop') {
-    if (inBox(BACK_BTN, mx, my)) { state = 'menu'; return; }
-    KINDS.forEach((k, i) => { if (inBox(tabPos(i), mx, my)) shopSelect(i, save.equipped[k]); });
-    ITEMS[KINDS[shopTab]].forEach((_, i) => { if (inBox(boxPos(i), mx, my)) { shopSelect(shopTab, i); buyOrEquip(KINDS[shopTab], i); } });
+    if (hit(BACK_BTN)) return go('menu');
+    KINDS.forEach((k, i) => { if (hit(tabPos(i))) { shopSelect(i, save.equipped[k]); sfx('click'); } });
+    ITEMS[KINDS[shopTab]].forEach((_, i) => { if (hit(boxPos(i))) { shopSelect(shopTab, i); buyOrEquip(KINDS[shopTab], i); } });
     return;
   }
+  if ((state === 'play' || state === 'dead') && hit(pauseBtn())) return pause();
   press();
 });
-addEventListener('pointerup', () => holding = false);
-addEventListener('blur', () => holding = false);
+addEventListener('pointerup', () => { audio(); holding = false; if (drag) { drag = null; persist(); sfx('click'); } }); // a tap only counts as a user action when it lifts, so touch screens start the sound here
+canvas.addEventListener('click', e => { // browsers only allow full screen from a click
+  const y = { settings: 100, pause: 266 }[state], m = toCanvas(e), t = y && settingsLayout(y).toggles.find(t => t.key === 'fullscreen');
+  if (t && inBox(t, m.x, m.y)) document.fullscreenElement ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.().catch(() => {});
+});
+addEventListener('blur', () => { holding = false; pause(); }); // switching away pauses the level, like GD
 </script>
 </body>
 </html>

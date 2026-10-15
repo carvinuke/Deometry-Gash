@@ -13,7 +13,8 @@ A tiny Geometry Dash–style game in a single HTML file. No install, no build.
 - In the **ship**, hold to fly up and let go to fall.
 - As the **ball**, press while rolling to flip gravity between the floor and the ceiling.
 - As the **wave**, hold to zigzag up and let go to zigzag down.
-- **Esc** goes back to the level menu. **S** opens the shop from the menu.
+- **Esc** (or the pause button in the corner) pauses a level: resume, restart, go back to the levels, or change settings. In menus, Esc goes back.
+- On the title screen, **Enter** plays, **S** opens the shop and **O** opens the settings.
 
 ## What's in it
 
@@ -26,7 +27,10 @@ A tiny Geometry Dash–style game in a single HTML file. No install, no build.
   - spending ★ stars (earned by beating levels) or ◉ coins,
   - or finding one of 6 secrets. No spoilers.
 
-Progress is saved in your browser.
+- **Music and sound effects**: every level has its own song, all synthesized in code. Sound starts after your first key press or tap (browsers require that).
+- **Settings**: music and sound volume, progress bar, screen shake and full screen.
+
+Progress and settings are saved in your browser.
 
 Everything is drawn in code on a canvas (glowing blocks, animated portals, every skin, parallax backgrounds) and stays sharp on high-DPI screens. Online it uses the free [Lilita One](https://fonts.google.com/specimen/Lilita+One) font; offline it falls back to a system font.
 
@@ -36,7 +40,7 @@ Levels are in `LEVELS` near the top of the script in `index.html`, built from `s
 `#` block, `^` spike, `v` hanging spike, `p` jump pad, `o` jump orb, `c` coin, `S` ship portal, `B` ball portal, `W` wave portal, `C` cube portal, `.` empty.
 Stack a portal letter in a column (3 or 4 tall) where the player passes; the portal works at any height, but that is where it is drawn.
 
-To check every level (and every coin) is still reachable, and that the shop adds up (needs Node and Playwright, `npm i -D playwright`):
+To check every level (and every coin) is still reachable, that motion stays smooth, and that the shop adds up (needs Node and Playwright, `npm i -D playwright`):
 
 ```
 node test/beatable.mjs
