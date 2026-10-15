@@ -22,7 +22,7 @@ const results = await page.evaluate(() => LEVELS.flatMap(lvl => [false, true].ma
   const seen = new Set(); let furthest = 0;
   const coins = lvl.tiles.filter(t => t.type === 'c').length;
   const won = (r, q) => r === 'win' && (!allCoins || q.coins.length === coins);
-  const key = (p, f) => [f, p.mode, p.grav, p.y.toFixed(1), p.vy.toFixed(0), p.coyote.toFixed(2), p.jumpBuffer.toFixed(2), p.used.length, p.coins.length].join('|');
+  const key = (p, f) => [f, p.mode, p.grav, p.y.toFixed(1), p.vy.toFixed(0), p.coyote.toFixed(2), p.jumpBuffer.toFixed(2), p.used.join(','), p.coins.join(',')].join('|');
   function go(p, f) {
     for (;;) {
       furthest = Math.max(furthest, p.x);
@@ -62,6 +62,21 @@ const orbLaunches = await page.evaluate(() => {
   };
   return { standard: launch('o'), boost: launch('b'), standardValue: JUMP, boostValue: BOOST_ORB_JUMP, redPad: RED_PAD, yellowPad: PAD };
 });
+const obstacleChecks = await page.evaluate(() => {
+  const collide = (type, x, y, tileX = 5, tileY = 0) => {
+    const p = newPlayer(); p.x = x; p.y = y; p.grounded = false; p.vy = 0;
+    return step(p, false, { tiles: [{ id: 999, x: tileX, y: tileY, type }], len: 40 }, false);
+  };
+  const traps = { x: 5, y: 8 };
+  return {
+    levels: Object.fromEntries(LEVELS.map(l => [l.name, l.tiles.reduce((a, t) => (a[t.type] = (a[t.type] || 0) + 1, a), {})])),
+    ceilingBarHit: collide('h', 5, 2.2, 5, 3), ceilingBarClear: collide('h', 5, 0, 5, 3),
+    giantSpikeHit: collide('G', 5, 0), sawHit: collide('s', 5, 0),
+    fallingSpikeHit: collide('F', 4.65, 0, traps.x, traps.y), fallingSpikeClear: collide('F', 0, 0, traps.x, traps.y),
+    fallingSpikePositions: [fallingSpikeY(traps, 1), fallingSpikeY(traps, 3), fallingSpikeY(traps, 5)],
+    decorationClear: collide('d', 5, 0),
+  };
+});
 // Red pads must clear their whole grounded spike runway with timing margin at every
 // frame phase. This catches levels that are theoretically reachable only on a razor edge.
 const redPadRunways = await page.evaluate(() => LEVELS.flatMap(lvl => lvl.tiles.filter(t => t.type === 'r').map(pad => {
@@ -95,6 +110,7 @@ await browser.close();
 console.table(results);
 console.log('frames that clear a triple spike:', tripleSpikeFrames);
 console.log('orb launch velocities:', orbLaunches);
+console.log('new obstacle checks:', obstacleChecks);
 console.log('red-pad lane results:', redPadRunways.map(r => ({ level: r.level, spikes: r.count,
   minTiles: r.count ? +Math.min(...r.phases.map(p => p.margin ?? -Infinity)).toFixed(2) : 'n/a',
   phases: r.phases.filter(p => p.result !== 'clear' || !p.launched).length })));
@@ -102,6 +118,11 @@ if (tripleSpikeFrames < 5) throw new Error('a triple spike should leave at least
 if (orbLaunches.standard.first !== orbLaunches.standardValue || orbLaunches.boost.first !== orbLaunches.boostValue || orbLaunches.boost.second >= orbLaunches.boost.first || orbLaunches.boost.used !== 1) throw new Error('cyan boost orbs should give one controlled stronger launch');
 if (glide > 0.001) throw new Error(`the cube moves unevenly between frames (spread ${glide} tiles)`);
 if (errors.length) throw new Error('page errors: ' + errors.join('; '));
+if (obstacleChecks.ceilingBarHit !== 'dead' || obstacleChecks.ceilingBarClear === 'dead' || obstacleChecks.giantSpikeHit !== 'dead' || obstacleChecks.sawHit !== 'dead' || obstacleChecks.fallingSpikeHit !== 'dead' || obstacleChecks.fallingSpikeClear === 'dead' || obstacleChecks.decorationClear === 'dead') throw new Error('new obstacle or decoration collision behavior is inconsistent');
+if (obstacleChecks.fallingSpikePositions.some((y, i) => Math.abs(y - [8, 4, 0][i]) > 0.001)) throw new Error('falling spikes should trigger, fall at a fixed rate, and settle on the floor');
+for (const name of ['Orb Garden', 'Rolling Thunder', 'Prism Path', 'Tidal Flow']) if (!obstacleChecks.levels[name]?.h || !obstacleChecks.levels[name]?.d) throw new Error(`${name}: add hanging hazards and scenery to Normal routes`);
+if (!obstacleChecks.levels['Orb Garden']?.s || !obstacleChecks.levels['Prism Path']?.G || !obstacleChecks.levels['Tidal Flow']?.F) throw new Error('the new hazards need representative level placements');
+for (const type of ['F', 'h', 'G', 's']) if (!obstacleChecks.levels['Abyssal Run']?.[type]) throw new Error(`Abyssal Run: missing Demon hazard ${type}`);
 for (const r of results) {
   if (r.idle !== 'dead') throw new Error(`${r.name}: standing still should die`);
   if (!r.beatable) throw new Error(`${r.name}: not beatable${r.allCoins ? ' with all coins' : ''} (got to x=${r.furthest})`);
