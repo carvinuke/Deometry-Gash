@@ -41,7 +41,7 @@ Levels are in `LEVELS` near the top of the script in `index.html`, built from `s
 Stack a portal letter in a column (3 or 4 tall) where the player passes; the portal works at any height, but that is where it is drawn.
 Each level's song is in `SONGS`, mapped to the level by name so changing the displayed difficulty order does not change its music.
 
-To check every level (and every coin) is still reachable, that motion stays smooth, and that the shop adds up (needs Node and Playwright, `npm i -D playwright`):
+The browser self-check searches for clear and all-coin routes, then separately checks jump windows, orb launches, smooth motion, and every red-pad lane across 12 horizontal frame phases. The route search is a screening tool; the red-pad lane checks verify the clearance margins that a route search alone can miss. The shop check covers sorted levels, unlocks, and save migration (needs Node and Playwright, `npm i -D playwright`):
 
 ```
 node test/beatable.mjs
