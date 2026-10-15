@@ -47,12 +47,12 @@ const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
 document.fonts?.load(`24px ${FONT}`).catch(() => {}); // text drawn only on a canvas never triggers the font download
 const mod = (a, n) => ((a % n) + n) % n;
 
-// Level tiles: '#' block, '^' spike, 'v' hanging spike, 'h' chained spike bar, 'F' falling spike, 's' saw, 'G' giant spike,
-// 'd' scenery, 'p' yellow jump pad, 'r' red jump pad, 'o' jump orb (press while touching),
+// Level tiles: '#' block, '^' spike, 'v' chained hanging spike, 'h' chained spike bar, 'F' falling spike, 's' saw, 'G' giant spike,
+// 'd' crystal scenery, 'i' non-colliding beacon pole, 'p' yellow jump pad, 'r' red jump pad, 'o' jump orb (press while touching),
 // 'b' cyan boost orb, 'c' secret coin, portals 'S' ship, 'C' cube, 'B' ball, 'W' wave, '.' empty. seg() takes rows top to bottom; the last
 // row sits on the ground. Short rows are padded with '.' on the right.
 const PORTAL_MODE = { S: 'ship', C: 'cube', B: 'ball', W: 'wave' };
-const NEW_LEVEL_TILES = new Set(['h', 'F', 's', 'G', 'd']); // keep existing coin/orb IDs stable when adding scenery or hazards
+const NEW_LEVEL_TILES = new Set(['h', 'F', 's', 'G', 'd', 'i']); // keep existing coin/orb IDs stable when adding scenery or hazards
 function seg(...rows) {
   const w = Math.max(...rows.map(r => r.length));
   while (rows.length < ROWS) rows.unshift('');
@@ -77,6 +77,7 @@ function buildLevel(name, difficulty, stars, hue, segs) {
   const is = (x, y, type) => at.get(`${x},${y}`) === type;
   for (const t of tiles) {
     if (t.type === '#') t.open = { top: !is(t.x, t.y + 1, '#'), bottom: !is(t.x, t.y - 1, '#'), left: !is(t.x - 1, t.y, '#'), right: !is(t.x + 1, t.y, '#') };
+    if (t.type === 'v') t.chainTop = !is(t.x, t.y + 1, 'v');
     if (t.type in PORTAL_MODE && !is(t.x, t.y + 1, t.type)) {
       let n = 1;
       while (is(t.x, t.y - n, t.type)) n++;
@@ -127,11 +128,11 @@ const LEVELS = [
         '...............',
         '..r^^^.........'),
     seg('...^^^..^^^.....'),
-    seg('....d.....',
+    seg('d...d.....',
         '', '', '',
-        '...hh....',
+        '...hh.hh..',
         '', '', '', ''),
-    seg('....s.....'),
+    seg('i...s.....'),
     gap(16),
   ]),
   buildLevel('Sky Rush', 'Hard', 4, 280, [
@@ -209,10 +210,11 @@ const LEVELS = [
         '..................',
         '....^^^^^.........'),
     seg('....^^....#....^^^....'),
-    seg('..d......d..',
+    seg('..d..d..d...',
         '', '', '',
-        '...hh..hh...',
-        '', '', '', ''),
+        '...hh..hh.hh',
+        '', '', '',
+        'i...........'),
     gap(16),
   ]),
   buildLevel('Wave Rider', 'Hard', 5, 185, [
@@ -387,16 +389,16 @@ const LEVELS = [
     seg('.....c.........',
         '................',
         '...^^...^^......'),
-    seg('..d.........',
+    seg('..d.....d...',
         '', '', '',
-        '..hh........',
+        '..hh...hh...',
         '', '', '',
-        '....G.......'),
+        'i...G.......'),
     gap(16),
   ]),
   buildLevel('Neon Circuit', 'Hard', 5, 165, [
     gap(14),
-    seg('...^^..^^...'),
+    seg('', '', '', '...hh.......', '..........d.', '', '', '', '...^^..^^...'),
     seg('.....c........',
         '..............',
         '..^^...^^......'),
@@ -407,12 +409,12 @@ const LEVELS = [
     seg('....o.......c.....',
         '..................',
         '..^^^^^^..........'),
-    seg('....^^...^^..^....'),
+    seg('i...^^...^^..^....'),
     gap(16),
   ]),
   buildLevel('Sunrise Run', 'Easy', 3, 42, [
     gap(14),
-    seg('....^....'),
+    seg('', '', '', '...hh....', '........d', '', '', '', '....^....'),
     seg('....c........',
         '..............',
         '..^^...^^......'),
@@ -423,7 +425,7 @@ const LEVELS = [
     seg('......c.......',
         '...............',
         '..^^.....^^....'),
-    seg('...#....'),
+    seg('....d...', '', '', '', '', '', '', '', 'i..#....'),
     gap(16),
   ]),
   buildLevel('Tidal Flow', 'Normal', 5, 195, [
@@ -444,15 +446,15 @@ const LEVELS = [
         '...^^^^........'),
     seg('........F...',
         '..d.........',
-        '', '',
-        '..hh........',
+        '....d.......', '',
+        '..hh..hh....',
         '', '', '',
-        '....s.......'),
+        'i...s.......'),
     gap(16),
   ]),
   buildLevel('Circuit Breaker', 'Hard', 6, 35, [
     gap(14),
-    seg('..^^..^^...^...'),
+    seg('', '', '', '......hh.......', '........d......', '', '', '', 'i.^^..^^...^...'),
     seg('....c...........',
         '................',
         '..^^.....^^......'),
@@ -469,11 +471,11 @@ const LEVELS = [
   ]),
   buildLevel('Abyssal Run', 'Demon', 12, 275, [
     gap(14),
-    seg('..^^...^^...^^....'),
+    seg('i.^^...^^...^^....'),
     seg('....b....b.........',
         '...................',
         '..^^^^^^^^^^^^......'),
-    seg('...c...............',
+    seg('...c...........d...',
         '...................',
         '...^^....^^.........'),
     seg('....r^^^............'),
@@ -2112,9 +2114,12 @@ function drawHangingBar(x, y, ceilingY, hue) {
   for (const cx of [x + 7, x + T - 7]) drawChain(cx, ceilingY, y + 5, hue);
   ctx.save();
   ctx.shadowColor = `hsl(${hue},100%,70%)`; ctx.shadowBlur = 12;
-  ctx.fillStyle = vgrad(y + 4, y + 19, '#efffff', `hsl(${hue},95%,68%)`, `hsl(${hue},70%,32%)`);
+  ctx.fillStyle = vgrad(y + 4, y + 19, '#24253b', '#111322', '#080a14');
   ctx.fillRect(x + 1, y + 4, T - 2, 15);
-  ctx.shadowBlur = 0; ctx.strokeStyle = '#12121b'; ctx.lineWidth = 2.5; ctx.strokeRect(x + 1, y + 4, T - 2, 15);
+  ctx.shadowBlur = 0; ctx.strokeStyle = `hsl(${hue},92%,76%)`; ctx.lineWidth = 2.5; ctx.strokeRect(x + 1, y + 4, T - 2, 15);
+  ctx.fillStyle = `hsla(${hue},100%,82%,0.9)`; ctx.fillRect(x + 3, y + 6, T - 6, 2);
+  ctx.strokeStyle = `hsla(${hue},100%,88%,0.55)`; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x + T / 2, y + 9); ctx.lineTo(x + T / 2, y + 17); ctx.stroke();
   ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(x + 4, y + 6); ctx.lineTo(x + T - 4, y + 6); ctx.stroke();
   for (const cx of [x + T * 0.25, x + T * 0.75]) {
@@ -2169,6 +2174,29 @@ function drawLevelDecoration(x, y, time, hue) {
   ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.beginPath(); ctx.ellipse(0, 0, 18, 7, 0, 0, TAU); ctx.strokeStyle = `hsla(${hue},100%,82%,0.7)`; ctx.lineWidth = 1.5; ctx.stroke();
   sparkle(-2, -3, 3, '#fff'); ctx.restore();
+}
+
+function drawSignalPole(x, y, time, hue) {
+  const cx = x + T / 2, top = y + 5, base = y + T, pulse = 0.8 + Math.sin(time * 3 + x) * 0.2;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(8,10,22,0.95)'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(cx, top + 8); ctx.lineTo(cx, base - 3); ctx.stroke();
+  ctx.strokeStyle = `hsla(${hue},85%,76%,0.72)`; ctx.lineWidth = 1.25;
+  ctx.beginPath(); ctx.moveTo(cx - 1, top + 10); ctx.lineTo(cx - 1, base - 4); ctx.stroke();
+  for (let py = top + 13; py < base - 5; py += 8) {
+    ctx.fillStyle = `hsla(${hue},95%,82%,${0.5 + pulse * 0.35})`;
+    ctx.fillRect(cx - 2, py, 4, 3);
+  }
+  ctx.fillStyle = '#111322'; ctx.fillRect(cx - 8, base - 4, 16, 4);
+  ctx.strokeStyle = `hsla(${hue},95%,82%,0.8)`; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx - 7, base - 3); ctx.lineTo(cx + 7, base - 3); ctx.stroke();
+  ctx.shadowColor = `hsl(${hue},100%,66%)`; ctx.shadowBlur = 11 * pulse;
+  ctx.beginPath(); ctx.arc(cx, top + 3, 7, 0, TAU); ctx.fillStyle = `hsla(${hue},100%,62%,0.28)`; ctx.fill();
+  ctx.shadowBlur = 0; ctx.strokeStyle = `hsl(${hue},100%,84%)`; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, top + 3, 6, 0, TAU); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, top + 3, 2.5, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill();
+  ctx.restore();
 }
 
 function drawPad(x, y, time, red = false) {
@@ -2321,12 +2349,16 @@ function drawWorld(time) {
   for (const t of vis) {
     const x = sx(t.x), y = sy(t.y + 1);
     switch (t.type) {
-      case '^': case 'v': drawSpike(x, y, t.type === 'v', hue, spikeFill); break;
+      case '^': drawSpike(x, y, false, hue, spikeFill); break;
+      case 'v':
+        if (t.chainTop) drawChain(x + T / 2, sy(ROWS), y + 3, hue);
+        drawSpike(x, y, true, hue, spikeFill); break;
       case 'h': drawHangingBar(x, y, sy(ROWS), hue); break;
       case 'F': drawFallingSpike(x, sy(fallingSpikeY(t, me.x) + 1), sy(ROWS), hue); break;
       case 'G': drawGiantSpike(x, y, hue); break;
       case 's': drawSaw(x, y, time, hue); break;
       case 'd': drawLevelDecoration(x, y, time, hue); break;
+      case 'i': drawSignalPole(x, y, time, hue); break;
       case 'p': case 'r': drawPad(x, y, time, t.type === 'r'); break;
       case 'o': case 'b': drawOrb(x, y, player.used.includes(t.id), time, t.type === 'b'); break;
       case 'c': if (!player.coins.includes(t.id)) drawCoin(x, y, (save.coins[selected] || []).includes(t.id), time); break;
