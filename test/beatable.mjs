@@ -62,6 +62,10 @@ const orbLaunches = await page.evaluate(() => {
   };
   return { standard: launch('o'), boost: launch('b'), standardValue: JUMP, boostValue: BOOST_ORB_JUMP, redPad: RED_PAD, yellowPad: PAD };
 });
+const poleBeat = await page.evaluate(() => {
+  const beat = 60 / SONGS[selected % SONGS.length].bpm;
+  return { downbeat: beatPulse(0), midpoint: beatPulse(beat / 2) };
+});
 const obstacleChecks = await page.evaluate(() => {
   const collide = (type, x, y, tileX = 5, tileY = 0) => {
     const p = newPlayer(); p.x = x; p.y = y; p.grounded = false; p.vy = 0;
@@ -74,7 +78,7 @@ const obstacleChecks = await page.evaluate(() => {
     giantSpikeHit: collide('G', 5, 0), sawHit: collide('s', 5, 0),
     fallingSpikeHit: collide('F', 4.65, 0, traps.x, traps.y), fallingSpikeClear: collide('F', 0, 0, traps.x, traps.y),
     fallingSpikePositions: [fallingSpikeY(traps, 1), fallingSpikeY(traps, 3), fallingSpikeY(traps, 5)],
-    decorationClear: collide('d', 5, 0), poleClear: collide('i', 5, 0),
+    poleClear: collide('i', 5, 0),
   };
 });
 // Red pads must clear their whole grounded spike runway with timing margin at every
@@ -110,6 +114,7 @@ await browser.close();
 console.table(results);
 console.log('frames that clear a triple spike:', tripleSpikeFrames);
 console.log('orb launch velocities:', orbLaunches);
+console.log('pole beat pulse:', poleBeat);
 console.log('new obstacle checks:', obstacleChecks);
 console.log('red-pad lane results:', redPadRunways.map(r => ({ level: r.level, spikes: r.count,
   minTiles: r.count ? +Math.min(...r.phases.map(p => p.margin ?? -Infinity)).toFixed(2) : 'n/a',
@@ -118,10 +123,12 @@ if (tripleSpikeFrames < 5) throw new Error('a triple spike should leave at least
 if (orbLaunches.standard.first !== orbLaunches.standardValue || orbLaunches.boost.first !== orbLaunches.boostValue || orbLaunches.boost.second >= orbLaunches.boost.first || orbLaunches.boost.used !== 1) throw new Error('cyan boost orbs should give one controlled stronger launch');
 if (glide > 0.001) throw new Error(`the cube moves unevenly between frames (spread ${glide} tiles)`);
 if (errors.length) throw new Error('page errors: ' + errors.join('; '));
-if (obstacleChecks.ceilingBarHit !== 'dead' || obstacleChecks.ceilingBarClear === 'dead' || obstacleChecks.giantSpikeHit !== 'dead' || obstacleChecks.sawHit !== 'dead' || obstacleChecks.fallingSpikeHit !== 'dead' || obstacleChecks.fallingSpikeClear === 'dead' || obstacleChecks.decorationClear === 'dead' || obstacleChecks.poleClear === 'dead') throw new Error('new obstacle or decoration collision behavior is inconsistent');
+if (obstacleChecks.ceilingBarHit !== 'dead' || obstacleChecks.ceilingBarClear === 'dead' || obstacleChecks.giantSpikeHit !== 'dead' || obstacleChecks.sawHit !== 'dead' || obstacleChecks.fallingSpikeHit !== 'dead' || obstacleChecks.fallingSpikeClear === 'dead' || obstacleChecks.poleClear === 'dead') throw new Error('new obstacle or pole collision behavior is inconsistent');
+if (poleBeat.downbeat !== 1 || poleBeat.midpoint !== 0) throw new Error('pole lights should pop on the beat and relax between beats');
 if (obstacleChecks.fallingSpikePositions.some((y, i) => Math.abs(y - [8, 4, 0][i]) > 0.001)) throw new Error('falling spikes should trigger, fall at a fixed rate, and settle on the floor');
-for (const name of ['Orb Garden', 'Rolling Thunder', 'Prism Path', 'Tidal Flow']) if ((obstacleChecks.levels[name]?.h || 0) < 4 || !obstacleChecks.levels[name]?.d || !obstacleChecks.levels[name]?.i) throw new Error(`${name}: add hanging hazards, poles, and scenery to Normal routes`);
-for (const name of ['Sunrise Run', 'Neon Circuit', 'Circuit Breaker']) if (!obstacleChecks.levels[name]?.h || !obstacleChecks.levels[name]?.i) throw new Error(`${name}: aerial hazards and beacon poles should appear across difficulties`);
+for (const name of ['Orb Garden', 'Rolling Thunder', 'Prism Path', 'Tidal Flow']) if ((obstacleChecks.levels[name]?.h || 0) < 4 || !obstacleChecks.levels[name]?.i) throw new Error(`${name}: add hanging hazards and beat-pulsing poles to Normal routes`);
+for (const name of ['Sunrise Run', 'Neon Circuit', 'Circuit Breaker']) if (!obstacleChecks.levels[name]?.h || !obstacleChecks.levels[name]?.i) throw new Error(`${name}: aerial hazards and beat-pulsing poles should appear across difficulties`);
+for (const [name, counts] of Object.entries(obstacleChecks.levels)) if (!counts.i) throw new Error(`${name}: add a beat-pulsing pole light`);
 if (!obstacleChecks.levels['Orb Garden']?.s || !obstacleChecks.levels['Prism Path']?.G || !obstacleChecks.levels['Tidal Flow']?.F) throw new Error('the new hazards need representative level placements');
 for (const type of ['F', 'h', 'G', 's']) if (!obstacleChecks.levels['Abyssal Run']?.[type]) throw new Error(`Abyssal Run: missing Demon hazard ${type}`);
 for (const r of results) {
