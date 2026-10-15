@@ -28,9 +28,23 @@ assert.equal(order.songs, order.names.length, 'every reordered and added level h
 assert.deepEqual(order.badUnlocks, [], 'all level rewards point to an existing level');
 assert.deepEqual(order.unlockTargets, [['Gold', 'Gash Gauntlet'], ['Prism', 'Sky Rush'], ['Skull', 'Demon Gash']], 'level unlocks stay attached to their original level');
 const shapedCubes = await page.evaluate(() => ITEMS.cube.filter(it => ['prism', 'jelly', 'orbit', 'aegis', 'bloom', 'nova'].includes(it.look)).map(it => it.look));
-assert.deepEqual(shapedCubes, ['prism', 'jelly', 'orbit', 'aegis', 'bloom', 'nova'], 'all custom silhouettes are listed in the cube shop');
+assert.deepEqual(shapedCubes, ['prism', 'jelly', 'orbit', 'aegis', 'bloom', 'nova', 'helix', 'shard'], 'all custom silhouettes are listed in the cube shop');
 const exhaustAnchors = await page.evaluate(() => Object.keys(SHIPS).every(look => Array.isArray(EXHAUST[look]) && EXHAUST[look].length === 2));
 assert.equal(exhaustAnchors, true, 'every ship skin has a tailored exhaust anchor');
+const renderers = await page.evaluate(() => ({
+  cube: ITEMS.cube.every(it => typeof LOOKS[it.look] === 'function'),
+  ship: ITEMS.ship.every(it => typeof SHIPS[it.look] === 'function' && EXHAUST[it.look]),
+  ball: ITEMS.ball.every(it => typeof BALLS[it.look] === 'function'),
+  wave: ITEMS.wave.every(it => typeof WAVES[it.look] === 'function'),
+  added: ['Helix', 'Shard', 'Stinger', 'Lancer', 'Comet', 'Quasar', 'Ion', 'Aurora', 'Prism', 'Rift', 'Meteor'].every(name => KINDS.some(k => ITEMS[k].some(it => it.name === name))),
+}));
+assert.deepEqual(renderers, { cube: true, ship: true, ball: true, wave: true, added: true }, 'every new shop item has a registered visual and stays available to equip');
+const extraIcons = await page.evaluate(() => {
+  drawTrailIcon('Aurora', 40, 40); drawTrailIcon('Prism', 80, 40);
+  drawDeathIcon('Rift', 120, 40); drawDeathIcon('Meteor', 160, 40);
+  return true;
+});
+assert.equal(extraIcons, true, 'new trail and death icons render without errors');
 
 // Type the secret word (the 's' opens the shop, which still listens), enter the ancient code there, go back, then click the title 7 times.
 await page.keyboard.type('gash');
