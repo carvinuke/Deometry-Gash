@@ -49,7 +49,7 @@ assert.deepEqual(after.secrets, ['close', 'code', 'deaths', 'jumps', 'konami', '
 assert.deepEqual(after.locked, [], 'everything is unlockable');
 assert.equal(after.stars, 0, 'stars cover the star items exactly');
 assert.equal(after.coins, 0, 'coins cover the coin items exactly');
-assert.equal(after.saved, 36, 'purchases persist');
+assert.equal(after.saved, 40, 'purchases persist, including the four new mode skins');
 assert.deepEqual(kept.sky, kept.skyIds, 'old saves keep their Sky Rush coins');
 assert.deepEqual(kept.gash, [kept.gashId], 'old saves keep their Gash Gauntlet coin');
 console.log('OK');
