@@ -36,7 +36,7 @@ const GRAVITY = -100;         // tiles / second^2
 const JUMP = 22;              // ~2.4 tiles high, ~4.4 tiles long
 const BOOST_ORB_JUMP = 26;    // cyan orbs add a little extra lift for planned mid-air routes
 const PAD = 28;               // yellow pad launch, ~3.9 tiles high
-const RED_PAD = 34;           // a stronger launch than the yellow pad, without the old extreme airtime
+const RED_PAD = 30;           // a controlled boost over yellow pads, with enough time for the charts it serves
 const SHIP_UP = 60, SHIP_DOWN = 50, SHIP_MAX = 9;
 const BALL_G = 60, BALL_KICK = 6, BALL_MAX = 24; // the ball falls toward its gravity and flips it on a press
 const WAVE = SPEED;           // the wave moves at 45 degrees: up while held, down otherwise
@@ -119,7 +119,7 @@ const LEVELS = [
     seg('..#^^^#^^^#^^^#....'),
     seg('.......o.......',
         '...............',
-        '..r^^^^^^^.....'),
+        '..r^^^.........'),
     seg('...^^^..^^^.....'),
     gap(16),
   ]),
@@ -145,8 +145,8 @@ const LEVELS = [
         '............',
         '..^^^^^^....'),
     seg('.................',
-        '........###......',
-        '......r.###^^^...'),
+        '........##.......',
+        '......r.##^......'),
     seg('.........###.c...###.....vvvv....###..............',
         '.........###.....vvv.............###..............',
         '.................................vvv..............',
@@ -383,7 +383,7 @@ const LEVELS = [
     seg('.....o........',
         '...............',
         '...^^^^^.......'),
-    seg('...r^^^^^......'),
+    seg('...r^^^...........'),
     seg('....o.......c.....',
         '..................',
         '..^^^^^^..........'),
@@ -433,7 +433,7 @@ const LEVELS = [
     seg('......b.........',
         '.................',
         '...^^^^^^........'),
-    seg('...r^^^^^^......'),
+    seg('...r^^^.........'),
     seg('....o.....c......',
         '..................',
         '..^^^^^...^^......'),
@@ -450,7 +450,7 @@ const LEVELS = [
     seg('...c...............',
         '...................',
         '...^^....^^.........'),
-    seg('....r^^^^^^.........'),
+    seg('....r^^^............'),
     seg('......b....b........',
         '....................',
         '...^^^^^^^^^^^^^.....'),
