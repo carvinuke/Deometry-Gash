@@ -47,12 +47,12 @@ const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
 document.fonts?.load(`24px ${FONT}`).catch(() => {}); // text drawn only on a canvas never triggers the font download
 const mod = (a, n) => ((a % n) + n) % n;
 
-// Level tiles: '#' block, '^' spike, 'v' chained hanging spike, 'h' chained spike bar, 'F' falling spike, 's' saw, 'G' giant spike,
-// 'd' crystal scenery, 'i' non-colliding beacon pole, 'p' yellow jump pad, 'r' red jump pad, 'o' jump orb (press while touching),
+// Level tiles: '#' block, '^' spike, 'v' chained hanging spike, 'h' chained spike bar, 'F' falling spike, 's' saw, 'G' giant spike, 'i' beat-pulsing pole light,
+// 'p' yellow jump pad, 'r' red jump pad, 'o' jump orb (press while touching),
 // 'b' cyan boost orb, 'c' secret coin, portals 'S' ship, 'C' cube, 'B' ball, 'W' wave, '.' empty. seg() takes rows top to bottom; the last
 // row sits on the ground. Short rows are padded with '.' on the right.
 const PORTAL_MODE = { S: 'ship', C: 'cube', B: 'ball', W: 'wave' };
-const NEW_LEVEL_TILES = new Set(['h', 'F', 's', 'G', 'd', 'i']); // keep existing coin/orb IDs stable when adding scenery or hazards
+const NEW_LEVEL_TILES = new Set(['h', 'F', 's', 'G', 'i']); // keep existing coin/orb IDs stable when adding hazards and scenery
 function seg(...rows) {
   const w = Math.max(...rows.map(r => r.length));
   while (rows.length < ROWS) rows.unshift('');
@@ -90,8 +90,8 @@ function buildLevel(name, difficulty, stars, hue, segs) {
 const LEVELS = [
   buildLevel('First Steps', 'Easy', 2, 220, [
     gap(14),
-    seg('....^....'),
-    seg('.....^^.....'),
+    seg('i...^....'),
+    seg('i....^^.....'),
     seg('..............',
         '...#..##....^.'),
     seg('..##^^##^^##....'),
@@ -101,7 +101,7 @@ const LEVELS = [
         '....p^^^........'),
     seg('....c......',
         '...........',
-        '...^^^.....'),
+        'i..^^^.....'),
     seg('..........####.......',
         '.......#######.......',
         '....##########..^^...'),
@@ -112,7 +112,7 @@ const LEVELS = [
     gap(14),
     seg('....o......',
         '...........',
-        '..^^^^^^...'),
+        'i.^^^^^^...'),
     seg('.........c........',
         '..................',
         '......######......',
@@ -127,17 +127,17 @@ const LEVELS = [
     seg('.......o.......',
         '...............',
         '..r^^^.........'),
-    seg('...^^^..^^^.....'),
-    seg('d...d.....',
+    seg('i..^^^..^^^.....'),
+    seg('..........',
         '', '', '',
         '...hh.hh..',
-        '', '', '', ''),
-    seg('i...s.....'),
+        '', '', '', 'i.........'),
+    seg('....s.....'),
     gap(16),
   ]),
   buildLevel('Sky Rush', 'Hard', 4, 280, [
     gap(14),
-    seg('...^....^^.....'),
+    seg('i..^....^^.....'),
     seg('............###.......###.......####......###...............',
         '............###.......###.......####......###...............',
         '............###....c..###.......vvvv......###...............',
@@ -147,12 +147,12 @@ const LEVELS = [
         '..S.............###.......###.......^^^......###......C......',
         '..S.............###.......###...c...###......###.............',
         '..S.............###.......###.......###......###.............'),
-    seg('...^^....^^^.....'),
+    seg('i..^^....^^^.....'),
     gap(16),
   ]),
   buildLevel('Gash Gauntlet', 'Insane', 6, 0, [
     gap(14),
-    seg('..^^^...#^^^.....'),
+    seg('i.^^^...#^^^.....'),
     seg('....o.......',
         '............',
         '..^^^^^^....'),
@@ -173,12 +173,12 @@ const LEVELS = [
         '................',
         '...^^^..o.......',
         '................',
-        '.......^^^^^....'),
+        'i......^^^^^....'),
     gap(16),
   ]),
   buildLevel('Rolling Thunder', 'Normal', 3, 30, [
     gap(14),
-    seg('....^.......^^.......'),
+    seg('i...^.......^^.......'),
     seg('.........#.......',
         '.....#...#...^^..'),
     seg('...B..............',
@@ -210,7 +210,7 @@ const LEVELS = [
         '..................',
         '....^^^^^.........'),
     seg('....^^....#....^^^....'),
-    seg('..d..d..d...',
+    seg('............',
         '', '', '',
         '...hh..hh.hh',
         '', '', '',
@@ -219,7 +219,7 @@ const LEVELS = [
   ]),
   buildLevel('Wave Rider', 'Hard', 5, 185, [
     gap(14),
-    seg('....^.....^^......^^^.....'),
+    seg('i...^.....^^......^^^.....'),
     seg('..W.........................',
         '..W.........................',
         '..W.........................',
@@ -261,15 +261,15 @@ const LEVELS = [
         '.................',
         '.................',
         '..p....^^^^^.....'),
-    seg('....^^.....^^^.......'),
+    seg('i...^^.....^^^.......'),
     gap(16),
   ]),
   buildLevel('Mode Mayhem', 'Insane', 8, 320, [
     gap(14),
-    seg('...^^.....^^^......'),
+    seg('i..^^.....^^^......'),
     seg('......o...........',
         '..................',
-        '....^^^^^.....^^..'),
+        'i...^^^^^.....^^..'),
     seg('..........###....................###..................',
         '..........###....................###..................',
         '..........###...........^^^......###..........^^^.....',
@@ -320,7 +320,7 @@ const LEVELS = [
   ]),
   buildLevel('Demon Gash', 'Demon', 10, 250, [
     gap(14),
-    seg('...^^^.......^^..^^......^^^......'),
+    seg('i..^^^.......^^..^^......^^^......'),
     seg('......o...o...o...o.........',
         '............................',
         '...^^^^^^^^^^^^^^^^^^^......'),
@@ -373,12 +373,12 @@ const LEVELS = [
     seg('.....^^^.....o...o...........',
         '.............................',
         '..........^^^^^^^^^^.........'),
-    seg('...^^...^^.....^^^.......#^^^#....'),
+    seg('i..^^...^^.....^^^.......#^^^#....'),
     gap(16),
   ]),
   buildLevel('Prism Path', 'Normal', 4, 190, [
     gap(14),
-    seg('....^....'),
+    seg('i...^....'),
     seg('.......c......',
         '..............',
         '..^^...^^.....'),
@@ -389,7 +389,7 @@ const LEVELS = [
     seg('.....c.........',
         '................',
         '...^^...^^......'),
-    seg('..d.....d...',
+    seg('............',
         '', '', '',
         '..hh...hh...',
         '', '', '',
@@ -398,7 +398,7 @@ const LEVELS = [
   ]),
   buildLevel('Neon Circuit', 'Hard', 5, 165, [
     gap(14),
-    seg('', '', '', '...hh.......', '..........d.', '', '', '', '...^^..^^...'),
+    seg('', '', '', '...hh.......', '', '', '', '', 'i..^^..^^...'),
     seg('.....c........',
         '..............',
         '..^^...^^......'),
@@ -414,7 +414,7 @@ const LEVELS = [
   ]),
   buildLevel('Sunrise Run', 'Easy', 3, 42, [
     gap(14),
-    seg('', '', '', '...hh....', '........d', '', '', '', '....^....'),
+    seg('', '', '', '...hh....', '', '', '', '', 'i...^....'),
     seg('....c........',
         '..............',
         '..^^...^^......'),
@@ -424,20 +424,20 @@ const LEVELS = [
     seg('....p^^^......'),
     seg('......c.......',
         '...............',
-        '..^^.....^^....'),
-    seg('....d...', '', '', '', '', '', '', '', 'i..#....'),
+        'i.^^.....^^....'),
+    seg('', '', '', '', '', '', '', '', 'i..#....'),
     gap(16),
   ]),
   buildLevel('Tidal Flow', 'Normal', 5, 195, [
     gap(14),
-    seg('...^^...'),
+    seg('i..^^...'),
     seg('.....c..........',
         '................',
         '..^^....^^......'),
     seg('....b..........',
         '................',
         '..^^^^^..........'),
-    seg('...p^^^^....'),
+    seg('i..p^^^^....'),
     seg('........c.......',
         '................',
         '....^^...^^......'),
@@ -445,16 +445,16 @@ const LEVELS = [
         '..............',
         '...^^^^........'),
     seg('........F...',
-        '..d.........',
-        '....d.......', '',
+        '',
+        '', '',
         '..hh..hh....',
         '', '', '',
-        'i...s.......'),
+        '....s.......'),
     gap(16),
   ]),
   buildLevel('Circuit Breaker', 'Hard', 6, 35, [
     gap(14),
-    seg('', '', '', '......hh.......', '........d......', '', '', '', 'i.^^..^^...^...'),
+    seg('', '', '', '......hh.......', '', '', '', '', 'i.^^..^^...^...'),
     seg('....c...........',
         '................',
         '..^^.....^^......'),
@@ -466,7 +466,7 @@ const LEVELS = [
         '..................',
         '..^^^^^...^^......'),
     seg('...p^^^^....o....'),
-    seg('..^^...^^..^^....'),
+    seg('i.^^...^^..^^....'),
     gap(16),
   ]),
   buildLevel('Abyssal Run', 'Demon', 12, 275, [
@@ -475,9 +475,9 @@ const LEVELS = [
     seg('....b....b.........',
         '...................',
         '..^^^^^^^^^^^^......'),
-    seg('...c...........d...',
+    seg('...c...............',
         '...................',
-        '...^^....^^.........'),
+        'i..^^....^^.........'),
     seg('....r^^^............'),
     seg('......b....b........',
         '....................',
@@ -2100,12 +2100,16 @@ function drawSpike(x, y, down, hue, fill) {
 
 function drawChain(cx, y1, y2, hue) {
   if (y2 <= y1) return;
-  ctx.save(); ctx.strokeStyle = 'rgba(10,12,25,0.9)'; ctx.lineWidth = 5;
-  ctx.beginPath(); ctx.moveTo(cx, y1); ctx.lineTo(cx, y2); ctx.stroke();
-  ctx.strokeStyle = `hsla(${hue},80%,82%,0.72)`; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(cx - 1, y1); ctx.lineTo(cx - 1, y2); ctx.stroke();
-  for (let y = y1 + 5; y < y2 - 3; y += 10) {
-    ctx.beginPath(); ctx.ellipse(cx, y, 3, 4, 0, 0, TAU); ctx.stroke();
+  ctx.save();
+  const pitch = 9.5;
+  for (let i = 0, y = y1 + 6; y < y2 - 4; i++, y += pitch) {
+    const sideways = i % 2 === 1, rx = sideways ? 5.2 : 4.1, ry = sideways ? 3.8 : 6.2;
+    ctx.beginPath(); ctx.ellipse(cx, y, rx, ry, 0, 0, TAU);
+    ctx.fillStyle = '#201a30'; ctx.fill();
+    ctx.strokeStyle = '#090812'; ctx.lineWidth = 4.5; ctx.stroke();
+    ctx.strokeStyle = `hsl(${hue},58%,61%)`; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx - 0.8, y - 0.9, rx * 0.56, ry * 0.58, 0, Math.PI * 1.12, Math.PI * 1.82);
+    ctx.strokeStyle = 'rgba(255,255,255,0.48)'; ctx.lineWidth = 1.2; ctx.stroke();
   }
   ctx.restore();
 }
@@ -2165,37 +2169,41 @@ function drawSaw(x, y, time, hue) {
   ctx.restore();
 }
 
-function drawLevelDecoration(x, y, time, hue) {
-  const cx = x + T / 2, cy = y + T / 2 + Math.sin(time * 1.8 + x) * 2;
-  ctx.save(); ctx.globalAlpha = 0.76; ctx.translate(cx, cy); ctx.rotate(time * 0.22 + x * 0.15);
-  ctx.shadowColor = `hsl(${hue},100%,70%)`; ctx.shadowBlur = 14;
-  ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(10, -2); ctx.lineTo(0, 15); ctx.lineTo(-10, -2); ctx.closePath();
-  ctx.fillStyle = vgrad(-15, 15, '#fff', `hsla(${hue},100%,68%,0.85)`, `hsla(${hue},100%,34%,0.35)`); ctx.fill();
-  ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(0, 0, 18, 7, 0, 0, TAU); ctx.strokeStyle = `hsla(${hue},100%,82%,0.7)`; ctx.lineWidth = 1.5; ctx.stroke();
-  sparkle(-2, -3, 3, '#fff'); ctx.restore();
+function beatPulse(time) {
+  const def = song?.def || SONGS[selected % SONGS.length] || MENU_SONG;
+  const elapsed = AC?.state === 'running' && state !== 'pause' && save.settings.music > 0 && song?.def
+    ? Math.max(0, AC.currentTime - song.start)
+    : time;
+  const phase = mod(elapsed / (60 / def.bpm), 1), distance = Math.min(phase, 1 - phase);
+  return Math.max(0, 1 - distance / 0.22) ** 2;
 }
-
 function drawSignalPole(x, y, time, hue) {
-  const cx = x + T / 2, top = y + 5, base = y + T, pulse = 0.8 + Math.sin(time * 3 + x) * 0.2;
+  const cx = x + T / 2, top = y + 8, base = y + T - 2, pulse = beatPulse(time);
+  const bob = pulse * 1.8, radius = 6 + pulse * 2.3, dotY = top - bob;
   ctx.save();
   ctx.lineCap = 'round';
-  ctx.strokeStyle = 'rgba(8,10,22,0.95)'; ctx.lineWidth = 5;
-  ctx.beginPath(); ctx.moveTo(cx, top + 8); ctx.lineTo(cx, base - 3); ctx.stroke();
-  ctx.strokeStyle = `hsla(${hue},85%,76%,0.72)`; ctx.lineWidth = 1.25;
-  ctx.beginPath(); ctx.moveTo(cx - 1, top + 10); ctx.lineTo(cx - 1, base - 4); ctx.stroke();
-  for (let py = top + 13; py < base - 5; py += 8) {
-    ctx.fillStyle = `hsla(${hue},95%,82%,${0.5 + pulse * 0.35})`;
-    ctx.fillRect(cx - 2, py, 4, 3);
+  ctx.strokeStyle = '#171323'; ctx.lineWidth = 9;
+  ctx.beginPath(); ctx.moveTo(cx, dotY + radius - 1); ctx.lineTo(cx, base - 3); ctx.stroke();
+  ctx.strokeStyle = `hsl(${hue},82%,70%)`; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(cx, dotY + radius); ctx.lineTo(cx, base - 3); ctx.stroke();
+  for (let py = dotY + radius + 7; py < base - 5; py += 10) {
+    ctx.strokeStyle = '#171323'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(cx - 3, py); ctx.lineTo(cx + 3, py); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - 2, py); ctx.lineTo(cx + 2, py); ctx.stroke();
   }
-  ctx.fillStyle = '#111322'; ctx.fillRect(cx - 8, base - 4, 16, 4);
-  ctx.strokeStyle = `hsla(${hue},95%,82%,0.8)`; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(cx - 7, base - 3); ctx.lineTo(cx + 7, base - 3); ctx.stroke();
-  ctx.shadowColor = `hsl(${hue},100%,66%)`; ctx.shadowBlur = 11 * pulse;
-  ctx.beginPath(); ctx.arc(cx, top + 3, 7, 0, TAU); ctx.fillStyle = `hsla(${hue},100%,62%,0.28)`; ctx.fill();
-  ctx.shadowBlur = 0; ctx.strokeStyle = `hsl(${hue},100%,84%)`; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(cx, top + 3, 6, 0, TAU); ctx.stroke();
-  ctx.beginPath(); ctx.arc(cx, top + 3, 2.5, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill();
+  rr(cx - 9, base - 5, 18, 7, 3); ctx.fillStyle = '#171323'; ctx.fill();
+  rr(cx - 6, base - 4, 12, 3, 2); ctx.fillStyle = `hsl(${hue},82%,70%)`; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, dotY, radius + 4 + pulse * 2, 0, TAU);
+  ctx.fillStyle = `hsla(${hue},100%,72%,${0.12 + pulse * 0.2})`; ctx.fill();
+  if (pulse > 0.12) {
+    ctx.beginPath(); ctx.arc(cx, dotY, radius + 5 + pulse * 5, 0, TAU);
+    ctx.strokeStyle = `hsla(${hue},100%,86%,${pulse * 0.55})`; ctx.lineWidth = 2; ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(cx, dotY, radius + 1.5, 0, TAU); ctx.fillStyle = '#171323'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, dotY, radius, 0, TAU); ctx.fillStyle = `hsl(${hue},100%,66%)`; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx - radius * 0.28, dotY - radius * 0.28, 1.8, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill();
   ctx.restore();
 }
 
@@ -2357,7 +2365,6 @@ function drawWorld(time) {
       case 'F': drawFallingSpike(x, sy(fallingSpikeY(t, me.x) + 1), sy(ROWS), hue); break;
       case 'G': drawGiantSpike(x, y, hue); break;
       case 's': drawSaw(x, y, time, hue); break;
-      case 'd': drawLevelDecoration(x, y, time, hue); break;
       case 'i': drawSignalPole(x, y, time, hue); break;
       case 'p': case 'r': drawPad(x, y, time, t.type === 'r'); break;
       case 'o': case 'b': drawOrb(x, y, player.used.includes(t.id), time, t.type === 'b'); break;
