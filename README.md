@@ -18,8 +18,8 @@ A tiny Geometry Dash–style game in a single HTML file. No install, no build.
 
 ## What's in it
 
-- **8 levels**: First Steps (Easy), Orb Garden (Normal), Sky Rush (Hard), Gash Gauntlet (Insane), Rolling Thunder (Normal), Wave Rider (Hard), Mode Mayhem (Insane) and Demon Gash (Demon).
-- **Jump pads**: yellow pads give a standard launch; red pads launch higher to clear longer obstacle runs. **Jump orbs** (yellow rings) let you jump again mid-air if you press while touching one.
+- **10 levels**, ordered from easiest to hardest: First Steps (Easy), Orb Garden and Rolling Thunder (Normal), Prism Path (Normal), Sky Rush, Neon Circuit and Wave Rider (Hard), Gash Gauntlet and Mode Mayhem (Insane), then Demon Gash (Demon).
+- **Jump pads**: yellow pads give a standard launch; red pads give a controlled stronger launch for longer obstacle runs. **Jump orbs** (yellow rings) let you jump again mid-air if you press while touching one.
 - **Portals** change how you move: **ship** (pink), **ball** (orange), **wave** (blue), and **cube** (green) to turn back.
 - **Secret coins**: 2 or 3 hidden in every level. They count once you finish the level with them.
 - **Shop** with 22 cubes, 12 ships, 10 balls, 10 waves, 10 trails and 12 death effects. Use the page arrows below the preview or the arrow keys to browse. New shape skins animate while keeping the same gameplay hitbox; custom silhouettes no longer draw the square cube bevel. Ship exhaust now follows each hull's tail or nozzle. New Aegis, Bloom and Nova cube silhouettes join Prism, Jelly and Orbit. Each item unlocks by:
@@ -39,7 +39,7 @@ Everything is drawn in code on a canvas (glowing blocks, animated portals, every
 Levels are in `LEVELS` near the top of the script in `index.html`, built from `seg(...)` rows (top to bottom, the last row sits on the ground):
 `#` block, `^` spike, `v` hanging spike, `p` yellow jump pad, `r` red jump pad, `o` jump orb, `c` coin, `S` ship portal, `B` ball portal, `W` wave portal, `C` cube portal, `.` empty.
 Stack a portal letter in a column (3 or 4 tall) where the player passes; the portal works at any height, but that is where it is drawn.
-Each level's song is in `SONGS`, in the same order; a new level without one reuses a song from the start of the list.
+Each level's song is in `SONGS`, mapped to the level by name so changing the displayed difficulty order does not change its music.
 
 To check every level (and every coin) is still reachable, that motion stays smooth, and that the shop adds up (needs Node and Playwright, `npm i -D playwright`):
 
