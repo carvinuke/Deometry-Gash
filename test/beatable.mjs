@@ -148,4 +148,28 @@ for (const r of redPadRunways) {
     throw new Error(`${r.level}: red pad lane needs a playable clearance margin (spikes=${r.count}, min=${minMargin})`);
   }
 }
+const devToolsChecks = await page.evaluate(async () => {
+  const name = LEVELS[0].name, base = DEV_BASE_ROWS.get(name).slice();
+  const editedRows = base.slice();
+  const firstTile = editedRows[ROWS - 1][0] === '^' ? '.' : '^';
+  editedRows[ROWS - 1] = firstTile + editedRows[ROWS - 1].slice(1);
+  applyLevelOverrides({ [name]: editedRows });
+  const edited = levelToRows(LEVELS.find(lvl => lvl.name === name));
+  const index = LEVELS.findIndex(lvl => lvl.name === name), lvl = LEVELS[index];
+  LEVELS[index] = buildLevel(lvl.name, lvl.difficulty, lvl.stars, lvl.hue, [base]);
+  const zip = devMakeZip({ 'index.html': 'portable test', 'level-overrides.json': '{}' });
+  const bytes = new Uint8Array(await zip.arrayBuffer()), view = new DataView(bytes.buffer);
+  return {
+    panel: !!document.getElementById('devPanel'),
+    panelHidden: document.getElementById('devPanel').hidden,
+    levelCount: LEVELS.length,
+    baseCount: DEV_BASE_ROWS.size,
+    editRoundTrip: edited[ROWS - 1] === editedRows[ROWS - 1],
+    zipStart: view.getUint32(0, true),
+    zipEnd: view.getUint32(bytes.length - 22, true),
+  };
+});
+if (!devToolsChecks.panel || !devToolsChecks.panelHidden || devToolsChecks.levelCount !== devToolsChecks.baseCount || !devToolsChecks.editRoundTrip || devToolsChecks.zipStart !== 0x04034b50 || devToolsChecks.zipEnd !== 0x06054b50) {
+  throw new Error('developer editor, level persistence, or ZIP export self-check failed: ' + JSON.stringify(devToolsChecks));
+}
 console.log('OK');
