@@ -193,6 +193,62 @@
     #devPanel .dev-palette button { height: 44px; }
   }
 
+
+  /* Follow-up polish based on the editor screenshot: single-line header, readable palette, clear canvas. */
+  #devPanel { grid-template-rows: minmax(0,1fr) 236px 25px; }
+  #devPanel .editor-topbar { grid-template-columns: 42px minmax(170px,220px) minmax(250px,1fr) minmax(230px,.85fr) auto; gap: 10px; }
+  #devPanel .editor-heading { justify-self: center; text-align: center; }
+  #devPanel .editor-header-tools { flex-wrap: nowrap; white-space: nowrap; }
+  #devPanel .editor-dock { grid-template-columns: 158px minmax(220px,1fr) 230px; }
+  #devPanel .editor-modes { min-height: 126px; }
+  #devPanel .editor-modes button { min-height: 36px; font-size: 16px; }
+  #devPanel .editor-selection { align-items: flex-start; flex-direction: column; gap: 2px; }
+  #devPanel .editor-selection strong { width: 100%; font-size: 12px; }
+  #devPanel .editor-selection-actions button { padding-block: 6px; font-size: 11px; }
+  #devPanel .editor-library-heading { min-height: 36px; }
+  #devPanel .editor-library-heading > strong, #devPanel .editor-tools-heading { font-size: 11px; }
+  #devPanel .editor-categories button { padding: 6px 10px; font-size: 11px; }
+  #devPanel .dev-palette { grid-template-columns: repeat(auto-fit,minmax(82px,1fr)); gap: 7px; padding: 6px; }
+  #devPanel .dev-palette button { height: 78px; padding: 6px; border-radius: 9px; font-size: 12px; }
+  #devPanel .dev-palette button .tile-icon { font-size: 30px; }
+  #devPanel .editor-tools-grid { gap: 6px; }
+  #devPanel .editor-tools-grid button, #devPanel .editor-tools-grid .editor-toggle { min-height: 32px; font-size: 11px; }
+  #devPanel .editor-tools-grid #devAllSkins { grid-column: 1 / -1; }
+  #devPanel button:not(:disabled) { transition: filter .12s ease, transform .12s ease, box-shadow .12s ease; }
+  #devPanel button:not(:disabled):hover { filter: brightness(1.12); transform: translateY(-1px); }
+  #devPanel button:not(:disabled):active { transform: translateY(1px) scale(.98); }
+  @media (max-width: 900px) {
+    #devPanel .editor-topbar { grid-template-columns: 36px minmax(0,1fr) minmax(190px,.85fr) auto; gap: 6px; }
+    #devPanel .editor-dock { grid-template-columns: 130px minmax(180px,1fr) 205px; gap: 6px; }
+  }
+  @media (max-width: 650px) {
+    #devPanel { grid-template-rows: minmax(0,1fr) 230px 23px; }
+    #devPanel .editor-topbar { grid-template-columns: 32px minmax(78px,.8fr) minmax(78px,1fr) auto; gap: 4px; padding: 6px 5px; min-height: 50px; }
+    #devPanel .editor-header-tools { gap: 2px; }
+    #devPanel .editor-header-tools button { min-height: 27px; padding: 3px 4px; font-size: 8px; }
+    #devPanel .editor-header-tools .editor-icon-action { width: 25px; font-size: 15px; }
+    #devPanel .editor-header-tools #devReset { display: none; }
+    #devPanel .editor-dock { grid-template-columns: 91px minmax(110px,1fr); grid-template-rows: minmax(0,1fr) 90px; gap: 4px; padding: 6px; }
+    #devPanel .editor-modes { min-height: 82px; gap: 3px; }
+    #devPanel .editor-modes button { min-height: 24px; padding: 2px 4px; font-size: 12px; }
+    #devPanel .editor-library-heading { min-height: 40px; }
+    #devPanel .dev-palette { grid-template-columns: repeat(auto-fit,minmax(48px,1fr)); gap: 3px; }
+    #devPanel .dev-palette button { height: 48px; font-size: 9px; }
+    #devPanel .dev-palette button .tile-icon { font-size: 21px; }
+    #devPanel .editor-tools-panel { grid-column: 1 / -1; grid-row: 2; gap: 2px; }
+    #devPanel .editor-tools-heading { display: none; }
+    #devPanel .editor-tools-grid { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 3px; }
+    #devPanel .editor-tools-grid button, #devPanel .editor-tools-grid .editor-toggle { min-height: 25px; padding: 3px 2px; font-size: 8px; }
+  }
+  @media (max-height: 620px) and (min-width: 651px) {
+    #devPanel { grid-template-rows: minmax(0,1fr) 192px 22px; }
+    #devPanel .editor-dock { padding-block: 6px; }
+    #devPanel .editor-modes { min-height: 104px; }
+    #devPanel .editor-modes button { min-height: 26px; padding-block: 2px; }
+    #devPanel .dev-palette button { height: 56px; }
+    #devPanel .editor-tools-grid button, #devPanel .editor-tools-grid .editor-toggle { min-height: 27px; }
+  }
+
 </style>
 </head>
 <body>
@@ -218,10 +274,6 @@
   </header>
   <main class="editor-workspace">
     <div class="editor-scene"><canvas id="devVisualCanvas" aria-label="Visual level editor. Click or drag to place objects."></canvas></div>
-    <div class="editor-canvas-tools" aria-label="Level length tools">
-      <button id="devAddColumn" type="button" title="Add a blank column">＋ Column</button>
-      <button id="devRemoveColumn" type="button" title="Remove the final column">− Column</button>
-    </div>
   </main>
   <footer class="editor-dock">
     <section class="editor-mode-rail" aria-label="Editing tools">
@@ -239,11 +291,13 @@
     <section class="editor-tools-panel" aria-label="Object and test tools">
       <strong class="editor-tools-heading">OBJECT / TEST TOOLS</strong>
       <div class="editor-tools-grid">
-        <button id="devRotateLeft" type="button" title="Rotate selected object counter-clockwise">↶ Rotate</button>
-        <button id="devRotateRight" type="button" title="Rotate selected object clockwise">↷ Rotate</button>
-        <button id="devSetStart" type="button" aria-pressed="false">⊙ Set start</button>
-        <button id="devTestStart" class="dev-primary" type="button">▶ Test start</button>
+        <button id="devRotateLeft" type="button" title="Rotate selected object counter-clockwise">↶ −90°</button>
+        <button id="devRotateRight" type="button" title="Rotate selected object clockwise">↷ +90°</button>
+        <button id="devSetStart" type="button" aria-pressed="false">⊙ Place start</button>
+        <button id="devTestStart" class="dev-primary" type="button">▶ Play from start</button>
         <button id="devClearStart" type="button">Clear start</button>
+        <button id="devAddColumn" type="button" title="Add a blank column">＋ Add column</button>
+        <button id="devRemoveColumn" type="button" title="Remove the final column">− Remove column</button>
         <label class="editor-toggle"><input id="devNoclip" type="checkbox"> Noclip</label>
         <button id="devAllSkins" type="button">Unlock skins</button>
       </div>
@@ -3421,8 +3475,7 @@ function drawVisualEditor(canvas,rows,offset,mode,selectedCell,rotations={},test
     if(testStart&&testStart.x===x&&testStart.y===y){g.save();g.strokeStyle='#69ffb0';g.lineWidth=3;g.beginPath();g.arc(col*cell+cell/2,top+y*cell+cell/2,cell*.38,0,Math.PI*2);g.stroke();g.fillStyle='#69ffb0';g.font='bold 10px system-ui';g.textAlign='center';g.fillText('START',col*cell+cell/2,top+y*cell-3);g.restore();}
     if(selectedCell&&selectedCell.x===x&&selectedCell.y===y){g.strokeStyle='#ffe75b';g.lineWidth=3;g.strokeRect(col*cell+2,top+y*cell+2,cell-4,cell-4);}
   }}
-  g.fillStyle='rgba(4,7,16,.75)';g.fillRect(8,8,Math.min(width-16,255),24);g.fillStyle='#e8eeff';g.font='12px system-ui';g.fillText(placingStart?'CLICK A CELL TO SET TEST START':'LEVEL VIEW  ·  drag to place  ·  scroll to travel',16,24);
-  g.fillStyle='rgba(4,7,16,.65)';g.fillRect(8,height-23,Math.min(width-16,220),17);g.fillStyle='#c7d6ff';g.font='11px system-ui';g.fillText('Column '+(offset+1)+'  ·  '+rows[0].length+' total',14,height-11);
+  if(placingStart){g.fillStyle='rgba(7,19,42,.94)';g.fillRect(Math.max(8,width/2-150),68,300,30);g.strokeStyle='#ffe16b';g.lineWidth=1.5;g.strokeRect(Math.max(8,width/2-150),68,300,30);g.fillStyle='#fff3bf';g.font='bold 12px system-ui';g.textAlign='center';g.fillText('CLICK A GRID CELL TO PLACE TEST START',width/2,87);g.textAlign='left';}
 }
 function wireVisualEditor(canvas,getRows,getOffset,setOffset,getMode,getTile,getSelected,setSelected,afterChange) {
   let painting=false,lastKey='';
