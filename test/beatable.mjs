@@ -129,6 +129,13 @@ if (obstacleChecks.fallingSpikePositions.some((y, i) => Math.abs(y - [8, 4, 0][i
 for (const name of ['Orb Garden', 'Rolling Thunder', 'Prism Path', 'Tidal Flow']) if ((obstacleChecks.levels[name]?.h || 0) < 4 || !obstacleChecks.levels[name]?.i) throw new Error(`${name}: add hanging hazards and beat-pulsing poles to Normal routes`);
 for (const name of ['Sunrise Run', 'Neon Circuit', 'Circuit Breaker']) if (!obstacleChecks.levels[name]?.h || !obstacleChecks.levels[name]?.i) throw new Error(`${name}: aerial hazards and beat-pulsing poles should appear across difficulties`);
 for (const [name, counts] of Object.entries(obstacleChecks.levels)) if (!counts.i) throw new Error(`${name}: add a beat-pulsing pole light`);
+for (const name of ['First Steps', 'Orb Garden', 'Sky Rush', 'Rolling Thunder', 'Wave Rider', 'Mode Mayhem', 'Demon Gash', 'Prism Path', 'Neon Circuit', 'Sunrise Run', 'Tidal Flow', 'Circuit Breaker', 'Abyssal Run']) {
+  const counts = obstacleChecks.levels[name];
+  if (!counts?.G || !counts?.['^']) throw new Error(`${name}: expected added large and small spike hazards`);
+}
+if (!obstacleChecks.levels['Flutterclunk'] || (obstacleChecks.levels['Flutterclunk'].G || 0) < 3 || (obstacleChecks.levels['Flutterclunk']['^'] || 0) < 12) {
+  throw new Error('Flutterclunk: expected a dense Demon layout with large and small spikes');
+}
 if (!obstacleChecks.levels['Orb Garden']?.s || !obstacleChecks.levels['Prism Path']?.G || !obstacleChecks.levels['Tidal Flow']?.F) throw new Error('the new hazards need representative level placements');
 for (const type of ['F', 'h', 'G', 's']) if (!obstacleChecks.levels['Abyssal Run']?.[type]) throw new Error(`Abyssal Run: missing Demon hazard ${type}`);
 for (const r of results) {
