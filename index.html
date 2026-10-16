@@ -94,7 +94,8 @@
     <button id="devPrev" type="button">◀ 20</button><button id="devNext" type="button">20 ▶</button>
   </div>
   <div class="dev-row editor-modes" id="devModes" aria-label="Editor mode"></div>
-  <div class="dev-row"><span>Selected object:</span><strong id="devTileName">Block</strong><span class="dev-muted">Build places · Edit picks · Delete removes.</span></div>
+  <div class="dev-row"><span>Selected object:</span><strong id="devTileName">Block</strong><span class="dev-muted">Build places · Edit selects/moves · Delete removes.</span></div>
+<div class="dev-row editor-tools"><button id="devRotateLeft" type="button">↶ Rotate −90°</button><button id="devRotateRight" type="button">↷ Rotate +90°</button><button id="devDeselect" type="button">Deselect</button><button id="devSetStart" type="button" aria-pressed="false">⊙ Place test start</button><button id="devTestStart" class="dev-primary" type="button">▶ Test from start</button><button id="devClearStart" type="button">Clear start</button></div>
   <div class="editor-categories" id="devCategories" aria-label="Object category"></div>
   <div id="devPalette" class="dev-palette" aria-label="Tile palette"></div>
   <div class="editor-scene"><canvas id="devVisualCanvas" aria-label="Visual level editor. Click or drag to place objects."></canvas></div>
@@ -715,7 +716,13 @@ const LEVEL_ORDER_V3 = ['First Steps', 'Orb Garden', 'Rolling Thunder', 'Prism P
 LEVELS.sort((a, b) => DIFFICULTY_RANK[a.difficulty] - DIFFICULTY_RANK[b.difficulty] || a.stars - b.stars || a.len - b.len);
 
 const DEV_EMBEDDED_OVERRIDES = {}; // Export ZIP replaces this with saved layouts.
+const DEV_EMBEDDED_ROTATIONS = {};
 const DEV_LEVEL_KEY = 'deometry-gash-level-overrides-v1';
+const DEV_ROTATION_KEY='deometry-gash-level-rotations-v1';let DEV_ROTATIONS={...DEV_EMBEDDED_ROTATIONS};
+try{const r=JSON.parse(localStorage.getItem(DEV_ROTATION_KEY)||'{}');if(r&&typeof r==='object'&&!Array.isArray(r))DEV_ROTATIONS={...DEV_ROTATIONS,...r};}catch{}
+function devPersistRotations(){try{localStorage.setItem(DEV_ROTATION_KEY,JSON.stringify(DEV_ROTATIONS));}catch{}}
+function devRotationAt(n,x,y){return (((DEV_ROTATIONS[n]||{})[x+','+y]||0)%360+360)%360}
+function devSetRotation(n,x,y,d){if(!DEV_ROTATIONS[n])DEV_ROTATIONS[n]={};const k=x+','+y,r=((d%360)+360)%360;if(r)DEV_ROTATIONS[n][k]=r;else delete DEV_ROTATIONS[n][k];if(!Object.keys(DEV_ROTATIONS[n]).length)delete DEV_ROTATIONS[n];devPersistRotations()}
 const COMMUNITY_LEVEL_KEY = 'deometry-gash-community-levels-v1';
 let COMMUNITY_LEVELS = [];
 try {
@@ -741,6 +748,7 @@ function applyLevelOverrides(overrides) {
     const width = Math.max(1, Math.min(2000, Math.max(...sourceRows.map(row => String(row ?? '').length))));
     const rows = Array.from({ length: ROWS }, (_, y) => String(sourceRows[y] ?? '').slice(0, width).padEnd(width, '.'));
     const fresh = buildLevel(old.name, old.difficulty, old.stars, old.hue, [rows]);
+    for(const t of fresh.tiles)t.rotation=devRotationAt(old.name,t.x,t.y);
     const oldCoins = new Map(old.tiles.filter(t => t.type === 'c').map(t => [t.x + ',' + t.y, t.id]));
     let nextCoinId = Math.max(-1, ...old.tiles.map(t => t.id)) + 1;
     for (const t of fresh.tiles) if (t.type === 'c') {
@@ -2653,6 +2661,7 @@ function drawWorld(time) {
   const portals = [];
   for (const t of vis) {
     const x = sx(t.x), y = sy(t.y + 1);
+    ctx.save();if(t.rotation){ctx.translate(x+T/2,y+T/2);ctx.rotate(t.rotation*Math.PI/180);ctx.translate(-(x+T/2),-(y+T/2));}
     switch (t.type) {
       case '^': drawSpike(x, y, false, hue, spikeFill); break;
       case 'v':
@@ -2668,6 +2677,7 @@ function drawWorld(time) {
       case 'c': if (!player.coins.includes(t.id)) drawCoin(x, y, (save.coins[selected] || []).includes(t.id), time); break;
       case 'S': case 'C': case 'B': case 'W': if (t.tall) { drawPortal(t, x, y, false, time); portals.push([t, x, y]); } break;
     }
+    ctx.restore();
   }
   if (state !== 'dead') {
     const cx = q => sx(q.x) + T / 2, cy = q => sy(q.y) - T / 2, trail = [...history.slice(0, -1), me];
@@ -3144,6 +3154,7 @@ function wireEditorModes(element, getMode, setMode) {
   }
 }
 let devPanelOpen = false, devReturnState = 'menu', devRows = [], devOffset = 0, devTile = '#', devMode = 'build';
+let devTestStart=null,devPlacingStart=false,devTestMode=false,devTestStartSnapshot=null;
 function devAfterVisualChange(message){devRenderGrid();if(message)devStatusText(message+' Unsaved edits in '+devCurrentLevel().name+'. Press Save level to keep them.');}
 wireVisualEditor(devVisualCanvas,()=>devRows,()=>devOffset,v=>{devOffset=v;},()=>devMode,()=>devTile,()=>devSelectedCell,v=>{devSelectedCell=v;},devAfterVisualChange);
 const devTilePalette = buildTilePalette(document.getElementById('devCategories'), devPalette, devTile, (tile, label) => {
@@ -3151,13 +3162,21 @@ const devTilePalette = buildTilePalette(document.getElementById('devCategories')
 });
 devTilePalette.setGetter(() => devTile);
 wireEditorModes(document.getElementById('devModes'), () => devMode, mode => { devMode = mode; });
+document.getElementById('devRotateLeft').addEventListener('click',()=>devRotateSelected(-90));
+document.getElementById('devRotateRight').addEventListener('click',()=>devRotateSelected(90));
+document.getElementById('devDeselect').addEventListener('click',()=>{devSelectedCell=null;devRenderGrid();});
+document.getElementById('devSetStart').addEventListener('click',()=>{devPlacingStart=!devPlacingStart;document.getElementById('devSetStart').setAttribute('aria-pressed',String(devPlacingStart));devRenderGrid();devStatusText(devPlacingStart?'Click a cell to place the temporary test start.':'Placement cancelled.');});
+document.getElementById('devClearStart').addEventListener('click',()=>{devTestStart=null;devPlacingStart=false;document.getElementById('devSetStart').setAttribute('aria-pressed','false');devRenderGrid();devStatusText('Temporary test start cleared.');});
+document.getElementById('devTestStart').addEventListener('click',devTestFromStart);
+function devRotateSelected(d){const p=devSelectedCell;if(!p||!devRows[p.y]||devRows[p.y][p.x]==='.')return devStatusText('Select an object in Edit mode first.');const n=devCurrentLevel().name;devSetRotation(n,p.x,p.y,devRotationAt(n,p.x,p.y)+d);devRenderGrid();devStatusText('Rotated object. Save level to keep it.');}
+function devTestFromStart(){if(!devTestStart)return devStatusText('Place a temporary test start in the scene first.');const m=devCurrentLevel(),rows=devRows.map(r=>r.slice()),start={...devTestStart};level=buildLevel(m.name+' (test)',m.difficulty,m.stars,m.hue,[rows]);for(const t of level.tiles)t.rotation=devRotationAt(m.name,t.x,t.y);player=newPlayer();player.x=start.x;player.y=Math.max(0,ROWS-1-start.y);player.grounded=player.y===0;attempts=1;particles=[];history=[];visRot=0;shake=0;ceilAnim=0;was={x:player.x,y:player.y,rot:0};devTestMode=true;devTestStartSnapshot={meta:{...m},rows,start};state='play';stateTime=0;holding=false;jumpPressed=false;activePointerId=null;playSong(SONGS[selected%SONGS.length]);devPanel.hidden=true;devPanelOpen=false;}
 function devCurrentLevel() { return LEVELS.find(lvl => lvl.name === devLevelSelect.value) || LEVELS[0]; }
 function devStatusText(message) { devStatus.textContent = message; }
 function devPersistOverrides() {
   try { localStorage.setItem(DEV_LEVEL_KEY, JSON.stringify(DEV_OVERRIDES)); } catch {}
 }
 function devLoadDraft() {
-  devSelectedCell = null;
+  devSelectedCell = null;devTestStart=null;devPlacingStart=false;document.getElementById('devSetStart').setAttribute('aria-pressed','false');
   devRows = levelToRows(devCurrentLevel());
   devOffset = 0; devOffsetInput.value = '0';
   devRenderGrid();
@@ -3168,8 +3187,8 @@ function editorSceneMetrics(canvas) {
   const top=Math.max(10,Math.floor((height-ROWS*cell-26)/2));
   return {width,height,cell,top,cols:Math.ceil(width/cell)};
 }
-function drawEditorObject(g,tile,x,y,c) {
-  const cx=x+c/2,cy=y+c/2;g.save();
+function drawEditorObject(g,tile,x,y,c,rotation=0) {
+  const cx=x+c/2,cy=y+c/2;g.save();g.translate(cx,cy);g.rotate(rotation*Math.PI/180);g.translate(-cx,-cy);
   if(tile==='#'){
     const grad=g.createLinearGradient(x,y,x+c,y+c);grad.addColorStop(0,'#7a83b5');grad.addColorStop(1,'#333b68');
     g.fillStyle=grad;g.fillRect(x+2,y+2,c-4,c-4);g.strokeStyle='#b8c8ff';g.lineWidth=2;g.strokeRect(x+3,y+3,c-6,c-6);
@@ -3199,7 +3218,7 @@ function drawEditorObject(g,tile,x,y,c) {
   }
   g.restore();
 }
-function drawVisualEditor(canvas,rows,offset,mode,selectedCell) {
+function drawVisualEditor(canvas,rows,offset,mode,selectedCell,rotations={},testStart=null,placingStart=false) {
   if(!canvas||!canvas.isConnected)return;
   const box=canvas.getBoundingClientRect();if(!box.width||!box.height)return;
   const dpr=Math.min(2,window.devicePixelRatio||1);
@@ -3214,10 +3233,11 @@ function drawVisualEditor(canvas,rows,offset,mode,selectedCell) {
   const floorY=top+ROWS*cell;g.fillStyle='#27314b';g.fillRect(0,floorY,width,height-floorY);g.fillStyle='#7c8db9';g.fillRect(0,floorY,width,3);
   for(let col=0;col<cols;col++){const x=offset+col;if(x<0)continue;for(let y=0;y<ROWS;y++){
     const tile=x<(rows[0]||'').length?(rows[y]||'')[x]||'.':'.';
-    if(tile!=='.')drawEditorObject(g,tile,col*cell,top+y*cell,cell);
+    if(tile!=='.')drawEditorObject(g,tile,col*cell,top+y*cell,cell,rotations[x+','+y]||0);
+    if(testStart&&testStart.x===x&&testStart.y===y){g.save();g.strokeStyle='#69ffb0';g.lineWidth=3;g.beginPath();g.arc(col*cell+cell/2,top+y*cell+cell/2,cell*.38,0,Math.PI*2);g.stroke();g.fillStyle='#69ffb0';g.font='bold 10px system-ui';g.textAlign='center';g.fillText('START',col*cell+cell/2,top+y*cell-3);g.restore();}
     if(selectedCell&&selectedCell.x===x&&selectedCell.y===y){g.strokeStyle='#ffe75b';g.lineWidth=3;g.strokeRect(col*cell+2,top+y*cell+2,cell-4,cell-4);}
   }}
-  g.fillStyle='rgba(4,7,16,.75)';g.fillRect(8,8,Math.min(width-16,255),24);g.fillStyle='#e8eeff';g.font='12px system-ui';g.fillText('LEVEL VIEW  ·  drag to place  ·  scroll to travel',16,24);
+  g.fillStyle='rgba(4,7,16,.75)';g.fillRect(8,8,Math.min(width-16,255),24);g.fillStyle='#e8eeff';g.font='12px system-ui';g.fillText(placingStart?'CLICK A CELL TO SET TEST START':'LEVEL VIEW  ·  drag to place  ·  scroll to travel',16,24);
   g.fillStyle='rgba(4,7,16,.65)';g.fillRect(8,height-23,Math.min(width-16,220),17);g.fillStyle='#c7d6ff';g.font='11px system-ui';g.fillText('Column '+(offset+1)+'  ·  '+rows[0].length+' total',14,height-11);
 }
 function wireVisualEditor(canvas,getRows,getOffset,setOffset,getMode,getTile,getSelected,setSelected,afterChange) {
@@ -3226,6 +3246,7 @@ function wireVisualEditor(canvas,getRows,getOffset,setOffset,getMode,getTile,get
   function act(e,isDrag=false){
     const p=point(e),rows=getRows();if(p.y<0||p.y>=ROWS||p.x<0||p.x>=rows[0].length)return;
     const key=p.x+','+p.y;if(isDrag&&key===lastKey)return;lastKey=key;
+    if(devPlacingStart){devTestStart={x:p.x,y:p.y};devPlacingStart=false;document.getElementById('devSetStart').setAttribute('aria-pressed','false');afterChange('Temporary test start set at column '+(p.x+1)+'.');return;}
     const mode=getMode(),rowIndex=p.y;
     if(mode==='edit'){
       const selected=getSelected();
@@ -3235,7 +3256,9 @@ function wireVisualEditor(canvas,getRows,getOffset,setOffset,getMode,getTile,get
         const srcRow=selected.y;
         rows[srcRow]=rows[srcRow].slice(0,selected.x)+'.'+rows[srcRow].slice(selected.x+1);
         rows[rowIndex]=rows[rowIndex].slice(0,p.x)+selected.type+rows[rowIndex].slice(p.x+1);
-        setSelected(null);afterChange('Moved object.');
+        const rotation=devRotationAt(devCurrentLevel().name,selected.x,selected.y);
+        if(rotation){devSetRotation(devCurrentLevel().name,selected.x,selected.y,0);devSetRotation(devCurrentLevel().name,p.x,p.y,rotation);}
+        setSelected({x:p.x,y:p.y,type:selected.type});afterChange('Moved object.');
       }else{setSelected({x:p.x,y:p.y,type:rows[rowIndex][p.x]});}
       afterChange('');return;
     }
@@ -3254,7 +3277,7 @@ function devRenderGrid() {
   if(!devRows.length)return;
   devOffset=Math.max(0,Math.min(Math.max(0,devRows[0].length-1),devOffset));
   devOffsetInput.max=String(Math.max(0,devRows[0].length-1));devOffsetInput.value=String(devOffset);
-  drawVisualEditor(devVisualCanvas,devRows,devOffset,devMode,devSelectedCell);
+  drawVisualEditor(devVisualCanvas,devRows,devOffset,devMode,devSelectedCell,DEV_ROTATIONS[devCurrentLevel().name]||{},devTestStart,devPlacingStart);
 }
 function openDevPanel() {
   if (devPanelOpen) return;
@@ -3279,7 +3302,7 @@ function closeDevPanel() {
 function devSaveLevel() {
   const name = devCurrentLevel().name, rows = devRows.slice();
   DEV_OVERRIDES[name] = rows;
-  devPersistOverrides();
+  devPersistOverrides();devPersistRotations();
   applyLevelOverrides({ [name]: rows });
   if (level?.name === name) level = LEVELS.find(lvl => lvl.name === name);
   devLoadDraft();
@@ -3342,9 +3365,10 @@ function devExportZip() {
   cloned.querySelector('#devGrid')?.replaceChildren();
   cloned.querySelector('#devLevel')?.replaceChildren();
   let html = cloned.outerHTML;
-  const marker = 'const DEV_EMBEDDED_OVERRIDES = {};';
-  if (!html.includes(marker)) { devStatusText('Could not prepare the ZIP. Reload the game and try again.'); return; }
-  html = html.replace(marker, 'const DEV_EMBEDDED_OVERRIDES = ' + JSON.stringify(DEV_OVERRIDES) + ';');
+  const marker='const DEV_EMBEDDED_OVERRIDES = {};',rm='const DEV_EMBEDDED_ROTATIONS = {};';
+  if(!html.includes(marker)||!html.includes(rm)){devStatusText('Could not prepare the ZIP. Reload the game and try again.');return;}
+  html=html.replace(marker,'const DEV_EMBEDDED_OVERRIDES = '+JSON.stringify(DEV_OVERRIDES)+';');
+  html=html.replace(rm,'const DEV_EMBEDDED_ROTATIONS = '+JSON.stringify(DEV_ROTATIONS)+';');
   const readme = 'Deometry Gash — custom level pack\n\nOpen index.html in a modern browser to play. Edited layouts are embedded in index.html, so they travel with this ZIP and do not depend on browser storage.\n\nlevel-overrides.json is included as an editable backup. Extract the ZIP before opening index.html.\n';
   const zip = devMakeZip({ 'index.html': html, 'level-overrides.json': JSON.stringify(DEV_OVERRIDES, null, 2), 'README.txt': readme });
   const url = URL.createObjectURL(zip), link = document.createElement('a');
@@ -3566,11 +3590,12 @@ function press() {
 function pauseAction(id) {
   if (id === 'resume') { state = 'play'; sfx('click'); }
   else if (id === 'restart') {
+    if(devTestMode&&devTestStartSnapshot){const z=devTestStartSnapshot,m=z.meta;level=buildLevel(m.name+' (test)',m.difficulty,m.stars,m.hue,[z.rows]);for(const t of level.tiles)t.rotation=devRotationAt(m.name,t.x,t.y);player=newPlayer();player.x=z.start.x;player.y=Math.max(0,ROWS-1-z.start.y);player.grounded=player.y===0;attempts++;particles=[];history=[];visRot=0;state='play';stateTime=0;holding=false;jumpPressed=false;playSong(SONGS[selected%SONGS.length]);return;}
     if (communityTestMode && communityTestLevel) {
       level = buildLevel(communityTestLevel.name, 'Normal', 1, 185, [communityTestLevel.rows]);
       player = newPlayer(); attempts = 1; particles = []; history = []; visRot = 0; state = 'play'; stateTime = 0; holding = false; jumpPressed = false; playSong(SONGS[selected % SONGS.length]);
     } else startLevel(selected);
-  } else { communityTestMode = false; communityTestLevel = null; go('levels'); }
+  } else { communityTestMode = false; communityTestLevel = null; devTestMode=false;devTestStartSnapshot=null;go('levels'); }
 }
 function shopSelect(tab, i) { shopTab = tab; shopPick = Math.max(0, Math.min(ITEMS[KINDS[tab]].length - 1, i)); stageClock = 0; stageParticles = []; }
 function browseShopPage(direction) {
