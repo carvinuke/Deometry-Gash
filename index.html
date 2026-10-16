@@ -11,91 +11,71 @@
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0b14; }
   canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-  #devPanel[hidden] { display: none; }
-  #devPanel { position: fixed; z-index: 20; inset: 10px auto 10px 10px; width: min(720px, calc(100vw - 20px)); overflow: auto; box-sizing: border-box; padding: 14px; border: 1px solid #6254a8; border-radius: 12px; background: rgba(12, 11, 24, .97); color: #f5f3ff; font: 13px/1.35 system-ui, sans-serif; box-shadow: 0 10px 40px #0009; }
-  #devPanel * { box-sizing: border-box; }
-  #devPanel h2 { margin: 0; font-size: 18px; }
-  #devPanel .dev-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 9px 0; }
-  #devPanel button, #devPanel select, #devPanel input { border: 1px solid #554b7b; border-radius: 6px; background: #211d36; color: #fff; padding: 6px 8px; font: inherit; }
-  #devPanel button { cursor: pointer; }
-  #devPanel button:hover, #devPanel button:focus-visible { border-color: #ffd400; }
-  #devPanel .dev-palette { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
-  #devPanel .dev-palette button { min-width: 34px; height: 31px; padding: 3px 7px; }
-  #devPanel .dev-palette button[aria-pressed="true"] { background: #6651b6; border-color: #ffd400; }
-  #devPanel .dev-grid-wrap { overflow-x: auto; padding: 6px 0; }
-  #devPanel .dev-grid { display: grid; grid-template-columns: repeat(20, 29px); gap: 2px; width: max-content; }
-  #devPanel .dev-cell { width: 29px; height: 29px; padding: 0; font-weight: 700; }
-  #devPanel .dev-cell[data-tile="#"] { background: #45405c; }
-  #devPanel .dev-cell[data-tile="^"], #devPanel .dev-cell[data-tile="G"], #devPanel .dev-cell[data-tile="v"], #devPanel .dev-cell[data-tile="h"], #devPanel .dev-cell[data-tile="F"] { color: #ff8c9e; }
-  #devPanel .dev-muted { color: #b8b2ce; }
-  #devPanel .dev-actions { position: sticky; bottom: -14px; background: #100e20; padding: 9px 0 2px; }
-  #devPanel .dev-primary { border-color: #ffd400; color: #ffd400; }
-  #communityPanel[hidden] { display: none; }
-  #communityPanel { position: fixed; z-index: 21; inset: 10px 10px 10px auto; width: min(720px, calc(100vw - 20px)); overflow: auto; box-sizing: border-box; padding: 14px; border: 1px solid #37d9cb; border-radius: 12px; background: rgba(8, 18, 27, .98); color: #f2ffff; font: 13px/1.35 system-ui, sans-serif; box-shadow: 0 10px 40px #0009; }
-  #communityPanel * { box-sizing: border-box; }
-  #communityPanel h2 { margin: 0; font-size: 18px; }
-  #communityPanel .dev-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 9px 0; }
-  #communityPanel button, #communityPanel select, #communityPanel input { border: 1px solid #286e76; border-radius: 6px; background: #102a35; color: #fff; padding: 6px 8px; font: inherit; }
-  #communityPanel button { cursor: pointer; }
-  #communityPanel button:hover, #communityPanel button:focus-visible { border-color: #5ffff0; }
-  #communityPanel .dev-palette { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
-  #communityPanel .dev-palette button { min-width: 34px; height: 31px; padding: 3px 7px; }
-  #communityPanel .dev-palette button[aria-pressed="true"] { background: #176d70; border-color: #5ffff0; }
-  #communityPanel .dev-grid-wrap { overflow-x: auto; padding: 6px 0; }
-  #communityPanel .dev-grid { display: grid; grid-template-columns: repeat(20, 29px); gap: 2px; width: max-content; }
-  #communityPanel .dev-cell { width: 29px; height: 29px; padding: 0; font-weight: 700; }
-  #communityPanel .dev-cell[data-tile="#"] { background: #45405c; }
-  #communityPanel .dev-cell[data-tile="^"], #communityPanel .dev-cell[data-tile="G"], #communityPanel .dev-cell[data-tile="v"], #communityPanel .dev-cell[data-tile="h"], #communityPanel .dev-cell[data-tile="F"] { color: #ff8c9e; }
-  #communityPanel .dev-muted { color: #a8d5d7; }
-  #communityPanel .dev-actions { position: sticky; bottom: -14px; background: #081923; padding: 9px 0 2px; }
-  #communityPanel .dev-primary { border-color: #5ffff0; color: #5ffff0; }
-  #communityButton { position: fixed; z-index: 10; right: 18px; bottom: 18px; border: 2px solid #5ffff0; border-radius: 10px; background: #102a35ee; color: #eaffff; padding: 11px 16px; font: 800 14px system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 18px #0008; }
-  #communityButton[hidden] { display: none; }
-  @media (max-width: 500px) { #devPanel { font-size: 12px; padding: 9px; } #devPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #devPanel .dev-cell { width: 25px; height: 27px; } #communityPanel { font-size: 12px; padding: 9px; } #communityPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #communityPanel .dev-cell { width: 25px; height: 27px; } }
+  #devPanel[hidden], #communityPanel[hidden] { display:none; }
+  .level-editor { position:fixed; z-index:20; inset:12px; display:flex; flex-direction:column; gap:10px; overflow:auto; box-sizing:border-box; padding:12px; border:2px solid #6e80ad; border-radius:12px; background:linear-gradient(180deg,#202d49,#11182b); color:#f5f8ff; font:13px/1.35 system-ui,sans-serif; box-shadow:0 12px 50px #000b; }
+  .level-editor * { box-sizing:border-box; } .level-editor h2 { margin:0; font-size:18px; }
+  .level-editor .dev-row { display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin:0; }
+  .level-editor button,.level-editor select,.level-editor input { border:1px solid #566a94; border-radius:7px; background:#283b5d; color:#fff; padding:8px 10px; font:inherit; }
+  .level-editor button { cursor:pointer; font-weight:700; } .level-editor button:hover,.level-editor button:focus-visible { border-color:#fff19a; filter:brightness(1.15); }
+  .level-editor .editor-header { justify-content:space-between; padding-bottom:9px; border-bottom:1px solid #52658b; }
+  .level-editor .editor-subtitle,.level-editor .dev-muted { color:#b8c9e9; }
+  .level-editor .editor-workspace { display:grid; grid-template-columns:minmax(0,1fr) 220px; gap:10px; min-height:0; flex:1; }
+  .level-editor .editor-stage { min-width:0; display:flex; flex-direction:column; gap:8px; }
+  .level-editor .editor-toolbar { display:flex; gap:6px; padding:6px; border:1px solid #51668e; border-radius:9px; background:#101a30; }
+  .level-editor .editor-mode { flex:1; min-width:0; padding:9px 6px; border:2px solid transparent; background:#2d4268; }
+  .level-editor .mode-icon { display:block; font-size:21px; line-height:1.1; }
+  .level-editor .editor-mode[aria-pressed="true"] { border-color:#fff19a; background:linear-gradient(#f9d45b,#c98424); color:#172039; }
+  .level-editor .editor-canvas { flex:1; min-height:210px; overflow:auto; padding:12px; border:2px solid #52658b; border-radius:9px; background-color:#101a30; background-image:linear-gradient(#31415b66 1px,transparent 1px),linear-gradient(90deg,#31415b66 1px,transparent 1px); background-size:30px 30px; }
+  .level-editor .dev-grid-wrap { overflow:auto; padding:0; width:max-content; min-width:100%; }
+  .level-editor .dev-grid { display:grid; grid-template-columns:repeat(20,29px); gap:1px; width:max-content; background:#40516d; }
+  .level-editor .dev-cell { width:29px; height:29px; padding:0; border:0; border-radius:2px; background:#192641; color:#d9e7ff; font-size:17px; line-height:1; }
+  .level-editor .dev-cell[data-tile="."] { background:#17233b; color:#526585; }
+  .level-editor .dev-cell[data-tile="#"] { background:linear-gradient(135deg,#a3b3d1,#55688d); color:#fff; box-shadow:inset 0 0 0 2px #d2def2; }
+  .level-editor .dev-cell[data-tile="^"],.level-editor .dev-cell[data-tile="G"],.level-editor .dev-cell[data-tile="v"],.level-editor .dev-cell[data-tile="h"],.level-editor .dev-cell[data-tile="F"] { color:#ff7189; background:#45263d; }
+  .level-editor .dev-cell[data-tile="s"] { color:#ffbd5c; background:#46372c; }
+  .level-editor .dev-cell[data-tile="p"],.level-editor .dev-cell[data-tile="r"],.level-editor .dev-cell[data-tile="o"],.level-editor .dev-cell[data-tile="b"] { color:#fff19a; background:#464027; }
+  .level-editor .dev-cell[data-tile="S"],.level-editor .dev-cell[data-tile="C"],.level-editor .dev-cell[data-tile="B"],.level-editor .dev-cell[data-tile="W"] { color:#7bfff1; background:#21464e; }
+  .level-editor .editor-side { display:flex; flex-direction:column; gap:8px; padding:9px; border:1px solid #52658b; border-radius:9px; background:#111b31; }
+  .level-editor .editor-side-title { font-size:12px; font-weight:800; color:#b8c9e9; text-transform:uppercase; letter-spacing:.08em; }
+  .level-editor .editor-categories { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+  .level-editor .editor-category { padding:7px 4px; font-size:12px; }
+  .level-editor .editor-category[aria-pressed="true"] { background:#e2bb4c; color:#172039; border-color:#fff19a; }
+  .level-editor .dev-palette { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; align-content:start; }
+  .level-editor .dev-palette button { min-width:0; min-height:54px; padding:5px 2px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:2px; font-size:11px; }
+  .level-editor .tile-icon { font-size:21px; line-height:1; }
+  .level-editor .dev-palette button[aria-pressed="true"] { background:linear-gradient(#f9d45b,#c98424); color:#172039; border-color:#fff19a; }
+  .level-editor .editor-actions { display:flex; flex-wrap:wrap; gap:7px; padding-top:9px; border-top:1px solid #52658b; }
+  .level-editor .dev-primary { background:linear-gradient(#f9d45b,#c98424); color:#172039; border-color:#fff19a; }
+  .level-editor .editor-status { min-height:18px; } .level-editor .editor-close { background:#6b3048; border-color:#a85d78; }
+  #communityButton { position:fixed; z-index:10; right:18px; bottom:18px; border:2px solid #fff19a; border-radius:10px; background:#263d63ee; color:#fff; padding:11px 16px; font:800 14px system-ui,sans-serif; cursor:pointer; box-shadow:0 4px 18px #0008; }
+  #communityButton[hidden] { display:none; }
+  @media(max-width:720px) { .level-editor { inset:5px; padding:8px; } .level-editor .editor-workspace { grid-template-columns:minmax(0,1fr); } .level-editor .editor-side { order:-1; } .level-editor .dev-palette { grid-template-columns:repeat(6,minmax(0,1fr)); } .level-editor .dev-palette button { min-height:44px; } .level-editor .editor-canvas { min-height:180px; } }
 </style>
 </head>
 <body>
 <canvas id="game" width="960" height="480" aria-label="Deometry Gash, a Geometry Dash style game. Pick a level with the arrow keys and Enter, then hold Space, Up or click to jump."></canvas>
-<section id="devPanel" hidden aria-label="Developer tools">
-  <div class="dev-row" style="justify-content:space-between">
-    <div><h2>Developer panel</h2><div class="dev-muted">Local dev tools · save changes in this browser or export a portable ZIP.</div></div>
-    <button id="devClose" type="button">Close</button>
-  </div>
-  <div class="dev-row">
-    <label for="devLevel">Level</label><select id="devLevel"></select>
-    <label for="devOffset">Column</label><input id="devOffset" type="number" min="0" value="0" style="width:76px">
-    <button id="devPrev" type="button">◀ 20</button><button id="devNext" type="button">20 ▶</button>
-  </div>
-  <div class="dev-row"><span>Selected tile:</span><strong id="devTileName">Small spike</strong><span class="dev-muted">Tap a grid tile to paint it.</span></div>
-  <div id="devPalette" class="dev-palette" aria-label="Tile palette"></div>
-  <div class="dev-grid-wrap"><div id="devGrid" class="dev-grid" aria-label="Level tile grid"></div></div>
-  <div class="dev-row">
-    <button id="devAddColumn" type="button">Add 1 column</button><button id="devRemoveColumn" type="button">Remove last column</button>
-    <label><input id="devNoclip" type="checkbox"> Noclip</label><button id="devAllSkins" type="button">Unlock every skin</button>
-  </div>
-  <div class="dev-row dev-actions"><button id="devSave" class="dev-primary" type="button">Save level</button><button id="devReset" type="button">Reset level</button><button id="devExport" class="dev-primary" type="button">Export ZIP</button></div>
-  <div id="devStatus" class="dev-muted" role="status">Changes are not saved until you press Save level.</div>
+<section id="devPanel" class="level-editor" hidden aria-label="Developer level editor">
+  <div class="dev-row editor-header"><div><h2>Developer Level Editor</h2><div class="editor-subtitle">Official levels · changes stay local until exported</div></div><button id="devClose" class="editor-close" type="button">✕ Close</button></div>
+  <div class="dev-row"><label for="devLevel">Level</label><select id="devLevel"></select><label for="devOffset">Scroll</label><input id="devOffset" type="number" min="0" value="0" style="width:76px"><button id="devPrev" type="button" title="Previous columns">◀</button><button id="devNext" type="button" title="Next columns">▶</button></div>
+  <div class="editor-workspace"><div class="editor-stage">
+    <div class="editor-toolbar" role="group" aria-label="Editing mode"><button class="editor-mode" data-editor-mode="build" aria-pressed="true" type="button"><span class="mode-icon">✚</span>Build</button><button class="editor-mode" data-editor-mode="edit" aria-pressed="false" type="button"><span class="mode-icon">✎</span>Edit</button><button class="editor-mode" data-editor-mode="delete" aria-pressed="false" type="button"><span class="mode-icon">⌫</span>Delete</button></div>
+    <div class="editor-canvas"><div class="dev-grid-wrap"><div id="devGrid" class="dev-grid" aria-label="Level grid"></div></div></div>
+    <div class="dev-row"><strong id="devTileName">Spike</strong><span class="dev-muted">· Click a cell to build, select, or erase.</span></div>
+  </div><aside class="editor-side"><div class="editor-side-title">Objects</div>
+    <div class="editor-categories"><button class="editor-category" data-tile-category="blocks" aria-pressed="true" type="button">Blocks</button><button class="editor-category" data-tile-category="hazards" aria-pressed="false" type="button">Hazards</button><button class="editor-category" data-tile-category="items" aria-pressed="false" type="button">Items</button><button class="editor-category" data-tile-category="portals" aria-pressed="false" type="button">Portals</button></div>
+    <div id="devPalette" class="dev-palette" aria-label="Object palette"></div><div class="dev-muted">Pick an object, then click the grid.</div>
+  </aside></div>
+  <div class="dev-row"><label><input id="devNoclip" type="checkbox"> Noclip</label><button id="devAllSkins" type="button">Unlock skins</button><button id="devAddColumn" type="button">＋ Add column</button><button id="devRemoveColumn" type="button">− Remove last</button></div>
+  <div class="editor-actions"><button id="devSave" class="dev-primary" type="button">Save official edit</button><button id="devReset" type="button">Reset built-in level</button><button id="devExport" class="dev-primary" type="button">Export ZIP</button></div><div id="devStatus" class="dev-muted editor-status" role="status">Pick a level to start editing.</div>
 </section>
 <button id="communityButton" type="button" hidden>Create Level</button>
-<section id="communityPanel" hidden aria-label="Community level editor">
-  <div class="dev-row" style="justify-content:space-between">
-    <div><h2>Community Level Editor</h2><div class="dev-muted">Your own levels only · never changes the official levels.</div></div>
-    <button id="communityClose" type="button">Close</button>
-  </div>
-  <div class="dev-row">
-    <label for="communityLevel">My levels</label><select id="communityLevel"></select>
-    <button id="communityCreate" type="button">+ New</button><button id="communityRename" type="button">Rename</button><button id="communityDelete" type="button">Delete</button>
-  </div>
-  <div class="dev-row"><span>Selected tile:</span><strong id="communityTileName">Small spike</strong><span class="dev-muted">Click grid cells to paint.</span></div>
-  <div id="communityPalette" class="dev-palette" aria-label="Community tile palette"></div>
-  <div class="dev-row">
-    <label for="communityOffset">Column</label><input id="communityOffset" type="number" min="0" value="0" style="width:76px">
-    <button id="communityPrev" type="button">◀ 20</button><button id="communityNext" type="button">20 ▶</button>
-    <button id="communityAddColumn" type="button">Add column</button><button id="communityRemoveColumn" type="button">Remove last</button>
-  </div>
-  <div class="dev-grid-wrap"><div id="communityGrid" class="dev-grid" aria-label="Community level grid"></div></div>
-  <div class="dev-row dev-actions"><button id="communitySave" class="dev-primary" type="button">Save level</button><button id="communityTest" type="button">Test play</button><button id="communityExport" class="dev-primary" type="button">Export JSON</button></div>
-  <div id="communityStatus" class="dev-muted" role="status">Create a level, build it, then save or test it.</div>
+<section id="communityPanel" class="level-editor" hidden aria-label="Community level editor">
+  <div class="dev-row editor-header"><div><h2>Level Creator</h2><div class="editor-subtitle">Make your own level · official levels stay untouched</div></div><button id="communityClose" class="editor-close" type="button">✕ Close</button></div>
+  <div class="dev-row"><label for="communityLevel">My levels</label><select id="communityLevel"></select><button id="communityCreate" type="button">＋ New</button><button id="communityRename" type="button">Rename</button><button id="communityDelete" type="button">Delete</button><label for="communityOffset">Scroll</label><input id="communityOffset" type="number" min="0" value="0" style="width:68px"><button id="communityPrev" type="button" title="Previous columns">◀</button><button id="communityNext" type="button" title="Next columns">▶</button></div>
+  <div class="editor-workspace"><div class="editor-stage"><div class="editor-toolbar" role="group" aria-label="Editing mode"><button class="editor-mode" data-editor-mode="build" aria-pressed="true" type="button"><span class="mode-icon">✚</span>Build</button><button class="editor-mode" data-editor-mode="edit" aria-pressed="false" type="button"><span class="mode-icon">✎</span>Edit</button><button class="editor-mode" data-editor-mode="delete" aria-pressed="false" type="button"><span class="mode-icon">⌫</span>Delete</button></div>
+    <div class="editor-canvas"><div class="dev-grid-wrap"><div id="communityGrid" class="dev-grid" aria-label="Community level grid"></div></div></div><div class="dev-row"><strong id="communityTileName">Spike</strong><span class="dev-muted">· Choose an object, then click the grid.</span></div>
+  </div><aside class="editor-side"><div class="editor-side-title">Objects</div><div class="editor-categories"><button class="editor-category" data-tile-category="blocks" aria-pressed="true" type="button">Blocks</button><button class="editor-category" data-tile-category="hazards" aria-pressed="false" type="button">Hazards</button><button class="editor-category" data-tile-category="items" aria-pressed="false" type="button">Items</button><button class="editor-category" data-tile-category="portals" aria-pressed="false" type="button">Portals</button></div><div id="communityPalette" class="dev-palette" aria-label="Object palette"></div><div class="dev-muted">Build places objects. Edit picks an object. Delete removes it.</div></aside></div>
+  <div class="editor-actions"><button id="communitySave" class="dev-primary" type="button">Save level</button><button id="communityTest" type="button">▶ Test play</button><button id="communityExport" class="dev-primary" type="button">Export level</button></div><div id="communityStatus" class="dev-muted editor-status" role="status">Create a level, choose an object, and click the grid.</div>
 </section>
 <script>
 const canvas = document.getElementById('game');
@@ -3053,24 +3033,36 @@ const devTileName = document.getElementById('devTileName');
 const devStatus = document.getElementById('devStatus');
 const DEV_VIEW_COLS = 20;
 const DEV_TILE_TYPES = [
-  ['.', 'Empty'], ['#', 'Block'], ['^', 'Small spike'], ['G', 'Giant spike'],
-  ['v', 'Hanging spike'], ['h', 'Spike bar'], ['F', 'Falling spike'], ['s', 'Saw'],
-  ['i', 'Pole light'], ['p', 'Jump pad'], ['r', 'Red pad'], ['o', 'Jump orb'],
-  ['b', 'Boost orb'], ['c', 'Coin'], ['S', 'Ship portal'], ['C', 'Cube portal'],
-  ['B', 'Ball portal'], ['W', 'Wave portal']
+  ['.', 'Eraser', '·', 'blocks'], ['#', 'Block', '▦', 'blocks'],
+  ['^', 'Spike', '▲', 'hazards'], ['G', 'Big spike', '⏶', 'hazards'], ['v', 'Ceiling spike', '▼', 'hazards'],
+  ['h', 'Spike bar', '╱', 'hazards'], ['F', 'Drop spike', '⬇', 'hazards'], ['s', 'Saw', '⚙', 'hazards'],
+  ['i', 'Light', '✦', 'items'], ['p', 'Jump pad', '⬆', 'items'], ['r', 'Red pad', '⬆', 'items'], ['o', 'Jump orb', '◉', 'items'],
+  ['b', 'Boost orb', '◎', 'items'], ['c', 'Coin', '●', 'items'], ['S', 'Ship', '⇧', 'portals'], ['C', 'Cube', '□', 'portals'],
+  ['B', 'Ball', '◉', 'portals'], ['W', 'Wave', 'ϟ', 'portals']
 ];
+const TILE_INFO = new Map(DEV_TILE_TYPES.map(([tile,label,icon,category]) => [tile,{tile,label,icon,category}]));
+const tileLabel = tile => TILE_INFO.get(tile)?.label || 'Empty';
+const tileIcon = tile => TILE_INFO.get(tile)?.icon || '·';
 let devPanelOpen = false, devReturnState = 'menu', devRows = [], devOffset = 0, devTile = '^';
-for (const [tile, label] of DEV_TILE_TYPES) {
-  const button = document.createElement('button');
-  button.type = 'button'; button.textContent = tile === '.' ? '·' : tile;
-  button.title = label; button.setAttribute('aria-label', label);
-  button.addEventListener('click', () => {
-    devTile = tile; devTileName.textContent = label;
-    for (const b of devPalette.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b === button));
-  });
-  button.setAttribute('aria-pressed', String(tile === devTile));
-  devPalette.appendChild(button);
+let devMode = 'build', devCategory = 'blocks', communityMode = 'build', communityCategory = 'blocks';
+function buildTilePalette(palette, getTile, setTile, getCategory, onChange) {
+  palette.replaceChildren();
+  for (const [tile,label,icon,category] of DEV_TILE_TYPES) {
+    if (category !== getCategory()) continue;
+    const button = document.createElement('button'); button.type = 'button'; button.title = label; button.setAttribute('aria-label',label);
+    button.innerHTML = '<span class="tile-icon"></span><span></span>'; button.children[0].textContent=icon; button.children[1].textContent=label;
+    button.setAttribute('aria-pressed',String(tile===getTile()));
+    button.addEventListener('click',()=>{setTile(tile);onChange(label);for(const b of palette.querySelectorAll('button'))b.setAttribute('aria-pressed',String(b===button));});
+    palette.appendChild(button);
+  }
 }
+function wireEditorToolbar(root, setMode, setCategory, renderPalette) {
+  root.querySelectorAll('[data-editor-mode]').forEach(button=>button.addEventListener('click',()=>{setMode(button.dataset.editorMode);root.querySelectorAll('[data-editor-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));}));
+  root.querySelectorAll('[data-tile-category]').forEach(button=>button.addEventListener('click',()=>{setCategory(button.dataset.tileCategory);root.querySelectorAll('[data-tile-category]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));renderPalette();}));
+}
+function renderDevPalette(){buildTilePalette(devPalette,()=>devTile,t=>{devTile=t;},()=>devCategory,label=>{devTileName.textContent=label;});}
+renderDevPalette();
+wireEditorToolbar(devPanel,value=>{devMode=value;},value=>{devCategory=value;},renderDevPalette);
 function devCurrentLevel() { return LEVELS.find(lvl => lvl.name === devLevelSelect.value) || LEVELS[0]; }
 function devStatusText(message) { devStatus.textContent = message; }
 function devPersistOverrides() {
@@ -3093,14 +3085,14 @@ function devRenderGrid() {
     const cell = document.createElement('button');
     cell.type = 'button'; cell.className = 'dev-cell';
     cell.dataset.x = String(column); cell.dataset.y = String(y); cell.dataset.tile = tile;
-    cell.textContent = tile === '.' ? '·' : tile;
+    cell.textContent = tileIcon(tile);
     cell.title = 'Column ' + (x + 1) + ', row ' + (ROWS - y);
     cell.setAttribute('aria-label', cell.title + ', tile ' + tile);
     cell.addEventListener('click', () => {
       if (x >= devRows[0].length) return;
-      devRows[y] = devRows[y].slice(0, x) + devTile + devRows[y].slice(x + 1);
-      devRenderGrid();
-      devStatusText('Unsaved edits in ' + devCurrentLevel().name + '. Press Save level to keep them.');
+      if (devMode === 'edit') { devTile=tile; devTileName.textContent=tileLabel(tile); renderDevPalette(); devStatusText(tile==='.'?'Selected an empty cell.':'Selected '+tileLabel(tile)+'. Switch to Build to place it.'); return; }
+      devRows[y] = devRows[y].slice(0,x) + (devMode==='delete'?'.':devTile) + devRows[y].slice(x+1);
+      devRenderGrid(); devStatusText((devMode==='delete'?'Removed object.':'Placed '+tileLabel(devTile)+'.')+' Unsaved changes in '+devCurrentLevel().name+'.');
     });
     devGrid.appendChild(cell);
   }
@@ -3117,6 +3109,10 @@ function openDevPanel() {
   }
   devLevelSelect.value = LEVELS[Math.max(0, Math.min(selected, LEVELS.length - 1))]?.name || LEVELS[0]?.name;
   devPanel.hidden = false; devPanelOpen = true;
+  devMode='build'; devCategory='blocks';
+  devPanel.querySelectorAll('[data-editor-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.editorMode===devMode)));
+  devPanel.querySelectorAll('[data-tile-category]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tileCategory===devCategory)));
+  renderDevPalette();
   document.getElementById('devNoclip').checked = devNoclip;
   devLoadDraft();
   devStatusText('Developer tools unlocked. Changes are drafts until saved.');
@@ -3269,29 +3265,28 @@ function communityRenderGrid() {
     const x = communityOffset + col, tile = x < width ? communityRows[y][x] : '.';
     const cell = document.createElement('button'); cell.type = 'button'; cell.className = 'dev-cell';
     cell.dataset.x = String(x); cell.dataset.y = String(y); cell.dataset.tile = tile;
-    cell.textContent = tile === '.' ? '·' : tile;
+    cell.textContent = tileIcon(tile);
     cell.title = 'Column ' + (x + 1) + ', row ' + (ROWS - y);
     cell.addEventListener('click', () => {
       if (x >= communityRows[0].length) return;
-      communityRows[y] = communityRows[y].slice(0, x) + communityTile + communityRows[y].slice(x + 1);
-      communityRenderGrid(); communityStatusText('Unsaved edits. Save before closing to keep them.');
+      if(communityMode==='edit'){communityTile=tile;communityTileName.textContent=tileLabel(tile);renderCommunityPalette();communityStatusText(tile==='.'?'Selected an empty cell.':'Selected '+tileLabel(tile)+'. Switch to Build to place it.');return;}
+      communityRows[y]=communityRows[y].slice(0,x)+(communityMode==='delete'?'.':communityTile)+communityRows[y].slice(x+1);
+      communityRenderGrid();communityStatusText(communityMode==='delete'?'Object removed. Save to keep changes.':'Placed '+tileLabel(communityTile)+'. Save to keep changes.');
     });
     communityGrid.appendChild(cell);
   }
 }
-for (const [tile, label] of DEV_TILE_TYPES) {
-  const button = document.createElement('button'); button.type = 'button'; button.textContent = tile === '.' ? '·' : tile;
-  button.title = label; button.setAttribute('aria-label', label); button.setAttribute('aria-pressed', String(tile === communityTile));
-  button.addEventListener('click', () => {
-    communityTile = tile; communityTileName.textContent = label;
-    for (const b of communityPalette.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b === button));
-  });
-  communityPalette.appendChild(button);
-}
+function renderCommunityPalette(){buildTilePalette(communityPalette,()=>communityTile,t=>{communityTile=t;},()=>communityCategory,label=>{communityTileName.textContent=label;});}
+renderCommunityPalette();
+wireEditorToolbar(communityPanel,value=>{communityMode=value;},value=>{communityCategory=value;},renderCommunityPalette);
 function openCommunityEditor() {
   if (communityPanelOpen || devPanelOpen) return;
   communityReturnState = state; state = 'pause'; holding = false; jumpPressed = false;
   communityRenderSelect(); communityLoadDraft();
+  communityMode='build'; communityCategory='blocks';
+  communityPanel.querySelectorAll('[data-editor-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.editorMode===communityMode)));
+  communityPanel.querySelectorAll('[data-tile-category]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tileCategory===communityCategory)));
+  renderCommunityPalette();
   communityPanel.hidden = false; communityPanelOpen = true; communityButton.hidden = true;
   communityStatusText(COMMUNITY_LEVELS.length ? 'Custom levels are saved only in this browser.' : 'Create your first level with + New.');
 }
