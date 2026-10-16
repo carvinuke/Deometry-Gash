@@ -1051,6 +1051,10 @@ const ITEMS = {
     { name: 'Nova', level: 12, body: '#3931aa', inner: '#ffe78b', look: 'nova' },
     { name: 'Helix', level: 4, body: '#52f2d0', inner: '#fff4a3', look: 'helix' },
     { name: 'Shard', level: 7, body: '#ff4d79', inner: '#c9f7ff', look: 'shard' },
+    { name: 'Hazard', level: 5, body: '#ffd400', inner: '#111111', look: 'hazard' },
+    { name: 'Galaxy', level: 13, body: '#0d0a26', inner: '#b98cff', look: 'galaxy' },
+    { name: 'Dragon Eye', level: 9, body: '#1f7a4d', inner: '#ffcf2e', look: 'dragoneye' },
+    { name: 'Invader', level: 1, body: '#120a2e', inner: '#39ff14', look: 'invader' },
   ],
   ship: [
     { name: 'Rocket', free: true, body: '#ff4fd8', inner: '#ffd400', look: 'rocket' },
@@ -1067,6 +1071,10 @@ const ITEMS = {
     { name: 'Mech', level: 8, body: '#5c687c', inner: '#ffcf4a', look: 'mech' },
     { name: 'Stinger', level: 5, body: '#d13c62', inner: '#fff0a0', look: 'stinger' },
     { name: 'Lancer', level: 9, body: '#394a94', inner: '#7fffe0', look: 'lancer' },
+    { name: 'Warthog', level: 7, body: '#7b8670', inner: '#d8283a', look: 'warthog' },
+    { name: 'Hornet', level: 10, body: '#9aa6b6', inner: '#ffd400', look: 'hornet' },
+    { name: 'Dragon', level: 12, body: '#2e9c4a', inner: '#ffb31a', look: 'dragon' },
+    { name: 'Galleon', level: 4, body: '#8a5a2b', inner: '#f4ecd2', look: 'galleon' },
   ],
   ball: [
     { name: 'Wheel', free: true, body: '#ffd400', inner: '#00e5ff', look: 'spokes' },
@@ -1081,6 +1089,9 @@ const ITEMS = {
     { name: 'Eclipse', level: 11, body: '#18132e', inner: '#ffcc5c', look: 'eclipse' },
     { name: 'Comet', level: 4, body: '#2c75d6', inner: '#ffc9f2', look: 'comet' },
     { name: 'Quasar', level: 13, body: '#5832a8', inner: '#85f5ff', look: 'quasar' },
+    { name: 'Disco', level: 2, body: '#8f98ab', inner: '#e6f2ff', look: 'disco' },
+    { name: 'Melon', level: 1, body: '#2f9e3a', inner: '#ff3b5c', look: 'melon' },
+    { name: 'Black Hole', level: 13, body: '#120820', inner: '#ff8a2b', look: 'blackhole' },
   ],
   wave: [
     { name: 'Dart', free: true, body: '#00e5ff', inner: '#ffd400', look: 'dart' },
@@ -1094,6 +1105,9 @@ const ITEMS = {
     { name: 'Phoenix', level: 3, body: '#ff633d', inner: '#ffe36e', look: 'phoenix' },
     { name: 'Spiral', level: 12, body: '#7a42ff', inner: '#d5faff', look: 'spiral' },
     { name: 'Ion', level: 5, body: '#44f5c7', inner: '#fff', look: 'ion' },
+    { name: 'Paper Plane', level: 0, body: '#f4f6fa', inner: '#5b8cff', look: 'paperplane' },
+    { name: 'Lightning', level: 8, body: '#ffe23a', inner: '#7fdcff', look: 'bolt' },
+    { name: 'Shuriken', level: 11, body: '#b8c2d1', inner: '#ff2b4a', look: 'shuriken' },
   ],
   trail: [
     { name: 'None', free: true },
@@ -1854,6 +1868,50 @@ const LOOKS = {
     ctx.save(); ctx.rotate(a); ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.moveTo(-12, -2); ctx.lineTo(9, 4); ctx.moveTo(-4, 12); ctx.lineTo(7, -8); ctx.stroke(); ctx.restore();
   },
+  hazard(body, inner, t) {
+    ctx.save(); ctx.beginPath(); ctx.rect(-20, -20, 40, 40); ctx.rect(-13, -13, 26, 26); ctx.clip('evenodd'); // stripes on the border only
+    ctx.fillStyle = inner;
+    for (let k = -60; k < 40; k += 10) { ctx.beginPath(); ctx.moveTo(k, -20); ctx.lineTo(k + 5, -20); ctx.lineTo(k + 45, 20); ctx.lineTo(k + 40, 20); ctx.fill(); }
+    ctx.restore();
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(-13, -13, 26, 26);
+    ctx.save(); ctx.rotate(t * 0.8); ctx.fillStyle = inner; // spinning radiation sign
+    for (let i = 0; i < 3; i++) { const a = i * TAU / 3 - Math.PI / 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 10.5, a - 0.52, a + 0.52); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, TAU); ctx.fillStyle = body; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, 2.8, 0, TAU); ctx.fillStyle = inner; ctx.fill();
+  },
+  galaxy(body, inner, t) {
+    ctx.save(); ctx.rotate(t * 0.6);
+    for (let arm = 0; arm < 2; arm++) for (let i = 0; i < 14; i++) {
+      const a = arm * Math.PI + i * 0.38, r = 2 + i * 1.15;
+      ctx.fillStyle = i % 3 ? alpha(inner, 0.9 - i * 0.04) : '#fff';
+      ctx.beginPath(); ctx.arc(Math.cos(a) * r, Math.sin(a) * r, 2.4 - i * 0.12, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 7);
+    g.addColorStop(0, '#fff'); g.addColorStop(0.4, inner); g.addColorStop(1, alpha(inner, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 7, 0, TAU); ctx.fill();
+    for (const [x, y, p] of [[-14, -13, 0], [13, -12, 1.7], [-13, 14, 3.1], [14, 13, 4.4]]) sparkle(x, y, 1.2 + Math.abs(Math.sin(t * 3 + p)) * 2);
+  },
+  dragoneye(body, inner, t) {
+    ctx.strokeStyle = shade(body, -0.4); ctx.lineWidth = 1.5; // scales
+    for (let row = 0; row < 6; row++) for (let x = -24; x <= 24; x += 8) { ctx.beginPath(); ctx.arc(x + (row % 2) * 4, -18 + row * 7, 4, 0, Math.PI); ctx.stroke(); }
+    ctx.save(); ctx.scale(1, mod(t, 3.2) > 3.05 ? 0.12 : 1); // blinks now and then
+    const g = ctx.createRadialGradient(0, 0, 1, 0, 0, 14);
+    g.addColorStop(0, '#fff3a0'); g.addColorStop(0.5, inner); g.addColorStop(1, shade(inner, -0.45));
+    ctx.beginPath(); ctx.ellipse(0, 0, 14, 9, 0, 0, TAU); ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(Math.sin(t * 1.3) * 4, 0, 2.2, 8, 0, 0, TAU); ctx.fillStyle = '#000'; ctx.fill(); // slit pupil looks around
+    ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(-8, -5, 3, 2.5);
+    ctx.restore();
+  },
+  invader(body, inner, t) {
+    const rows = Math.floor(t * 2.5) % 2 // two-frame 8-bit walk
+      ? ['..X.....X..', '...X...X...', '..XXXXXXX..', '.XX.XXX.XX.', 'XXXXXXXXXXX', 'X.XXXXXXX.X', 'X.X.....X.X', '...XX.XX...']
+      : ['..X.....X..', 'X..X...X..X', 'X.XXXXXXX.X', 'XXX.XXX.XXX', 'XXXXXXXXXXX', '.XXXXXXXXX.', '..X.....X..', '.X.......X.'];
+    ctx.fillStyle = inner; ctx.shadowColor = inner; ctx.shadowBlur = 6;
+    rows.forEach((r, y) => [...r].forEach((c, x) => { if (c === 'X') ctx.fillRect(-16.5 + x * 3, -12 + y * 3, 3, 3); }));
+    ctx.shadowBlur = 0;
+  },
 };
 
 function traceCustomCube(look, h, t) {
@@ -2035,11 +2093,78 @@ const SHIPS = {
     ctx.strokeStyle = inner; ctx.lineWidth = 2.3; ctx.beginPath(); ctx.moveTo(-16, 3); ctx.lineTo(19, 5); ctx.lineTo(7, 8); ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(14, 3, 2.2, 0, TAU); ctx.fill();
   },
+  warthog(body, inner, t) { // A-10 style: twin tails, engines on top, a big nose gun and a shark mouth
+    poly([[-26, -1], [-6, -4], [14, -4], [22, 0], [24, 5], [20, 10], [-22, 10], [-26, 6]], vgrad(-4, 10, shade(body, 0.35), body, shade(body, -0.35)), 3);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = shade(body, -0.25); for (const [x, y, rx] of [[-14, 3, 5], [2, 6, 4], [-3, 0, 3]]) { ctx.beginPath(); ctx.ellipse(x, y, rx, 2, 0.3, 0, TAU); ctx.fill(); } // camo
+    poly([[-24, 0], [-31, -13], [-25, -13], [-19, -1]], shade(body, -0.15), 2.5); // twin tails
+    poly([[-6, 6], [-11, 16], [6, 16], [8, 6]], shade(body, -0.25), 2.5); // straight wing
+    ctx.beginPath(); ctx.moveTo(-14, -4); ctx.lineTo(-12, -6); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke(); // engine pylon
+    ctx.beginPath(); ctx.ellipse(-12, -7, 7.5, 3.8, 0, 0, TAU); ctx.fillStyle = vgrad(-11, -3, shade(body, 0.3), shade(body, -0.2)); ctx.fill(); ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(-4.8, -7, 1.6, 3.4, 0, 0, TAU); ctx.fillStyle = '#222'; ctx.fill();
+    ctx.save(); ctx.translate(26, 6.8); // the gatling gun, barrels spinning
+    box(-3, -1.6, 8, 3.2, '#3a3a3a', 1.5);
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1; ctx.beginPath(); const sp = mod(t * 30, 3); ctx.moveTo(-2 + sp, -1.5); ctx.lineTo(-2 + sp, 1.5); ctx.stroke();
+    ctx.restore();
+    poly([[23.5, 4.5], [13, 4], [10.5, 6.8], [13, 9.4], [20.5, 10]], inner, 1.5); // shark mouth
+    for (const x of [13, 15.6, 18.2]) { poly([[x, 4.3], [x + 1.2, 6.6], [x + 2.4, 4.5]], '#fff', 0); poly([[x, 9.5], [x + 1.2, 7.2], [x + 2.4, 9.7]], '#fff', 0); }
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(19, 1.5, 1.6, 0, TAU); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillRect(19, 0.6, 0.9, 0.9);
+    ctx.beginPath(); ctx.ellipse(10, -4, 6.5, 7, 0, Math.PI, TAU); ctx.closePath(); // bubble canopy
+    ctx.fillStyle = 'rgba(160,220,255,0.3)'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+  },
+  hornet(body, inner) { // F/A-18 style: needle nose, twin canted tails, swept wings
+    poly([[-22, 0], [-25, -12], [-20, -12], [-13, -1]], shade(body, -0.35), 2); // far tail
+    poly([[-26, 2], [-14, -2], [2, -3], [16, -1], [31, 4], [16, 8], [-26, 9]], vgrad(-3, 9, shade(body, 0.4), body, shade(body, -0.35)), 3);
+    ctx.shadowBlur = 0;
+    poly([[-19, 1], [-28, -13], [-22, -13], [-10, -1]], shade(body, -0.12), 2.5); // near tail
+    poly([[-12, 6], [-21, 16], [-11, 16], [8, 6]], shade(body, -0.3), 2.5); // swept wing
+    poly([[23, 2.6], [31, 4], [23, 6.6]], shade(body, -0.5), 0); // radome
+    box(-29, 3, 4, 5.5, vgrad(3, 8.5, '#777', '#222'), 2);
+    ctx.strokeStyle = inner; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-20, 5); ctx.lineTo(20, 5); ctx.stroke();
+    ctx.fillStyle = inner; for (const x of [-16, -12]) { ctx.beginPath(); ctx.arc(x, -6.5, 1.2, 0, TAU); ctx.fill(); }
+    ctx.beginPath(); ctx.ellipse(7, -2, 9, 7, 0, Math.PI, TAU); ctx.closePath();
+    ctx.fillStyle = 'rgba(255,200,60,0.28)'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(7, -2, 6, 4.5, 0, Math.PI * 1.2, Math.PI * 1.5); ctx.stroke();
+  },
+  dragon(body, inner, t) {
+    const flap = Math.sin(t * 9) * 6, sway = Math.sin(t * 5) * 3;
+    ctx.beginPath(); ctx.ellipse(-3, 5, 17, 7, 0, 0, TAU);
+    ctx.fillStyle = vgrad(-2, 12, shade(body, 0.4), body, shade(body, -0.35)); ctx.fill();
+    ctx.shadowBlur = 0; ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-17, 6); ctx.quadraticCurveTo(-26, 4, -30, -4 + sway); // tail
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 6; ctx.stroke(); ctx.strokeStyle = body; ctx.lineWidth = 3; ctx.stroke(); ctx.lineCap = 'butt';
+    poly([[-30, -4 + sway], [-34, -10 + sway], [-27, -8 + sway]], inner, 1.5);
+    ctx.strokeStyle = inner; ctx.lineWidth = 1.5; for (let x = -12; x <= 6; x += 5) { ctx.beginPath(); ctx.arc(x, 10, 2.5, 0, Math.PI); ctx.stroke(); } // belly plates
+    poly([[10, 3], [17, -5], [27, -4], [30, 0], [23, 3], [16, 7]], body, 2.5); // head
+    poly([[17, -5], [13, -13], [21, -5]], inner, 1.5); poly([[21, -5], [20, -12], [24, -4.5]], inner, 1.5); // horns
+    ctx.beginPath(); ctx.ellipse(22, -1.5, 2, 1.6, 0, 0, TAU); ctx.fillStyle = '#ffe23a'; ctx.fill();
+    ctx.fillStyle = '#000'; ctx.fillRect(21.6, -3, 0.9, 3);
+    if (mod(t, 1.6) < 0.5) for (let i = 0; i < 3; i++) sparkle(32 + i * 3, 1 + Math.sin(t * 20 + i) * 1.5, 2.2 - i * 0.5, i ? '#ffd23a' : '#ff6a1f'); // smoke and sparks from the nose
+    poly([[-6, 2], [-14, -14 - flap], [-3, -10 - flap * 0.6], [6, -15 - flap], [4, 1]], shade(body, -0.2), 2.5); // near wing
+    ctx.strokeStyle = alpha(solid(inner), 0.7); ctx.lineWidth = 1.2; ctx.beginPath();
+    for (const [x, y] of [[-14, -14 - flap], [-3, -10 - flap * 0.6], [6, -15 - flap]]) { ctx.moveTo(0, 1); ctx.lineTo(x, y); }
+    ctx.stroke();
+  },
+  galleon(body, inner, t) { // a pirate ship sailing the sky
+    const bill = Math.sin(t * 4) * 1.5;
+    poly([[-26, 2], [24, 2], [18, 13], [-20, 13]], vgrad(2, 13, shade(body, 0.3), body, shade(body, -0.4)), 3);
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-23, 6); ctx.lineTo(22, 6); ctx.moveTo(-21, 9.5); ctx.lineTo(20, 9.5); ctx.stroke(); // planks
+    for (const x of [-12, -3, 6]) { ctx.beginPath(); ctx.arc(x, 7.8, 1.8, 0, TAU); ctx.fillStyle = '#ffd36b'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); } // portholes
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(22, 2); ctx.lineTo(31, -4); ctx.stroke(); // bowsprit
+    box(-1.5, -25, 2.6, 27, shade(body, -0.3), 1.5); // mast
+    ctx.beginPath(); ctx.moveTo(1, -22); ctx.quadraticCurveTo(15 + bill, -14, 1, -4); ctx.closePath(); // billowing sail
+    ctx.fillStyle = inner; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(5.5, -14, 2.4, 0, TAU); ctx.fill(); ctx.fillRect(4.3, -12.5, 2.4, 2); // skull
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(3, -9.5); ctx.lineTo(8, -7.5); ctx.moveTo(8, -9.5); ctx.lineTo(3, -7.5); ctx.stroke();
+    poly([[-0.5, -25], [-10, -27 + bill], [-0.5, -29.5]], '#111', 1.2); // flag
+  },
 };
-const PILOT = { jet: [-3, -6, 16], bat: [-2, -8, 18], saucer: [-3, -4, 15], duck: [-6, -7, 17], manta: [-3, -8, 15], mech: [-3, -6, 16], stinger: [-2, -7, 15], lancer: [-3, -8, 15] }; // cockpit placement, independent of the collision box
+const PILOT = { warthog: [9, -6, 12], hornet: [7, -4, 12], dragon: [-5, -4, 13], galleon: [-14, -4, 12], jet: [-3, -6, 16], bat: [-2, -8, 18], saucer: [-3, -4, 15], duck: [-6, -7, 17], manta: [-3, -8, 15], mech: [-3, -6, 16], stinger: [-2, -7, 15], lancer: [-3, -8, 15] }; // cockpit placement, independent of the collision box
 const EXHAUST = {
   rocket: [-29, 6.5], jet: [-29, 6.5], shark: [-24, 6], bat: [-20, 6],
   saucer: [-28, 7.5], duck: [-28, -1], manta: [-24, 7], mech: [-26, 2], stinger: [-28, 4.5], lancer: [-28, 4.5],
+  warthog: [-19, -7], hornet: [-29, 5.8], dragon: [-20, 6], galleon: [-26, 8],
 };
 
 function drawShip(cx, cy, rot, s, size = T, glow = false) {
@@ -2149,6 +2274,31 @@ const BALLS = {
     const g = ctx.createRadialGradient(-3, -4, 1, 0, 0, 11);
     g.addColorStop(0, '#fff'); g.addColorStop(0.35, inner); g.addColorStop(1, alpha(solid(body), 0));
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 11, 0, TAU); ctx.fill();
+  },
+  disco(body, inner, t) {
+    for (let y = -18; y < 18; y += 6) for (let x = -18; x < 18; x += 6) {
+      const tw = Math.sin(t * 6 + x * 0.7 + y * 1.3);
+      ctx.fillStyle = tw > 0.8 ? '#fff' : tw > 0 ? inner : shade(body, -0.25); ctx.fillRect(x + 0.6, y + 0.6, 4.8, 4.8);
+    }
+    sparkle(-6, -7, 3 + Math.sin(t * 5) * 1.5);
+  },
+  melon(body, inner) {
+    ctx.beginPath(); ctx.arc(0, 0, 14.5, 0, TAU); ctx.fillStyle = '#eaffd0'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, 12.5, 0, TAU); ctx.fillStyle = inner; ctx.fill();
+    ctx.fillStyle = '#1a0d00';
+    for (let i = 0; i < 8; i++) { const a = i * TAU / 8, r = i % 2 ? 5 : 9; ctx.beginPath(); ctx.ellipse(Math.cos(a) * r, Math.sin(a) * r, 1.1, 2, a, 0, TAU); ctx.fill(); }
+  },
+  blackhole(body, inner, t) {
+    ctx.save(); ctx.rotate(t * 2.2);
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      for (let k = 0; k <= 24; k++) { const a = i * TAU / 3 + k * 0.18, r = 18 - k * 0.45; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      ctx.strokeStyle = alpha(solid(inner), 0.9); ctx.lineWidth = 3; ctx.stroke();
+    }
+    ctx.restore();
+    ctx.shadowColor = inner; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(0, 0, 8, 0, TAU); ctx.strokeStyle = '#fff3d0'; ctx.lineWidth = 2; ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.arc(0, 0, 7, 0, TAU); ctx.fillStyle = '#000'; ctx.fill();
   },
 };
 function ballPath(look) {
@@ -2266,6 +2416,29 @@ const WAVES = {
     ctx.restore();
     poly([[15, 0], [-10, -9], [-4, 0], [-10, 9]], vgrad(-9, 9, '#fff', body, shade(body, -0.35)), 2.5);
     ctx.shadowBlur = 0; sparkle(8, -1, 3, inner);
+  },
+  paperplane(body, inner) {
+    poly([[18, 0], [-15, -12], [-8, 0]], body, 2.5);
+    ctx.shadowBlur = 0;
+    poly([[18, 0], [-8, 0], [-15, 12]], shade(body, -0.18), 2.5);
+    poly([[18, 0], [-8, 0], [-12, 5]], shade(body, -0.4), 2); // the folded keel
+    ctx.strokeStyle = inner; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(13, -2); ctx.lineTo(-11, -9); ctx.stroke();
+  },
+  bolt(body, inner, t) {
+    ctx.shadowColor = inner; ctx.shadowBlur = 10 + Math.sin(t * 25) * 5;
+    poly([[-20, -6], [2, 8], [2, 0], [20, 6], [-4, -10], [-4, -2]], vgrad(-10, 8, '#fff', body, shade(body, -0.3)), 2.5);
+    ctx.shadowBlur = 0;
+    if (mod(t, 0.4) < 0.2) { // crackles off the tail
+      ctx.strokeStyle = inner; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-20, -6); ctx.lineTo(-24, -1); ctx.lineTo(-22, 2); ctx.lineTo(-27, 6); ctx.stroke();
+    }
+  },
+  shuriken(body, inner, t) {
+    ctx.save(); ctx.rotate(t * 10);
+    ctx.beginPath(); for (let k = 0; k < 8; k++) { const a = k * TAU / 8, r = k % 2 ? 6 : 18; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath();
+    ctx.fillStyle = vgrad(-18, 18, shade(body, 0.4), body, shade(body, -0.35)); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.lineJoin = 'round'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, TAU); ctx.fillStyle = inner; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
   },
 };
 function drawWave(cx, cy, rot, s, size = T, glow = false) {
