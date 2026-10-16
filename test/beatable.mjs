@@ -144,7 +144,8 @@ for (const r of redPadRunways) {
 const devToolsChecks = await page.evaluate(async () => {
   const name = LEVELS[0].name, base = DEV_BASE_ROWS.get(name).slice();
   const editedRows = base.slice();
-  editedRows[ROWS - 1] = editedRows[ROWS - 1].slice(0, -1) + '.';
+  const firstTile = editedRows[ROWS - 1][0] === '^' ? '.' : '^';
+  editedRows[ROWS - 1] = firstTile + editedRows[ROWS - 1].slice(1);
   applyLevelOverrides({ [name]: editedRows });
   const edited = levelToRows(LEVELS.find(lvl => lvl.name === name));
   const index = LEVELS.findIndex(lvl => lvl.name === name), lvl = LEVELS[index];
