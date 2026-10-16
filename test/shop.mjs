@@ -23,11 +23,11 @@ const order = await page.evaluate(() => ({
     return [name, LEVELS[item.level].name];
   }),
 }));
-assert.deepEqual(order.names, ['First Steps', 'Sunrise Run', 'Orb Garden', 'Rolling Thunder', 'Prism Path', 'Tidal Flow', 'Sky Rush', 'Neon Circuit', 'Wave Rider', 'Circuit Breaker', 'Gash Gauntlet', 'Mode Mayhem', 'Demon Gash', 'Abyssal Run'], 'levels are ordered by difficulty, then stars');
+assert.deepEqual(order.names, ['First Steps', 'Sunrise Run', 'Orb Garden', 'Rolling Thunder', 'Prism Path', 'Tidal Flow', 'Sky Rush', 'Neon Circuit', 'Wave Rider', 'Circuit Breaker', 'Gash Gauntlet', 'Mode Mayhem', 'Demon Gash', 'Flutterclunk', 'Abyssal Run'], 'levels are ordered by difficulty, then stars');
 assert.equal(order.songs, order.names.length, 'every reordered and added level has its own song');
 assert.deepEqual(order.badUnlocks, [], 'all level rewards point to an existing level');
 assert.deepEqual(order.unlockTargets, [['Gold', 'Gash Gauntlet'], ['Prism', 'Sky Rush'], ['Skull', 'Demon Gash']], 'level unlocks stay attached to their original level');
-const shapedCubes = await page.evaluate(() => ITEMS.cube.filter(it => ['prism', 'jelly', 'orbit', 'aegis', 'bloom', 'nova'].includes(it.look)).map(it => it.look));
+const shapedCubes = await page.evaluate(() => ITEMS.cube.filter(it => ['prism', 'jelly', 'orbit', 'aegis', 'bloom', 'nova', 'helix', 'shard'].includes(it.look)).map(it => it.look));
 assert.deepEqual(shapedCubes, ['prism', 'jelly', 'orbit', 'aegis', 'bloom', 'nova', 'helix', 'shard'], 'all custom silhouettes are listed in the cube shop');
 const exhaustAnchors = await page.evaluate(() => Object.keys(SHIPS).every(look => Array.isArray(EXHAUST[look]) && EXHAUST[look].length === 2));
 assert.equal(exhaustAnchors, true, 'every ship skin has a tailored exhaust anchor');
@@ -48,7 +48,7 @@ assert.equal(extraIcons, true, 'new trail and death icons render without errors'
 
 // Type the secret word (the 's' opens the shop, which still listens), enter the ancient code there, go back, then click the title 7 times.
 await page.keyboard.type('gash');
-for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA']) await page.keyboard.press(k);
+for (const k of await page.evaluate(() => KONAMI)) await page.keyboard.press(k); // the game uses a shortened code
 await page.keyboard.press('Escape');
 const v = await page.evaluate(() => VIEW); // layout point (480, 80) is the title
 for (let i = 0; i < 7; i++) await page.mouse.click((480 + v.x) * v.s, (80 + v.y) * v.s);
@@ -107,8 +107,8 @@ await browser.close();
 assert.deepEqual(errors, []);
 assert.deepEqual(after.secrets, ['close', 'code', 'deaths', 'jumps', 'konami', 'title']);
 assert.deepEqual(after.locked, [], 'everything is unlockable');
-assert.equal(after.stars, 35, 'the four new levels add 26 spendable stars after shop purchases');
-assert.equal(after.coins, 12, 'the four new levels add eight spendable coins after shop purchases');
+assert.equal(after.stars, 46, 'the new levels, Flutterclunk included, add 37 spendable stars after shop purchases');
+assert.equal(after.coins, 15, 'the new levels, Flutterclunk included, add 11 spendable coins after shop purchases');
 assert.equal(after.saved, 36, 'purchases persist');
 assert.equal(kept.version, 4, 'old saves migrate to the reordered level list');
 assert.deepEqual([kept.firstStepsBest, kept.skyRushBest], [100, 75], 'legacy completion percentages stay with their levels');
