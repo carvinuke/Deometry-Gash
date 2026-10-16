@@ -1173,6 +1173,10 @@ try {
 save.equipped = { ...EQUIPPED, ...save.equipped }; // saves from before new kinds existed
 save.settings = { ...SETTINGS, ...save.settings };
 const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch {} };
+function wipeSave() { // keeps the volume and display settings
+  save = { v: 4, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: { ...EQUIPPED }, settings: save.settings };
+  persist();
+}
 
 const beaten = i => save.best[i] === 100;
 const sum = (list, f) => list.reduce((n, x) => n + f(x), 0);
@@ -1237,7 +1241,7 @@ function pause() { // only during a level; a pause during the crash skips straig
   if (state === 'dead') respawn();
   if (state === 'play') { state = 'pause'; holding = false; sfx('click'); }
 }
-function go(to) { state = to; holding = false; sfx('click'); }
+function go(to) { state = to; wipeAsk = false; holding = false; sfx('click'); }
 const progress = () => Math.min(100, Math.floor(player.x / level.len * 100));
 
 // ---- Sound and music ----
@@ -2945,6 +2949,8 @@ const cardRect = i => ({ x: W / 2 - CARD_W / 2 + (i - menuScroll) * CARD_STEP, y
 const PREV_BTN = { x: W / 2 - CARD_W / 2 - 76, y: CARD_Y + 86, w: 48, h: 60 }, NEXT_BTN = { x: W / 2 + CARD_W / 2 + 28, y: CARD_Y + 86, w: 48, h: 60 };
 const PLAY_BTN = { x: W / 2 - 80, y: 150, w: 160, h: 160 }, SHOP_BTN = { x: W / 2 - 256, y: 170, w: 120, h: 120 }, GEAR_BTN = { x: W / 2 + 136, y: 170, w: 120, h: 120 };
 const BACK_BTN = { x: 16, y: 12, w: 104, h: 36 };
+const WIPE_BTN = { x: W - 196, y: 12, w: 180, h: 36 }, WIPE_YES = { x: W / 2 - 170, y: 290, w: 160, h: 44 }, WIPE_NO = { x: W / 2 + 10, y: 290, w: 160, h: 44 };
+let wipeAsk = false;
 const TITLE_BOX = { x: W / 2 - 260, y: 38, w: 520, h: 80 };
 const PAUSE_BTNS = [['restart', W / 2 - 130, 32], ['resume', W / 2, 44], ['levels', W / 2 + 130, 32]].map(([id, x, r]) => ({ id, x: x - r, y: 184 - r, w: 2 * r, h: 2 * r }));
 const pauseBtn = () => ({ x: W + VIEW.x - 52, y: 6 - VIEW.y, w: 44, h: 40 }); // in the screen's top-right corner, like GD
@@ -3120,6 +3126,22 @@ function drawSettingsScreen(time) {
   txt('Controls', W / 2, 318, 24, '#fff', 'center', 4);
   [['Space, ↑, W or click', 'jump, fly the ship, flip the ball, steer the wave'], ['Esc', 'pause a level, or go back in menus'], ['← →', 'choose a level or a shop item'], ['S  ·  O', 'open the shop  ·  settings, from the title screen']]
     .forEach(([k, v], i) => { ui(k, W / 2 - 40, 350 + i * 24, 15, '#ffd400', 'right'); ui(v, W / 2 - 20, 350 + i * 24, 15, '#fff', 'left'); });
+  const wb = WIPE_BTN;
+  rr(wb.x, wb.y, wb.w, wb.h, 12); ctx.fillStyle = hovered(wb) ? 'rgba(255,60,60,0.55)' : 'rgba(120,0,0,0.5)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke();
+  txt('Wipe save data', wb.x + wb.w / 2, wb.y + 25, 17, '#fff', 'center', 4);
+  if (!wipeAsk) return;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; fillScreen();
+  rr(W / 2 - 250, 140, 500, 220, 18); ctx.fillStyle = '#120f24'; ctx.fill();
+  panel(W / 2 - 250, 140, 500, 220);
+  txt('Wipe your save?', W / 2, 190, 30, '#fff', 'center', 5);
+  ui('All your progress, stars, coins, shop items and secrets', W / 2, 230, 15);
+  ui('will be deleted. This cannot be undone.', W / 2, 252, 15);
+  for (const [b, label, top, bottom] of [[WIPE_YES, 'Yes, wipe it', '#ff8a8a', '#c81e1e'], [WIPE_NO, 'Cancel', '#9fd8ff', '#2b6bff']]) {
+    rr(b.x, b.y, b.w, b.h, 12); ctx.fillStyle = vgrad(b.y, b.y + b.h, top, bottom); ctx.fill();
+    ctx.strokeStyle = hovered(b) ? '#fff' : '#000'; ctx.lineWidth = 3; ctx.stroke();
+    txt(label, b.x + b.w / 2, b.y + 29, 18, '#fff', 'center', 4);
+  }
 }
 
 function drawPause() { // drawn over the frozen level, like GD's pause menu
@@ -3859,6 +3881,7 @@ addEventListener('keydown', e => {
     else if (e.code === 'KeyQ' || e.code === 'Backspace') pauseAction('levels');
     return;
   }
+  if (state === 'settings' && wipeAsk) { if (e.code === 'Escape' || e.code === 'Backspace') go('settings'); return; }
   if (e.code === 'Escape' || e.code === 'Backspace') {
     if (state === 'play' || state === 'dead') pause();
     else if (state === 'win') go('levels');
@@ -3912,6 +3935,11 @@ canvas.addEventListener('pointerdown', e => {
     if (i === selected) startLevel(i); else if (i >= 0) { selected = i; sfx('click'); } // the first click on another card brings it to the middle
     return;
   }
+  if (state === 'settings' && wipeAsk) {
+    if (hit(WIPE_YES)) { wipeSave(); go('settings'); } else if (hit(WIPE_NO)) go('settings');
+    return;
+  }
+  if (state === 'settings' && hit(WIPE_BTN)) { go('settings'); wipeAsk = true; return; }
   if (state === 'settings') return hit(BACK_BTN) ? go('menu') : settingsPointer(100, mx, my);
   if (state === 'pause') { const b = PAUSE_BTNS.find(b => hit(b)); return b ? pauseAction(b.id) : settingsPointer(266, mx, my); }
   if (state === 'shop') {
