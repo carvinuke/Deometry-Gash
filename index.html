@@ -2937,6 +2937,7 @@ function devSaveLevel() {
   DEV_OVERRIDES[name] = rows;
   devPersistOverrides();
   applyLevelOverrides({ [name]: rows });
+  if (level?.name === name) level = LEVELS.find(lvl => lvl.name === name);
   devLoadDraft();
   devStatusText('Saved ' + name + '. Changes persist in this browser; export ZIP to share them.');
 }
@@ -2946,6 +2947,7 @@ function devResetLevel() {
   const rows = base.slice();
   DEV_OVERRIDES[lvl.name] = rows;
   LEVELS[LEVELS.findIndex(item => item.name === lvl.name)] = buildLevel(lvl.name, lvl.difficulty, lvl.stars, lvl.hue, [rows]);
+  if (level?.name === lvl.name) level = LEVELS.find(item => item.name === lvl.name);
   devPersistOverrides(); devLoadDraft();
   devStatusText('Reset ' + lvl.name + ' to its original built-in layout.');
 }
