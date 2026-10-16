@@ -3225,13 +3225,13 @@ function wireVisualEditor(canvas,getRows,getOffset,setOffset,getMode,getTile,get
   function act(e,isDrag=false){
     const p=point(e),rows=getRows();if(p.y<0||p.y>=ROWS||p.x<0||p.x>=rows[0].length)return;
     const key=p.x+','+p.y;if(isDrag&&key===lastKey)return;lastKey=key;
-    const mode=getMode(),rowIndex=ROWS-1-p.y;
+    const mode=getMode(),rowIndex=p.y;
     if(mode==='edit'){
       const selected=getSelected();
       if(!selected){if(rows[rowIndex][p.x]!=='.')setSelected({x:p.x,y:p.y,type:rows[rowIndex][p.x]});}
       else if(selected.x===p.x&&selected.y===p.y){setSelected(null);}
       else if(rows[rowIndex][p.x]==='.'){
-        const srcRow=ROWS-1-selected.y;
+        const srcRow=selected.y;
         rows[srcRow]=rows[srcRow].slice(0,selected.x)+'.'+rows[srcRow].slice(selected.x+1);
         rows[rowIndex]=rows[rowIndex].slice(0,p.x)+selected.type+rows[rowIndex].slice(p.x+1);
         setSelected(null);afterChange('Moved object.');
