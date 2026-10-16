@@ -2991,7 +2991,11 @@ function devMakeZip(files) {
 }
 function devExportZip() {
   devSaveLevel();
-  let html = document.documentElement.outerHTML;
+  const cloned = document.documentElement.cloneNode(true);
+  cloned.querySelector('#devPalette')?.replaceChildren();
+  cloned.querySelector('#devGrid')?.replaceChildren();
+  cloned.querySelector('#devLevel')?.replaceChildren();
+  let html = cloned.outerHTML;
   const marker = 'const DEV_EMBEDDED_OVERRIDES = {};';
   if (!html.includes(marker)) { devStatusText('Could not prepare the ZIP. Reload the game and try again.'); return; }
   html = html.replace(marker, 'const DEV_EMBEDDED_OVERRIDES = ' + JSON.stringify(DEV_OVERRIDES) + ';');
