@@ -11,10 +11,50 @@
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0b14; }
   canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  #devPanel[hidden] { display: none; }
+  #devPanel { position: fixed; z-index: 20; inset: 10px auto 10px 10px; width: min(720px, calc(100vw - 20px)); overflow: auto; box-sizing: border-box; padding: 14px; border: 1px solid #6254a8; border-radius: 12px; background: rgba(12, 11, 24, .97); color: #f5f3ff; font: 13px/1.35 system-ui, sans-serif; box-shadow: 0 10px 40px #0009; }
+  #devPanel * { box-sizing: border-box; }
+  #devPanel h2 { margin: 0; font-size: 18px; }
+  #devPanel .dev-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 9px 0; }
+  #devPanel button, #devPanel select, #devPanel input { border: 1px solid #554b7b; border-radius: 6px; background: #211d36; color: #fff; padding: 6px 8px; font: inherit; }
+  #devPanel button { cursor: pointer; }
+  #devPanel button:hover, #devPanel button:focus-visible { border-color: #ffd400; }
+  #devPanel .dev-palette { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+  #devPanel .dev-palette button { min-width: 34px; height: 31px; padding: 3px 7px; }
+  #devPanel .dev-palette button[aria-pressed="true"] { background: #6651b6; border-color: #ffd400; }
+  #devPanel .dev-grid-wrap { overflow-x: auto; padding: 6px 0; }
+  #devPanel .dev-grid { display: grid; grid-template-columns: repeat(20, 29px); gap: 2px; width: max-content; }
+  #devPanel .dev-cell { width: 29px; height: 29px; padding: 0; font-weight: 700; }
+  #devPanel .dev-cell[data-tile="#"] { background: #45405c; }
+  #devPanel .dev-cell[data-tile="^"], #devPanel .dev-cell[data-tile="G"], #devPanel .dev-cell[data-tile="v"], #devPanel .dev-cell[data-tile="h"], #devPanel .dev-cell[data-tile="F"] { color: #ff8c9e; }
+  #devPanel .dev-muted { color: #b8b2ce; }
+  #devPanel .dev-actions { position: sticky; bottom: -14px; background: #100e20; padding: 9px 0 2px; }
+  #devPanel .dev-primary { border-color: #ffd400; color: #ffd400; }
+  @media (max-width: 500px) { #devPanel { font-size: 12px; padding: 9px; } #devPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #devPanel .dev-cell { width: 25px; height: 27px; } }
 </style>
 </head>
 <body>
 <canvas id="game" width="960" height="480" aria-label="Deometry Gash, a Geometry Dash style game. Pick a level with the arrow keys and Enter, then hold Space, Up or click to jump."></canvas>
+<section id="devPanel" hidden aria-label="Developer tools">
+  <div class="dev-row" style="justify-content:space-between">
+    <div><h2>Developer panel</h2><div class="dev-muted">Local dev tools · save changes in this browser or export a portable ZIP.</div></div>
+    <button id="devClose" type="button">Close</button>
+  </div>
+  <div class="dev-row">
+    <label for="devLevel">Level</label><select id="devLevel"></select>
+    <label for="devOffset">Column</label><input id="devOffset" type="number" min="0" value="0" style="width:76px">
+    <button id="devPrev" type="button">◀ 20</button><button id="devNext" type="button">20 ▶</button>
+  </div>
+  <div class="dev-row"><span>Selected tile:</span><strong id="devTileName">Small spike</strong><span class="dev-muted">Tap a grid tile to paint it.</span></div>
+  <div id="devPalette" class="dev-palette" aria-label="Tile palette"></div>
+  <div class="dev-grid-wrap"><div id="devGrid" class="dev-grid" aria-label="Level tile grid"></div></div>
+  <div class="dev-row">
+    <button id="devAddColumn" type="button">Add 1 column</button><button id="devRemoveColumn" type="button">Remove last column</button>
+    <label><input id="devNoclip" type="checkbox"> Noclip</label><button id="devAllSkins" type="button">Unlock every skin</button>
+  </div>
+  <div class="dev-row dev-actions"><button id="devSave" class="dev-primary" type="button">Save level</button><button id="devReset" type="button">Reset level</button><button id="devExport" class="dev-primary" type="button">Export ZIP</button></div>
+  <div id="devStatus" class="dev-muted" role="status">Changes are not saved until you press Save level.</div>
+</section>
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -504,6 +544,39 @@ const LEGACY_LEVEL_ORDER = ['First Steps', 'Orb Garden', 'Sky Rush', 'Gash Gaunt
 const LEVEL_ORDER_V3 = ['First Steps', 'Orb Garden', 'Rolling Thunder', 'Prism Path', 'Sky Rush', 'Neon Circuit', 'Wave Rider', 'Gash Gauntlet', 'Mode Mayhem', 'Demon Gash'];
 LEVELS.sort((a, b) => DIFFICULTY_RANK[a.difficulty] - DIFFICULTY_RANK[b.difficulty] || a.stars - b.stars || a.len - b.len);
 
+const DEV_EMBEDDED_OVERRIDES = {}; // Export ZIP replaces this with saved layouts.
+const DEV_LEVEL_KEY = 'deometry-gash-level-overrides-v1';
+let devNoclip = false;
+function levelToRows(lvl) {
+  const rows = Array.from({ length: ROWS }, () => Array(lvl.len).fill('.'));
+  for (const t of lvl.tiles) if (t.x >= 0 && t.x < lvl.len && t.y >= 0 && t.y < ROWS) rows[ROWS - 1 - t.y][t.x] = t.type;
+  return rows.map(row => row.join(''));
+}
+const DEV_BASE_ROWS = new Map(LEVELS.map(lvl => [lvl.name, levelToRows(lvl)]));
+let DEV_OVERRIDES = { ...DEV_EMBEDDED_OVERRIDES };
+function applyLevelOverrides(overrides) {
+  for (const [name, sourceRows] of Object.entries(overrides || {})) {
+    const index = LEVELS.findIndex(lvl => lvl.name === name);
+    if (index < 0 || !Array.isArray(sourceRows) || !sourceRows.length) continue;
+    const old = LEVELS[index];
+    const width = Math.max(1, Math.min(2000, Math.max(...sourceRows.map(row => String(row ?? '').length))));
+    const rows = Array.from({ length: ROWS }, (_, y) => String(sourceRows[y] ?? '').slice(0, width).padEnd(width, '.'));
+    const fresh = buildLevel(old.name, old.difficulty, old.stars, old.hue, [rows]);
+    const oldCoins = new Map(old.tiles.filter(t => t.type === 'c').map(t => [t.x + ',' + t.y, t.id]));
+    let nextCoinId = Math.max(-1, ...old.tiles.map(t => t.id)) + 1;
+    for (const t of fresh.tiles) if (t.type === 'c') {
+      const key = t.x + ',' + t.y;
+      t.id = oldCoins.has(key) ? oldCoins.get(key) : nextCoinId++;
+    }
+    LEVELS[index] = fresh;
+  }
+}
+try {
+  const stored = JSON.parse(localStorage.getItem(DEV_LEVEL_KEY) || '{}');
+  if (stored && typeof stored === 'object' && !Array.isArray(stored)) DEV_OVERRIDES = { ...DEV_OVERRIDES, ...stored };
+} catch {}
+applyLevelOverrides(DEV_OVERRIDES);
+
 function newPlayer() { return { x: 0, y: 0, vy: 0, grounded: true, coyote: 0.1, jumpBuffer: 0, rot: 0, mode: 'cube', grav: 1, used: [], coins: [] }; }
 const clamp = (v, m) => Math.max(-m, Math.min(m, v));
 const fallingSpikeY = (t, x) => Math.max(0, t.y - Math.max(0, x - (t.x - 4)) * 2);
@@ -538,21 +611,21 @@ function step(p, hold, lvl, justPressed = hold) {
     const inX = (a, b) => p.x + 1 > t.x + a && p.x < t.x + b;
     const inY = (a, b) => p.y < t.y + b && p.y + 1 > t.y + a;
     switch (t.type) {
-      case '^': if (inX(0.35, 0.65) && inY(0, 0.3)) return 'dead'; break; // a small box at the base, like GD's, so triple spikes are fair
-      case 'v': if (inX(0.35, 0.65) && inY(0.7, 1)) return 'dead'; break;
-      case 'h': if (inX(0.04, 0.96) && p.y < t.y + 0.42 && p.y + 1 > t.y) return 'dead'; break;
-      case 'G': if (inX(-0.3, 1.3) && p.y < t.y + 0.68 && p.y + 1 > t.y) return 'dead'; break;
+      case '^': if (!devNoclip && inX(0.35, 0.65) && inY(0, 0.3)) return 'dead'; break; // a small box at the base, like GD's, so triple spikes are fair
+      case 'v': if (!devNoclip && inX(0.35, 0.65) && inY(0.7, 1)) return 'dead'; break;
+      case 'h': if (!devNoclip && inX(0.04, 0.96) && p.y < t.y + 0.42 && p.y + 1 > t.y) return 'dead'; break;
+      case 'G': if (!devNoclip && inX(-0.3, 1.3) && p.y < t.y + 0.68 && p.y + 1 > t.y) return 'dead'; break;
       case 's': {
         const closestX = Math.max(t.x, Math.min(t.x + 1, p.x + 0.5));
         const closestY = Math.max(t.y, Math.min(t.y + 1, p.y + 0.5));
         const dx = t.x + 0.5 - closestX;
         const dy = t.y + 0.5 - closestY;
-        if (dx * dx + dy * dy < 0.39 * 0.39) return 'dead';
+        if (!devNoclip && dx * dx + dy * dy < 0.39 * 0.39) return 'dead';
         break;
       }
       case 'F': {
         const y = fallingSpikeY(t, p.x);
-        if (p.x + 1 > t.x + 0.12 && p.x < t.x + 0.88 && p.y < y + 0.34 && p.y + 1 > y) return 'dead';
+        if (!devNoclip && p.x + 1 > t.x + 0.12 && p.x < t.x + 0.88 && p.y < y + 0.34 && p.y + 1 > y) return 'dead';
         break;
       }
       case 'p': case 'r': if (p.mode === 'cube' && inX(0.2, 0.8) && inY(0, 0.3)) { p.vy = t.type === 'r' ? RED_PAD : PAD; p.grounded = false; } break;
@@ -568,7 +641,7 @@ function step(p, hold, lvl, justPressed = hold) {
         break;
       }
       case '#':
-        if (!inY(0, 1)) break;
+        if (devNoclip || !inY(0, 1)) break;
         if (p.vy <= 0 && prevY >= t.y + 1 - 0.01) { p.y = t.y + 1; p.vy = 0; p.grounded = p.grav > 0; }
         else if (p.mode !== 'cube' && p.vy >= 0 && prevY + 1 <= t.y + 0.01) { p.y = t.y - 1; p.vy = 0; p.grounded = p.grav < 0; } // slide under blocks
         else return 'dead'; // hit a wall (or a ceiling as the cube)
@@ -775,7 +848,7 @@ function buyOrEquip(kind, i) {
 
 // ---- Game state ----
 let state = 'menu', selected = 0, level = LEVELS[0], player = newPlayer(), stateTime = 0, attempts = 1, holding = false, jumpPressed = false, activePointerId = null;
-let particles = [], history = [], winNote = '', shopTab = 0, shopPick = 0, titleClicks = 0, typed = '', keys = [];
+let particles = [], history = [], winNote = '', shopTab = 0, shopPick = 0, titleClicks = 0, typed = '', keys = [], devArmed = false;
 let visRot = 0, shake = 0, ceilAnim = 0, menuScroll = 0, mouse = { x: -1, y: -1 }, cursorHot = false, drag = null;
 
 function startLevel(i) {
@@ -2776,6 +2849,184 @@ function drawToast() {
   ctx.restore();
 }
 
+
+// ---- Hidden developer tools ----
+const devPanel = document.getElementById('devPanel');
+const devLevelSelect = document.getElementById('devLevel');
+const devOffsetInput = document.getElementById('devOffset');
+const devGrid = document.getElementById('devGrid');
+const devPalette = document.getElementById('devPalette');
+const devTileName = document.getElementById('devTileName');
+const devStatus = document.getElementById('devStatus');
+const DEV_VIEW_COLS = 20;
+const DEV_TILE_TYPES = [
+  ['.', 'Empty'], ['#', 'Block'], ['^', 'Small spike'], ['G', 'Giant spike'],
+  ['v', 'Hanging spike'], ['h', 'Spike bar'], ['F', 'Falling spike'], ['s', 'Saw'],
+  ['i', 'Pole light'], ['p', 'Jump pad'], ['r', 'Red pad'], ['o', 'Jump orb'],
+  ['b', 'Boost orb'], ['c', 'Coin'], ['S', 'Ship portal'], ['C', 'Cube portal'],
+  ['B', 'Ball portal'], ['W', 'Wave portal']
+];
+let devPanelOpen = false, devReturnState = 'menu', devRows = [], devOffset = 0, devTile = '^';
+for (const [tile, label] of DEV_TILE_TYPES) {
+  const button = document.createElement('button');
+  button.type = 'button'; button.textContent = tile === '.' ? '·' : tile;
+  button.title = label; button.setAttribute('aria-label', label);
+  button.addEventListener('click', () => {
+    devTile = tile; devTileName.textContent = label;
+    for (const b of devPalette.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b === button));
+  });
+  button.setAttribute('aria-pressed', String(tile === devTile));
+  devPalette.appendChild(button);
+}
+function devCurrentLevel() { return LEVELS.find(lvl => lvl.name === devLevelSelect.value) || LEVELS[0]; }
+function devStatusText(message) { devStatus.textContent = message; }
+function devPersistOverrides() {
+  try { localStorage.setItem(DEV_LEVEL_KEY, JSON.stringify(DEV_OVERRIDES)); } catch {}
+}
+function devLoadDraft() {
+  devRows = levelToRows(devCurrentLevel());
+  devOffset = 0; devOffsetInput.value = '0';
+  devRenderGrid();
+}
+function devRenderGrid() {
+  if (!devRows.length) return;
+  const width = devRows[0].length;
+  devOffset = Math.max(0, Math.min(Math.max(0, width - DEV_VIEW_COLS), devOffset));
+  devOffsetInput.max = String(Math.max(0, width - DEV_VIEW_COLS));
+  devOffsetInput.value = String(devOffset);
+  devGrid.replaceChildren();
+  for (let y = 0; y < ROWS; y++) for (let column = 0; column < DEV_VIEW_COLS; column++) {
+    const x = devOffset + column, tile = x < width ? devRows[y][x] : '.';
+    const cell = document.createElement('button');
+    cell.type = 'button'; cell.className = 'dev-cell';
+    cell.dataset.x = String(column); cell.dataset.y = String(y); cell.dataset.tile = tile;
+    cell.textContent = tile === '.' ? '·' : tile;
+    cell.title = 'Column ' + (x + 1) + ', row ' + (ROWS - y);
+    cell.setAttribute('aria-label', cell.title + ', tile ' + tile);
+    cell.addEventListener('click', () => {
+      if (x >= devRows[0].length) return;
+      devRows[y] = devRows[y].slice(0, x) + devTile + devRows[y].slice(x + 1);
+      devRenderGrid();
+      devStatusText('Unsaved edits in ' + devCurrentLevel().name + '. Press Save level to keep them.');
+    });
+    devGrid.appendChild(cell);
+  }
+}
+function openDevPanel() {
+  if (devPanelOpen) return;
+  devReturnState = state;
+  if (state === 'play' || state === 'dead') { state = 'pause'; holding = false; }
+  devLevelSelect.replaceChildren();
+  for (const lvl of LEVELS) {
+    const option = document.createElement('option');
+    option.value = lvl.name; option.textContent = lvl.name + ' · ' + lvl.difficulty;
+    devLevelSelect.appendChild(option);
+  }
+  devLevelSelect.value = LEVELS[Math.max(0, Math.min(selected, LEVELS.length - 1))]?.name || LEVELS[0]?.name;
+  devPanel.hidden = false; devPanelOpen = true;
+  document.getElementById('devNoclip').checked = devNoclip;
+  devLoadDraft();
+  devStatusText('Developer tools unlocked. Changes are drafts until saved.');
+}
+function closeDevPanel() {
+  devPanel.hidden = true; devPanelOpen = false;
+  state = devReturnState;
+}
+function devSaveLevel() {
+  const name = devCurrentLevel().name, rows = devRows.slice();
+  DEV_OVERRIDES[name] = rows;
+  devPersistOverrides();
+  applyLevelOverrides({ [name]: rows });
+  devLoadDraft();
+  devStatusText('Saved ' + name + '. Changes persist in this browser; export ZIP to share them.');
+}
+function devResetLevel() {
+  const lvl = devCurrentLevel(), base = DEV_BASE_ROWS.get(lvl.name);
+  if (!base) return;
+  const rows = base.slice();
+  DEV_OVERRIDES[lvl.name] = rows;
+  LEVELS[LEVELS.findIndex(item => item.name === lvl.name)] = buildLevel(lvl.name, lvl.difficulty, lvl.stars, lvl.hue, [rows]);
+  devPersistOverrides(); devLoadDraft();
+  devStatusText('Reset ' + lvl.name + ' to its original built-in layout.');
+}
+function devUnlockAllSkins() {
+  const ids = Object.entries(ITEMS).flatMap(([kind, items]) => items.map((_, index) => kind + ':' + index));
+  save.owned = [...new Set([...(save.owned || []), ...ids])];
+  persist();
+  devStatusText('Unlocked all ' + ids.length + ' skins. Your game save was updated.');
+}
+function devCrc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+function devMakeZip(files) {
+  const encoder = new TextEncoder(), localParts = [], centralParts = [];
+  let offset = 0, centralSize = 0;
+  for (const [filename, content] of Object.entries(files)) {
+    const name = encoder.encode(filename), data = encoder.encode(content), crc = devCrc32(data);
+    const local = new Uint8Array(30 + name.length + data.length), lv = new DataView(local.buffer);
+    lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0, true);
+    lv.setUint16(8, 0, true); lv.setUint16(10, 0, true); lv.setUint16(12, 0, true);
+    lv.setUint32(14, crc, true); lv.setUint32(18, data.length, true); lv.setUint32(22, data.length, true);
+    lv.setUint16(26, name.length, true); lv.setUint16(28, 0, true);
+    local.set(name, 30); local.set(data, 30 + name.length); localParts.push(local);
+    const central = new Uint8Array(46 + name.length), cv = new DataView(central.buffer);
+    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0, true); cv.setUint16(10, 0, true); cv.setUint16(12, 0, true); cv.setUint16(14, 0, true);
+    cv.setUint32(16, crc, true); cv.setUint32(20, data.length, true); cv.setUint32(24, data.length, true);
+    cv.setUint16(28, name.length, true); cv.setUint16(30, 0, true); cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true); cv.setUint16(36, 0, true); cv.setUint32(38, 0, true); cv.setUint32(42, offset, true);
+    central.set(name, 46); centralParts.push(central);
+    offset += local.length; centralSize += central.length;
+  }
+  const end = new Uint8Array(22), ev = new DataView(end.buffer);
+  ev.setUint32(0, 0x06054b50, true); ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
+  ev.setUint16(8, centralParts.length, true); ev.setUint16(10, centralParts.length, true);
+  ev.setUint32(12, centralSize, true); ev.setUint32(16, offset, true); ev.setUint16(20, 0, true);
+  return new Blob([...localParts, ...centralParts, end], { type: 'application/zip' });
+}
+function devExportZip() {
+  devSaveLevel();
+  let html = document.documentElement.outerHTML;
+  const marker = 'const DEV_EMBEDDED_OVERRIDES = {};';
+  if (!html.includes(marker)) { devStatusText('Could not prepare the ZIP. Reload the game and try again.'); return; }
+  html = html.replace(marker, 'const DEV_EMBEDDED_OVERRIDES = ' + JSON.stringify(DEV_OVERRIDES) + ';');
+  const readme = 'Deometry Gash — custom level pack\n\nOpen index.html in a modern browser to play. Edited layouts are embedded in index.html, so they travel with this ZIP and do not depend on browser storage.\n\nlevel-overrides.json is included as an editable backup. Extract the ZIP before opening index.html.\n';
+  const zip = devMakeZip({ 'index.html': html, 'level-overrides.json': JSON.stringify(DEV_OVERRIDES, null, 2), 'README.txt': readme });
+  const url = URL.createObjectURL(zip), link = document.createElement('a');
+  link.href = url; link.download = 'deometry-gash-custom-levels.zip';
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  devStatusText('ZIP exported with saved layouts embedded. Share the ZIP; recipients can extract and open index.html.');
+}
+devLevelSelect.addEventListener('change', () => { devLoadDraft(); devStatusText('Loaded ' + devCurrentLevel().name + '.'); });
+devOffsetInput.addEventListener('change', () => { devOffset = Math.max(0, Number.parseInt(devOffsetInput.value, 10) || 0); devRenderGrid(); });
+document.getElementById('devPrev').addEventListener('click', () => { devOffset = Math.max(0, devOffset - DEV_VIEW_COLS); devRenderGrid(); });
+document.getElementById('devNext').addEventListener('click', () => { devOffset += DEV_VIEW_COLS; devRenderGrid(); });
+document.getElementById('devAddColumn').addEventListener('click', () => {
+  if (devRows[0].length >= 2000) return devStatusText('This editor supports up to 2,000 columns per level.');
+  devRows = devRows.map(row => row + '.'); devRenderGrid();
+  devStatusText('Added a blank column. Save level to keep the change.');
+});
+document.getElementById('devRemoveColumn').addEventListener('click', () => {
+  if (devRows[0].length <= 1) return devStatusText('A level must have at least one column.');
+  devRows = devRows.map(row => row.slice(0, -1)); devRenderGrid();
+  devStatusText('Removed the last column. Save level to keep the change.');
+});
+document.getElementById('devNoclip').addEventListener('change', event => {
+  devNoclip = event.target.checked;
+  devStatusText('Noclip ' + (devNoclip ? 'enabled' : 'disabled') + '.');
+});
+document.getElementById('devAllSkins').addEventListener('click', devUnlockAllSkins);
+document.getElementById('devSave').addEventListener('click', devSaveLevel);
+document.getElementById('devReset').addEventListener('click', devResetLevel);
+document.getElementById('devExport').addEventListener('click', devExportZip);
+document.getElementById('devClose').addEventListener('click', closeDevPanel);
+
 // ---- Loop ----
 let last = performance.now(), acc = 0, clock = 0, tween = 1, was = { x: 0, y: 0, rot: 0 };
 function frame(now) {
@@ -2845,7 +3096,7 @@ const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
 addEventListener('keydown', e => {
   audio(); // the first key press is allowed to start the sound
   keys = [...keys, e.code].slice(-KONAMI.length);
-  if (keys.join() === KONAMI.join()) unlockSecret('konami');
+  if (keys.join() === KONAMI.join()) { unlockSecret('konami'); devArmed = true; typed = ''; }
   if (state === 'pause') {
     if (['Escape', 'Enter', 'Space'].includes(e.code)) { e.preventDefault(); if (!e.repeat) pauseAction('resume'); }
     else if (e.code === 'KeyR') pauseAction('restart');
@@ -2861,6 +3112,7 @@ addEventListener('keydown', e => {
   if (['menu', 'levels', 'shop'].includes(state) && e.key.length === 1) {
     typed = (typed + e.key.toLowerCase()).slice(-4);
     if (typed === 'gash') unlockSecret('code');
+    if (devArmed && state === 'menu' && typed.endsWith('dev')) { devArmed = false; openDevPanel(); return; }
   }
   if (state === 'menu') {
     if (e.code === 'KeyS') return openShop();
