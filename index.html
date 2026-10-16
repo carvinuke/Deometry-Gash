@@ -51,6 +51,24 @@
   #communityPanel .dev-primary { border-color: #5ffff0; color: #5ffff0; }
   #communityButton { position: fixed; z-index: 10; right: 18px; bottom: 18px; border: 2px solid #5ffff0; border-radius: 10px; background: #102a35ee; color: #eaffff; padding: 11px 16px; font: 800 14px system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 18px #0008; }
   #communityButton[hidden] { display: none; }
+  /* Geometry Dash-inspired editor toolbars and object palette. */
+  #devPanel .editor-modes, #communityPanel .editor-modes { display: flex; gap: 7px; margin: 10px 0; }
+  #devPanel .editor-modes button, #communityPanel .editor-modes button { min-width: 88px; padding: 9px 13px; border-radius: 8px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+  #devPanel .editor-modes button[data-mode="build"], #communityPanel .editor-modes button[data-mode="build"] { border-color: #53d86a; }
+  #devPanel .editor-modes button[data-mode="edit"], #communityPanel .editor-modes button[data-mode="edit"] { border-color: #52c9ff; }
+  #devPanel .editor-modes button[data-mode="delete"], #communityPanel .editor-modes button[data-mode="delete"] { border-color: #ff647c; }
+  #devPanel .editor-modes button[aria-pressed="true"] { background: #6651b6; outline: 2px solid #ffd400; }
+  #communityPanel .editor-modes button[aria-pressed="true"] { background: #176d70; outline: 2px solid #5ffff0; }
+  #devPanel .editor-categories, #communityPanel .editor-categories { display: flex; flex-wrap: wrap; gap: 6px; margin: 7px 0 4px; }
+  #devPanel .editor-categories button, #communityPanel .editor-categories button { padding: 7px 11px; border-radius: 7px; font-weight: 800; }
+  #devPanel .editor-categories button[aria-pressed="true"] { background: #4a3c83; border-color: #ffd400; }
+  #communityPanel .editor-categories button[aria-pressed="true"] { background: #14575d; border-color: #5ffff0; }
+  #devPanel .dev-palette, #communityPanel .dev-palette { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border-radius: 8px; background: #080812; }
+  #devPanel .dev-palette button, #communityPanel .dev-palette button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 64px; height: 58px; padding: 5px; font-size: 11px; font-weight: 800; }
+  #devPanel .dev-palette button .tile-icon, #communityPanel .dev-palette button .tile-icon { font-size: 21px; line-height: 1; }
+  #devPanel .dev-palette button[data-tile="#"], #communityPanel .dev-palette button[data-tile="#"] { background: #39364c; }
+  #devPanel .dev-palette button[data-tile="^"], #devPanel .dev-palette button[data-tile="G"], #devPanel .dev-palette button[data-tile="v"], #devPanel .dev-palette button[data-tile="h"], #devPanel .dev-palette button[data-tile="F"], #devPanel .dev-palette button[data-tile="s"], #communityPanel .dev-palette button[data-tile="^"], #communityPanel .dev-palette button[data-tile="G"], #communityPanel .dev-palette button[data-tile="v"], #communityPanel .dev-palette button[data-tile="h"], #communityPanel .dev-palette button[data-tile="F"], #communityPanel .dev-palette button[data-tile="s"] { color: #ff8c9e; }
+  @media (max-width: 500px) { #devPanel .editor-modes button, #communityPanel .editor-modes button { min-width: 0; flex: 1; } #devPanel .dev-palette button, #communityPanel .dev-palette button { min-width: 56px; } }
   @media (max-width: 500px) { #devPanel { font-size: 12px; padding: 9px; } #devPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #devPanel .dev-cell { width: 25px; height: 27px; } #communityPanel { font-size: 12px; padding: 9px; } #communityPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #communityPanel .dev-cell { width: 25px; height: 27px; } }
 </style>
 </head>
@@ -66,7 +84,9 @@
     <label for="devOffset">Column</label><input id="devOffset" type="number" min="0" value="0" style="width:76px">
     <button id="devPrev" type="button">◀ 20</button><button id="devNext" type="button">20 ▶</button>
   </div>
-  <div class="dev-row"><span>Selected tile:</span><strong id="devTileName">Small spike</strong><span class="dev-muted">Tap a grid tile to paint it.</span></div>
+  <div class="dev-row editor-modes" id="devModes" aria-label="Editor mode"></div>
+  <div class="dev-row"><span>Selected object:</span><strong id="devTileName">Block</strong><span class="dev-muted">Build places · Edit picks · Delete removes.</span></div>
+  <div class="editor-categories" id="devCategories" aria-label="Object category"></div>
   <div id="devPalette" class="dev-palette" aria-label="Tile palette"></div>
   <div class="dev-grid-wrap"><div id="devGrid" class="dev-grid" aria-label="Level tile grid"></div></div>
   <div class="dev-row">
@@ -86,7 +106,9 @@
     <label for="communityLevel">My levels</label><select id="communityLevel"></select>
     <button id="communityCreate" type="button">+ New</button><button id="communityRename" type="button">Rename</button><button id="communityDelete" type="button">Delete</button>
   </div>
-  <div class="dev-row"><span>Selected tile:</span><strong id="communityTileName">Small spike</strong><span class="dev-muted">Click grid cells to paint.</span></div>
+  <div class="dev-row editor-modes" id="communityModes" aria-label="Editor mode"></div>
+  <div class="dev-row"><span>Selected object:</span><strong id="communityTileName">Block</strong><span class="dev-muted">Build places · Edit picks · Delete removes.</span></div>
+  <div class="editor-categories" id="communityCategories" aria-label="Object category"></div>
   <div id="communityPalette" class="dev-palette" aria-label="Community tile palette"></div>
   <div class="dev-row">
     <label for="communityOffset">Column</label><input id="communityOffset" type="number" min="0" value="0" style="width:76px">
@@ -3059,18 +3081,63 @@ const DEV_TILE_TYPES = [
   ['b', 'Boost orb'], ['c', 'Coin'], ['S', 'Ship portal'], ['C', 'Cube portal'],
   ['B', 'Ball portal'], ['W', 'Wave portal']
 ];
-let devPanelOpen = false, devReturnState = 'menu', devRows = [], devOffset = 0, devTile = '^';
-for (const [tile, label] of DEV_TILE_TYPES) {
-  const button = document.createElement('button');
-  button.type = 'button'; button.textContent = tile === '.' ? '·' : tile;
-  button.title = label; button.setAttribute('aria-label', label);
-  button.addEventListener('click', () => {
-    devTile = tile; devTileName.textContent = label;
-    for (const b of devPalette.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b === button));
-  });
-  button.setAttribute('aria-pressed', String(tile === devTile));
-  devPalette.appendChild(button);
+const TILE_INFO = {
+  '.': ['Empty', '·', 'Blocks'], '#': ['Block', '▦', 'Blocks'],
+  '^': ['Small spike', '▲', 'Hazards'], 'G': ['Giant spike', '⏶', 'Hazards'],
+  'v': ['Hanging spike', '▼', 'Hazards'], 'h': ['Spike bar', '╱', 'Hazards'],
+  'F': ['Falling spike', '⤓', 'Hazards'], 's': ['Saw', '⚙', 'Hazards'],
+  'i': ['Pole light', '╂', 'Items'], 'p': ['Jump pad', '⬆', 'Items'],
+  'r': ['Red pad', '⬆', 'Items'], 'o': ['Jump orb', '●', 'Items'],
+  'b': ['Boost orb', '✦', 'Items'], 'c': ['Coin', '◉', 'Items'],
+  'S': ['Ship portal', '🚀', 'Portals'], 'C': ['Cube portal', '◇', 'Portals'],
+  'B': ['Ball portal', '◈', 'Portals'], 'W': ['Wave portal', '〰', 'Portals']
+};
+const TILE_CATEGORIES = ['Blocks', 'Hazards', 'Items', 'Portals'];
+function tileLabel(tile) { return TILE_INFO[tile]?.[0] || 'Unknown'; }
+function tileIcon(tile) { return TILE_INFO[tile]?.[1] || tile; }
+function tileCategory(tile) { return TILE_INFO[tile]?.[2] || 'Blocks'; }
+function buildTilePalette(categoryEl, paletteEl, initialTile, onSelect) {
+  let activeCategory = tileCategory(initialTile);
+  function render() {
+    categoryEl.replaceChildren();
+    for (const category of TILE_CATEGORIES) {
+      const button = document.createElement('button'); button.type = 'button'; button.textContent = category;
+      button.setAttribute('aria-pressed', String(category === activeCategory));
+      button.addEventListener('click', () => { activeCategory = category; render(); });
+      categoryEl.appendChild(button);
+    }
+    paletteEl.replaceChildren();
+    for (const [tile] of DEV_TILE_TYPES.filter(([tile]) => tileCategory(tile) === activeCategory)) {
+      const label = tileLabel(tile), button = document.createElement('button');
+      button.type = 'button'; button.dataset.tile = tile; button.title = label;
+      button.setAttribute('aria-label', label); button.setAttribute('aria-pressed', String(tile === getSelected()));
+      const icon = document.createElement('span'); icon.className = 'tile-icon'; icon.textContent = tileIcon(tile);
+      const caption = document.createElement('span'); caption.textContent = label;
+      button.append(icon, caption);
+      button.addEventListener('click', () => { onSelect(tile, label); render(); });
+      paletteEl.appendChild(button);
+    }
+  }
+  let getSelected = () => initialTile;
+  return { render, setGetter(fn) { getSelected = fn; render(); }, selectCategory(category) { activeCategory = category; render(); } };
 }
+function wireEditorModes(element, getMode, setMode) {
+  for (const [mode, icon] of [['build', '✚'], ['edit', '✎'], ['delete', '⌫']]) {
+    const button = document.createElement('button'); button.type = 'button'; button.dataset.mode = mode;
+    button.textContent = icon + ' ' + mode; button.setAttribute('aria-pressed', String(getMode() === mode));
+    button.addEventListener('click', () => {
+      setMode(mode);
+      for (const other of element.querySelectorAll('button')) other.setAttribute('aria-pressed', String(other === button));
+    });
+    element.appendChild(button);
+  }
+}
+let devPanelOpen = false, devReturnState = 'menu', devRows = [], devOffset = 0, devTile = '#', devMode = 'build';
+const devTilePalette = buildTilePalette(document.getElementById('devCategories'), devPalette, devTile, (tile, label) => {
+  devTile = tile; devTileName.textContent = label;
+});
+devTilePalette.setGetter(() => devTile);
+wireEditorModes(document.getElementById('devModes'), () => devMode, mode => { devMode = mode; });
 function devCurrentLevel() { return LEVELS.find(lvl => lvl.name === devLevelSelect.value) || LEVELS[0]; }
 function devStatusText(message) { devStatus.textContent = message; }
 function devPersistOverrides() {
@@ -3098,7 +3165,14 @@ function devRenderGrid() {
     cell.setAttribute('aria-label', cell.title + ', tile ' + tile);
     cell.addEventListener('click', () => {
       if (x >= devRows[0].length) return;
-      devRows[y] = devRows[y].slice(0, x) + devTile + devRows[y].slice(x + 1);
+      if (devMode === 'edit') {
+        devTile = devRows[y][x]; devTileName.textContent = tileLabel(devTile);
+        devTilePalette.selectCategory(tileCategory(devTile)); devTilePalette.render();
+        devStatusText('Selected ' + tileLabel(devTile) + '.');
+        return;
+      }
+      const placedTile = devMode === 'delete' ? '.' : devTile;
+      devRows[y] = devRows[y].slice(0, x) + placedTile + devRows[y].slice(x + 1);
       devRenderGrid();
       devStatusText('Unsaved edits in ' + devCurrentLevel().name + '. Press Save level to keep them.');
     });
@@ -3273,21 +3347,25 @@ function communityRenderGrid() {
     cell.title = 'Column ' + (x + 1) + ', row ' + (ROWS - y);
     cell.addEventListener('click', () => {
       if (x >= communityRows[0].length) return;
-      communityRows[y] = communityRows[y].slice(0, x) + communityTile + communityRows[y].slice(x + 1);
+      if (communityMode === 'edit') {
+        communityTile = communityRows[y][x]; communityTileName.textContent = tileLabel(communityTile);
+        communityTilePalette.selectCategory(tileCategory(communityTile)); communityTilePalette.render();
+        communityStatusText('Selected ' + tileLabel(communityTile) + '.');
+        return;
+      }
+      const placedTile = communityMode === 'delete' ? '.' : communityTile;
+      communityRows[y] = communityRows[y].slice(0, x) + placedTile + communityRows[y].slice(x + 1);
       communityRenderGrid(); communityStatusText('Unsaved edits. Save before closing to keep them.');
     });
     communityGrid.appendChild(cell);
   }
 }
-for (const [tile, label] of DEV_TILE_TYPES) {
-  const button = document.createElement('button'); button.type = 'button'; button.textContent = tile === '.' ? '·' : tile;
-  button.title = label; button.setAttribute('aria-label', label); button.setAttribute('aria-pressed', String(tile === communityTile));
-  button.addEventListener('click', () => {
-    communityTile = tile; communityTileName.textContent = label;
-    for (const b of communityPalette.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b === button));
-  });
-  communityPalette.appendChild(button);
-}
+let communityMode = 'build';
+const communityTilePalette = buildTilePalette(document.getElementById('communityCategories'), communityPalette, communityTile, (tile, label) => {
+  communityTile = tile; communityTileName.textContent = label;
+});
+communityTilePalette.setGetter(() => communityTile);
+wireEditorModes(document.getElementById('communityModes'), () => communityMode, mode => { communityMode = mode; });
 function openCommunityEditor() {
   if (communityPanelOpen || devPanelOpen) return;
   communityReturnState = state; state = 'pause'; holding = false; jumpPressed = false;
