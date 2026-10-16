@@ -3246,6 +3246,7 @@ function wireVisualEditor(canvas,getRows,getOffset,setOffset,getMode,getTile,get
   function act(e,isDrag=false){
     const p=point(e),rows=getRows();if(p.y<0||p.y>=ROWS||p.x<0||p.x>=rows[0].length)return;
     const key=p.x+','+p.y;if(isDrag&&key===lastKey)return;lastKey=key;
+    if(devPlacingStart){devTestStart={x:p.x,y:p.y};devPlacingStart=false;document.getElementById('devSetStart').setAttribute('aria-pressed','false');afterChange('Temporary test start set at column '+(p.x+1)+'.');return;}
     const mode=getMode(),rowIndex=p.y;
     if(mode==='edit'){
       const selected=getSelected();
@@ -3255,7 +3256,9 @@ function wireVisualEditor(canvas,getRows,getOffset,setOffset,getMode,getTile,get
         const srcRow=selected.y;
         rows[srcRow]=rows[srcRow].slice(0,selected.x)+'.'+rows[srcRow].slice(selected.x+1);
         rows[rowIndex]=rows[rowIndex].slice(0,p.x)+selected.type+rows[rowIndex].slice(p.x+1);
-        setSelected(null);afterChange('Moved object.');
+        const rotation=devRotationAt(devCurrentLevel().name,selected.x,selected.y);
+        if(rotation){devSetRotation(devCurrentLevel().name,selected.x,selected.y,0);devSetRotation(devCurrentLevel().name,p.x,p.y,rotation);}
+        setSelected({x:p.x,y:p.y,type:selected.type});afterChange('Moved object.');
       }else{setSelected({x:p.x,y:p.y,type:rows[rowIndex][p.x]});}
       afterChange('');return;
     }
