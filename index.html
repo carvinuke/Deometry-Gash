@@ -84,7 +84,12 @@ function buildLevel(name, difficulty, stars, hue, segs) {
       t.tall = n;
     }
   }
-  return { name, difficulty, stars, hue, tiles, len: rows[0].length, coinTiles: tiles.filter(t => t.type === 'c') };
+  const columns = new Map();
+  for (const t of tiles) {
+    if (!columns.has(t.x)) columns.set(t.x, []);
+    columns.get(t.x).push(t);
+  }
+  return { name, difficulty, stars, hue, tiles, columns, len: rows[0].length, coinTiles: tiles.filter(t => t.type === 'c') };
 }
 
 const LEVELS = [
@@ -533,7 +538,15 @@ function step(p, hold, lvl, justPressed = hold) {
   if (p.y <= 0) { p.y = 0; p.vy = 0; p.grounded = !flipped; }
   if (m !== 'cube' && p.y >= ROWS - 1) { p.y = ROWS - 1; p.vy = 0; p.grounded = flipped; }
 
-  for (const t of lvl.tiles) {
+  const candidates = [];
+  const columns = lvl.columns;
+  if (columns) {
+    const first = Math.max(0, Math.floor(p.x) - 1);
+    const last = Math.floor(p.x + 1) + 1;
+    for (let x = first; x <= last; x++) candidates.push(...(columns.get(x) || []));
+    candidates.sort((a, b) => a.id - b.id);
+  } else candidates.push(...lvl.tiles);
+  for (const t of candidates) {
     if (p.x + 1 <= t.x + 0.001 || p.x >= t.x + 1 - 0.001) continue;
     const inX = (a, b) => p.x + 1 > t.x + a && p.x < t.x + b;
     const inY = (a, b) => p.y < t.y + b && p.y + 1 > t.y + a;
@@ -2085,33 +2098,51 @@ function drawBlocks(blocks, sx, sy, hue) {
   ctx.lineCap = 'butt';
 }
 
+const SPIKE_SPRITES = new Map();
+const CHAIN_LINK_SPRITES = new Map();
+const hueBucket = hue => Math.round(hue / 5) * 5;
+
+function spikeSprite(hue, down) {
+  const bucket = hueBucket(hue), key = `${bucket}:${down ? 1 : 0}`;
+  if (SPIKE_SPRITES.has(key)) return SPIKE_SPRITES.get(key);
+  const sprite = document.createElement('canvas');
+  sprite.width = T; sprite.height = T;
+  const c = sprite.getContext('2d');
+  if (down) { c.translate(0, T); c.scale(1, -1); }
+  c.beginPath(); c.moveTo(3, T); c.lineTo(T / 2, 3); c.lineTo(T - 3, T); c.closePath();
+  const fill = c.createLinearGradient(0, 0, 0, T);
+  fill.addColorStop(0, `hsl(${bucket},45%,22%)`); fill.addColorStop(1, '#050508');
+  c.fillStyle = fill; c.fill(); c.lineJoin = 'round';
+  c.strokeStyle = `hsla(${bucket},100%,75%,0.35)`; c.lineWidth = 6; c.stroke();
+  c.strokeStyle = '#fff'; c.lineWidth = 2.5; c.stroke();
+  c.beginPath(); c.moveTo(11, T - 4); c.lineTo(T / 2, 14); c.lineTo(T - 11, T - 4);
+  c.strokeStyle = 'rgba(255,255,255,0.2)'; c.lineWidth = 1.5; c.stroke();
+  SPIKE_SPRITES.set(key, sprite); return sprite;
+}
+
+function chainLinkSprite(hue, sideways) {
+  const bucket = hueBucket(hue), key = `${bucket}:${sideways ? 1 : 0}`;
+  if (CHAIN_LINK_SPRITES.has(key)) return CHAIN_LINK_SPRITES.get(key);
+  const sprite = document.createElement('canvas'); sprite.width = 16; sprite.height = 16;
+  const c = sprite.getContext('2d'), cx = 8, cy = 8;
+  const rx = sideways ? 5.2 : 4.1, ry = sideways ? 3.8 : 6.2;
+  c.beginPath(); c.ellipse(cx, cy, rx, ry, 0, 0, TAU); c.fillStyle = '#201a30'; c.fill();
+  c.strokeStyle = '#090812'; c.lineWidth = 4.5; c.stroke();
+  c.strokeStyle = `hsl(${bucket},58%,61%)`; c.lineWidth = 2.5; c.stroke();
+  c.beginPath(); c.ellipse(cx - 0.8, cy - 0.9, rx * 0.56, ry * 0.58, 0, Math.PI * 1.12, Math.PI * 1.82);
+  c.strokeStyle = 'rgba(255,255,255,0.48)'; c.lineWidth = 1.2; c.stroke();
+  CHAIN_LINK_SPRITES.set(key, sprite); return sprite;
+}
+
 function drawSpike(x, y, down, hue, fill) {
-  ctx.save();
-  if (down) { ctx.translate(x, y + T); ctx.scale(1, -1); } else ctx.translate(x, y);
-  ctx.beginPath(); ctx.moveTo(3, T); ctx.lineTo(T / 2, 3); ctx.lineTo(T - 3, T); ctx.closePath();
-  ctx.fillStyle = fill; ctx.fill();
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = `hsla(${hue},100%,75%,0.35)`; ctx.lineWidth = 6; ctx.stroke();
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(11, T - 4); ctx.lineTo(T / 2, 14); ctx.lineTo(T - 11, T - 4);
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.restore();
+  ctx.drawImage(spikeSprite(hue, down), x, y);
 }
 
 function drawChain(cx, y1, y2, hue) {
   if (y2 <= y1) return;
-  ctx.save();
-  const pitch = 9.5;
-  for (let i = 0, y = y1 + 6; y < y2 - 4; i++, y += pitch) {
-    const sideways = i % 2 === 1, rx = sideways ? 5.2 : 4.1, ry = sideways ? 3.8 : 6.2;
-    ctx.beginPath(); ctx.ellipse(cx, y, rx, ry, 0, 0, TAU);
-    ctx.fillStyle = '#201a30'; ctx.fill();
-    ctx.strokeStyle = '#090812'; ctx.lineWidth = 4.5; ctx.stroke();
-    ctx.strokeStyle = `hsl(${hue},58%,61%)`; ctx.lineWidth = 2.5; ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(cx - 0.8, y - 0.9, rx * 0.56, ry * 0.58, 0, Math.PI * 1.12, Math.PI * 1.82);
-    ctx.strokeStyle = 'rgba(255,255,255,0.48)'; ctx.lineWidth = 1.2; ctx.stroke();
+  for (let i = 0, y = y1 + 6; y < y2 - 4; i++, y += 9.5) {
+    ctx.drawImage(chainLinkSprite(hue, i % 2 === 1), cx - 8, y - 8);
   }
-  ctx.restore();
 }
 
 function drawHangingBar(x, y, ceilingY, hue) {
@@ -2350,7 +2381,11 @@ function drawWorld(time) {
   if (attempts === 1) ui('Hold Space, ↑ or click to jump · Esc to pause', sx(2.6), sy(4.2), 16, 'rgba(255,255,255,0.85)', 'left');
   drawFinish(sx(level.len));
 
-  const vis = level.tiles.filter(t => t.x > camX - 3 - VIEW.x / T && t.x < camX + (W + VIEW.x) / T + 1);
+  const vis = [];
+  const fromTile = Math.max(0, Math.floor(camX - 3 - VIEW.x / T));
+  const toTile = Math.min(level.len, Math.ceil(camX + (W + VIEW.x) / T + 1));
+  for (let x = fromTile; x < toTile; x++) vis.push(...(level.columns?.get(x) || []));
+  vis.sort((a, b) => a.id - b.id);
   drawBlocks(vis.filter(t => t.type === '#'), sx, sy, hue);
   const spikeFill = vgrad(0, T, `hsl(${hue},45%,22%)`, '#050508');
   const portals = [];
