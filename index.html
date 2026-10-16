@@ -60,7 +60,7 @@
   <div class="editor-workspace"><div class="editor-stage">
     <div class="editor-toolbar" role="group" aria-label="Editing mode"><button class="editor-mode" data-editor-mode="build" aria-pressed="true" type="button"><span class="mode-icon">✚</span>Build</button><button class="editor-mode" data-editor-mode="edit" aria-pressed="false" type="button"><span class="mode-icon">✎</span>Edit</button><button class="editor-mode" data-editor-mode="delete" aria-pressed="false" type="button"><span class="mode-icon">⌫</span>Delete</button></div>
     <div class="editor-canvas"><div class="dev-grid-wrap"><div id="devGrid" class="dev-grid" aria-label="Level grid"></div></div></div>
-    <div class="dev-row"><strong id="devTileName">Spike</strong><span class="dev-muted">· Click a cell to build, select, or erase.</span></div>
+    <div class="dev-row"><strong id="devTileName">Block</strong><span class="dev-muted">· Click a cell to build, select, or erase.</span></div>
   </div><aside class="editor-side"><div class="editor-side-title">Objects</div>
     <div class="editor-categories"><button class="editor-category" data-tile-category="blocks" aria-pressed="true" type="button">Blocks</button><button class="editor-category" data-tile-category="hazards" aria-pressed="false" type="button">Hazards</button><button class="editor-category" data-tile-category="items" aria-pressed="false" type="button">Items</button><button class="editor-category" data-tile-category="portals" aria-pressed="false" type="button">Portals</button></div>
     <div id="devPalette" class="dev-palette" aria-label="Object palette"></div><div class="dev-muted">Pick an object, then click the grid.</div>
@@ -73,7 +73,7 @@
   <div class="dev-row editor-header"><div><h2>Level Creator</h2><div class="editor-subtitle">Make your own level · official levels stay untouched</div></div><button id="communityClose" class="editor-close" type="button">✕ Close</button></div>
   <div class="dev-row"><label for="communityLevel">My levels</label><select id="communityLevel"></select><button id="communityCreate" type="button">＋ New</button><button id="communityRename" type="button">Rename</button><button id="communityDelete" type="button">Delete</button><label for="communityOffset">Scroll</label><input id="communityOffset" type="number" min="0" value="0" style="width:68px"><button id="communityPrev" type="button" title="Previous columns">◀</button><button id="communityNext" type="button" title="Next columns">▶</button></div>
   <div class="editor-workspace"><div class="editor-stage"><div class="editor-toolbar" role="group" aria-label="Editing mode"><button class="editor-mode" data-editor-mode="build" aria-pressed="true" type="button"><span class="mode-icon">✚</span>Build</button><button class="editor-mode" data-editor-mode="edit" aria-pressed="false" type="button"><span class="mode-icon">✎</span>Edit</button><button class="editor-mode" data-editor-mode="delete" aria-pressed="false" type="button"><span class="mode-icon">⌫</span>Delete</button></div>
-    <div class="editor-canvas"><div class="dev-grid-wrap"><div id="communityGrid" class="dev-grid" aria-label="Community level grid"></div></div></div><div class="dev-row"><strong id="communityTileName">Spike</strong><span class="dev-muted">· Choose an object, then click the grid.</span></div>
+    <div class="editor-canvas"><div class="dev-grid-wrap"><div id="communityGrid" class="dev-grid" aria-label="Community level grid"></div></div></div><div class="dev-row"><strong id="communityTileName">Block</strong><span class="dev-muted">· Choose an object, then click the grid.</span></div>
   </div><aside class="editor-side"><div class="editor-side-title">Objects</div><div class="editor-categories"><button class="editor-category" data-tile-category="blocks" aria-pressed="true" type="button">Blocks</button><button class="editor-category" data-tile-category="hazards" aria-pressed="false" type="button">Hazards</button><button class="editor-category" data-tile-category="items" aria-pressed="false" type="button">Items</button><button class="editor-category" data-tile-category="portals" aria-pressed="false" type="button">Portals</button></div><div id="communityPalette" class="dev-palette" aria-label="Object palette"></div><div class="dev-muted">Build places objects. Edit picks an object. Delete removes it.</div></aside></div>
   <div class="editor-actions"><button id="communitySave" class="dev-primary" type="button">Save level</button><button id="communityTest" type="button">▶ Test play</button><button id="communityExport" class="dev-primary" type="button">Export level</button></div><div id="communityStatus" class="dev-muted editor-status" role="status">Create a level, choose an object, and click the grid.</div>
 </section>
@@ -3043,7 +3043,8 @@ const DEV_TILE_TYPES = [
 const TILE_INFO = new Map(DEV_TILE_TYPES.map(([tile,label,icon,category]) => [tile,{tile,label,icon,category}]));
 const tileLabel = tile => TILE_INFO.get(tile)?.label || 'Empty';
 const tileIcon = tile => TILE_INFO.get(tile)?.icon || '·';
-let devPanelOpen = false, devReturnState = 'menu', devRows = [], devOffset = 0, devTile = '^';
+const tileCategory = tile => TILE_INFO.get(tile)?.category || 'blocks';
+let devPanelOpen = false, devReturnState = 'menu', devRows = [], devOffset = 0, devTile = '#';
 let devMode = 'build', devCategory = 'blocks', communityMode = 'build', communityCategory = 'blocks';
 function buildTilePalette(palette, getTile, setTile, getCategory, onChange) {
   palette.replaceChildren();
@@ -3090,7 +3091,7 @@ function devRenderGrid() {
     cell.setAttribute('aria-label', cell.title + ', tile ' + tile);
     cell.addEventListener('click', () => {
       if (x >= devRows[0].length) return;
-      if (devMode === 'edit') { devTile=tile; devTileName.textContent=tileLabel(tile); renderDevPalette(); devStatusText(tile==='.'?'Selected an empty cell.':'Selected '+tileLabel(tile)+'. Switch to Build to place it.'); return; }
+      if (devMode === 'edit') { devTile=tile; devCategory=tileCategory(tile); devTileName.textContent=tileLabel(tile); devPanel.querySelectorAll('[data-tile-category]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tileCategory===devCategory))); renderDevPalette(); devStatusText(tile==='.'?'Selected an empty cell.':'Selected '+tileLabel(tile)+'. Switch to Build to place it.'); return; }
       devRows[y] = devRows[y].slice(0,x) + (devMode==='delete'?'.':devTile) + devRows[y].slice(x+1);
       devRenderGrid(); devStatusText((devMode==='delete'?'Removed object.':'Placed '+tileLabel(devTile)+'.')+' Unsaved changes in '+devCurrentLevel().name+'.');
     });
@@ -3232,7 +3233,7 @@ const communityOffsetInput = document.getElementById('communityOffset');
 const communityTileName = document.getElementById('communityTileName');
 const communityStatus = document.getElementById('communityStatus');
 const COMMUNITY_VIEW_COLS = 20;
-let communityPanelOpen = false, communityRows = [], communityOffset = 0, communityTile = '^', communityReturnState = 'menu';
+let communityPanelOpen = false, communityRows = [], communityOffset = 0, communityTile = '#', communityReturnState = 'menu';
 
 function communityStatusText(message) { communityStatus.textContent = message; }
 function communityPersist() {
@@ -3269,7 +3270,7 @@ function communityRenderGrid() {
     cell.title = 'Column ' + (x + 1) + ', row ' + (ROWS - y);
     cell.addEventListener('click', () => {
       if (x >= communityRows[0].length) return;
-      if(communityMode==='edit'){communityTile=tile;communityTileName.textContent=tileLabel(tile);renderCommunityPalette();communityStatusText(tile==='.'?'Selected an empty cell.':'Selected '+tileLabel(tile)+'. Switch to Build to place it.');return;}
+      if(communityMode==='edit'){communityTile=tile;communityCategory=tileCategory(tile);communityTileName.textContent=tileLabel(tile);communityPanel.querySelectorAll('[data-tile-category]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tileCategory===communityCategory)));renderCommunityPalette();communityStatusText(tile==='.'?'Selected an empty cell.':'Selected '+tileLabel(tile)+'. Switch to Build to place it.');return;}
       communityRows[y]=communityRows[y].slice(0,x)+(communityMode==='delete'?'.':communityTile)+communityRows[y].slice(x+1);
       communityRenderGrid();communityStatusText(communityMode==='delete'?'Object removed. Save to keep changes.':'Placed '+tileLabel(communityTile)+'. Save to keep changes.');
     });
