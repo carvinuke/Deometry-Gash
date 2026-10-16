@@ -110,7 +110,6 @@ const glide = await page.evaluate(() => {
   const d = xs.slice(1).map((x, i) => x - xs[i]);
   return Math.max(...d) - Math.min(...d);
 });
-await browser.close();
 console.table(results);
 console.log('frames that clear a triple spike:', tripleSpikeFrames);
 console.log('orb launch velocities:', orbLaunches);
@@ -129,7 +128,7 @@ if (obstacleChecks.fallingSpikePositions.some((y, i) => Math.abs(y - [8, 4, 0][i
 for (const name of ['Orb Garden', 'Rolling Thunder', 'Prism Path', 'Tidal Flow']) if ((obstacleChecks.levels[name]?.h || 0) < 4 || !obstacleChecks.levels[name]?.i) throw new Error(`${name}: add hanging hazards and beat-pulsing poles to Normal routes`);
 for (const name of ['Sunrise Run', 'Neon Circuit', 'Circuit Breaker']) if (!obstacleChecks.levels[name]?.h || !obstacleChecks.levels[name]?.i) throw new Error(`${name}: aerial hazards and beat-pulsing poles should appear across difficulties`);
 for (const [name, counts] of Object.entries(obstacleChecks.levels)) if (!counts.i) throw new Error(`${name}: add a beat-pulsing pole light`);
-for (const name of ['First Steps', 'Orb Garden', 'Sky Rush', 'Rolling Thunder', 'Wave Rider', 'Mode Mayhem', 'Demon Gash', 'Prism Path', 'Neon Circuit', 'Sunrise Run', 'Tidal Flow', 'Circuit Breaker', 'Abyssal Run']) {
+for (const name of ['First Steps', 'Orb Garden', 'Sky Rush', 'Rolling Thunder', 'Wave Rider', 'Mode Mayhem', 'Demon Gash', 'Prism Path', 'Neon Circuit', 'Sunrise Run', 'Tidal Flow', 'Circuit Breaker', 'Abyssal Run', 'Flutterclunk']) {
   const counts = obstacleChecks.levels[name];
   if (!counts?.G || !counts?.['^']) throw new Error(`${name}: expected added large and small spike hazards`);
 }
@@ -172,4 +171,5 @@ const devToolsChecks = await page.evaluate(async () => {
 if (!devToolsChecks.panel || !devToolsChecks.panelHidden || devToolsChecks.levelCount !== devToolsChecks.baseCount || !devToolsChecks.editRoundTrip || devToolsChecks.zipStart !== 0x04034b50 || devToolsChecks.zipEnd !== 0x06054b50) {
   throw new Error('developer editor, level persistence, or ZIP export self-check failed: ' + JSON.stringify(devToolsChecks));
 }
+await browser.close();
 console.log('OK');
