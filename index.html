@@ -828,7 +828,7 @@ const LEVELS = [
     seg('..^^..G..^^...^^...'),
     gap(18),
   ]),
-  buildLevel('Flutterclunk', 'Demon', 11, 28, [
+  buildLevel('Flutterclunk', 'Demon', 11, 278, [
     gap(14),
     seg('i..^^...^^...G....'),
     seg('...^^...^^....^^....'),
@@ -2491,6 +2491,34 @@ function vignette() {
   return g;
 }
 
+function drawFlutterclunkBackdrop(camX,time){
+  const L=-VIEW.x,R=W+VIEW.x,top=-VIEW.y;
+  const panelTravel=camX*T*.1,panelStep=300;
+  for(let k=Math.floor((panelTravel+L)/panelStep)-1;k*panelStep-panelTravel<R+panelStep;k++){
+    const x=k*panelStep-panelTravel,y=top+50+mod(k*83,Math.max(1,GROUND-top-170));
+    ctx.save();ctx.globalAlpha=.24;
+    rr(x,y,142,104,8);ctx.fillStyle='#170e2a';ctx.fill();ctx.strokeStyle='#d65ac8';ctx.lineWidth=2;ctx.stroke();
+    ctx.strokeStyle='rgba(173,255,83,.58)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(x+12,y+29);ctx.lineTo(x+130,y+29);ctx.moveTo(x+25,y+52);ctx.lineTo(x+117,y+52);ctx.stroke();
+    ctx.fillStyle='#b7ff55';
+    for(const [bx,by] of [[x+12,y+12],[x+130,y+12],[x+12,y+92],[x+130,y+92]]){ctx.beginPath();ctx.arc(bx,by,2.5,0,TAU);ctx.fill();}
+    ctx.restore();
+  }
+  const travel=camX*T*.18,step=390;
+  for(let k=Math.floor((travel+L)/step)-1;k*step-travel<R+step;k++){
+    const x=k*step-travel,y=top+92+mod(k*127,Math.max(1,GROUND-top-190)),r=38+mod(k*31,3)*9;
+    ctx.save();ctx.globalAlpha=.3;ctx.translate(x,y);ctx.rotate(time*(k%2?-.22:.26)+k*.41);
+    ctx.beginPath();
+    for(let i=0;i<48;i++){const a=i*TAU/48,rad=r*(Math.floor(i/3)%2===0?1:.82);ctx.lineTo(Math.cos(a)*rad,Math.sin(a)*rad);}
+    ctx.closePath();ctx.fillStyle='rgba(20,11,37,.92)';ctx.fill();ctx.strokeStyle='#b9ff4d';ctx.lineWidth=3;ctx.stroke();
+    ctx.beginPath();ctx.arc(0,0,r*.62,0,TAU);ctx.strokeStyle='#f45ad2';ctx.lineWidth=4;ctx.stroke();
+    ctx.strokeStyle='rgba(202,255,102,.82)';ctx.lineWidth=3;
+    for(let i=0;i<8;i++){const a=i*TAU/8;ctx.beginPath();ctx.moveTo(Math.cos(a)*r*.2,Math.sin(a)*r*.2);ctx.lineTo(Math.cos(a)*r*.56,Math.sin(a)*r*.56);ctx.stroke();}
+    ctx.beginPath();ctx.arc(0,0,r*.2,0,TAU);ctx.fillStyle='#d5ff75';ctx.fill();ctx.strokeStyle='#210e32';ctx.lineWidth=2;ctx.stroke();
+    ctx.restore();
+  }
+}
+
 function drawBackground(hue, camX, time) {
   const L = -VIEW.x, R = W + VIEW.x, top = -VIEW.y;
   ctx.fillStyle = vgrad(0, GROUND, `hsl(${hue},75%,36%)`, `hsl(${hue},70%,17%)`);
@@ -2507,6 +2535,7 @@ function drawBackground(hue, camX, time) {
     ctx.strokeStyle = `hsla(${hue},90%,85%,0.14)`; ctx.strokeRect(-s / 2, -s / 2, s, s);
     ctx.restore();
   }
+  if(state==='play'&&level?.name==='Flutterclunk')drawFlutterclunkBackdrop(camX,time);
   const P = 150, off = camX * T * 0.2; // a range of dark peaks along the horizon
   ctx.fillStyle = `hsla(${hue},70%,8%,0.4)`; ctx.strokeStyle = `hsla(${hue},90%,75%,0.16)`; ctx.lineJoin = 'round';
   for (let k = Math.floor((off + L) / P) - 2; k * P - off < R + 2 * P; k++) {
@@ -2536,37 +2565,37 @@ function drawFloor(hue, camX, lineY, up) { // ground, or the ceiling in ship mod
   ctx.globalAlpha = 1; ctx.fillRect(L, lineY - 1, R - L, 2);
 }
 
-function drawBlocks(blocks, sx, sy, hue) {
-  if (!blocks.length) return;
-  const fill = vgrad(0, T, `hsl(${hue},45%,17%)`, `hsl(${hue},60%,5%)`);
-  const glow = Object.entries({ top: [0, 0, 0, 1], bottom: [0, T, 0, T - 1], left: [0, 0, 1, 0], right: [T, 0, T - 1, 0] }).map(([side, [x0, y0, x1, y1]]) => {
-    const g = ctx.createLinearGradient(x0, y0, x0 + (x1 - x0) * 14, y0 + (y1 - y0) * 14); // inner neon glow along exposed edges
-    g.addColorStop(0, `hsla(${hue},100%,72%,0.3)`); g.addColorStop(1, `hsla(${hue},100%,72%,0)`);
-    return [side, g];
+function drawBlocks(blocks,sx,sy,hue,industrial=false){
+  if(!blocks.length)return;
+  const fill=industrial?vgrad(0,T,'#421c5b','#17102a'):vgrad(0,T,'hsl('+hue+',45%,17%)','hsl('+hue+',60%,5%)');
+  const glow=Object.entries({top:[0,0,0,1],bottom:[0,T,0,T-1],left:[0,0,1,0],right:[T,0,T-1,0]}).map(([side,[x0,y0,x1,y1]])=>{
+    const g=ctx.createLinearGradient(x0,y0,x0+(x1-x0)*14,y0+(y1-y0)*14),tint=industrial?'rgba(181,255,77,.3)':'hsla('+hue+',100%,72%,.3)';
+    g.addColorStop(0,tint);g.addColorStop(1,industrial?'rgba(181,255,77,0)':'hsla('+hue+',100%,72%,0)');return[side,g];
   });
-  ctx.lineWidth = 2; ctx.strokeStyle = `hsla(${hue},80%,80%,0.13)`;
-  for (const t of blocks) {
-    const x = sx(t.x), y = sy(t.y + 1);
-    ctx.translate(x, y);
-    ctx.fillStyle = fill; ctx.fillRect(0, 0, T, T);
-    for (const [side, g] of glow) if (t.open[side]) { ctx.fillStyle = g; ctx.fillRect(0, 0, T, T); }
-    ctx.strokeRect(7, 7, T - 14, T - 14);
-    ctx.translate(-x, -y);
+  ctx.lineWidth=2;ctx.strokeStyle=industrial?'rgba(255,178,244,.2)':'hsla('+hue+',80%,80%,.13)';
+  for(const t of blocks){
+    const x=sx(t.x),y=sy(t.y+1);ctx.translate(x,y);ctx.fillStyle=fill;ctx.fillRect(0,0,T,T);
+    for(const[side,g]of glow)if(t.open[side]){ctx.fillStyle=g;ctx.fillRect(0,0,T,T);}
+    ctx.strokeRect(7,7,T-14,T-14);
+    if(industrial){
+      const accent=mod(t.x,3)===0?'#b5ff4d':'#e56bd1';
+      ctx.fillStyle='rgba(9,7,20,.42)';ctx.fillRect(10,10,T-20,T-20);
+      ctx.save();ctx.strokeStyle=accent;ctx.globalAlpha=.5;ctx.lineWidth=1.5;ctx.strokeRect(12,12,T-24,T-24);ctx.restore();
+      ctx.fillStyle=accent;ctx.fillRect(15,15,T-30,3);ctx.fillStyle='#f7eaff';
+      for(const[bx,by]of[[11,11],[T-11,11],[11,T-11],[T-11,T-11]]){ctx.beginPath();ctx.arc(bx,by,1.7,0,TAU);ctx.fill();}
+    }
+    ctx.translate(-x,-y);
   }
-  ctx.beginPath(); // outline only exposed edges: a wide glow pass, then a crisp white pass
-  for (const t of blocks) {
-    const x = sx(t.x), y = sy(t.y + 1), o = t.open;
-    if (o.top) { ctx.moveTo(x, y); ctx.lineTo(x + T, y); }
-    if (o.bottom) { ctx.moveTo(x, y + T); ctx.lineTo(x + T, y + T); }
-    if (o.left) { ctx.moveTo(x, y); ctx.lineTo(x, y + T); }
-    if (o.right) { ctx.moveTo(x + T, y); ctx.lineTo(x + T, y + T); }
+  ctx.beginPath();
+  for(const t of blocks){const x=sx(t.x),y=sy(t.y+1),o=t.open;
+    if(o.top){ctx.moveTo(x,y);ctx.lineTo(x+T,y);}
+    if(o.bottom){ctx.moveTo(x,y+T);ctx.lineTo(x+T,y+T);}
+    if(o.left){ctx.moveTo(x,y);ctx.lineTo(x,y+T);}
+    if(o.right){ctx.moveTo(x+T,y);ctx.lineTo(x+T,y+T);}
   }
-  ctx.lineCap = 'square';
-  ctx.strokeStyle = `hsla(${hue},100%,75%,0.35)`; ctx.lineWidth = 7; ctx.stroke();
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.lineCap = 'butt';
+  ctx.lineCap='square';ctx.strokeStyle=industrial?'rgba(181,255,77,.55)':'hsla('+hue+',100%,75%,.35)';ctx.lineWidth=7;ctx.stroke();
+  ctx.strokeStyle=industrial?'#f9d9ff':'#fff';ctx.lineWidth=2.5;ctx.stroke();ctx.lineCap='butt';
 }
-
 const SPIKE_SPRITES = new Map();
 const CHAIN_LINK_SPRITES = new Map();
 const hueBucket = hue => Math.round(hue / 5) * 5;
@@ -2855,7 +2884,7 @@ function drawWorld(time) {
   const toTile = Math.min(level.len, Math.ceil(camX + (W + VIEW.x) / T + 1));
   for (let x = fromTile; x < toTile; x++) vis.push(...(level.columns?.get(x) || []));
   vis.sort((a, b) => a.id - b.id);
-  drawBlocks(vis.filter(t => t.type === '#'), sx, sy, hue);
+  drawBlocks(vis.filter(t => t.type === '#'), sx, sy, hue, level.name === 'Flutterclunk');
   const spikeFill = vgrad(0, T, `hsl(${hue},45%,22%)`, '#050508');
   const portals = [];
   for (const t of vis) {
