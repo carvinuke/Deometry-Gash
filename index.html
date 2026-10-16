@@ -79,32 +79,177 @@
   #devPanel .dev-palette button[data-tile="^"], #devPanel .dev-palette button[data-tile="G"], #devPanel .dev-palette button[data-tile="v"], #devPanel .dev-palette button[data-tile="h"], #devPanel .dev-palette button[data-tile="F"], #devPanel .dev-palette button[data-tile="s"], #communityPanel .dev-palette button[data-tile="^"], #communityPanel .dev-palette button[data-tile="G"], #communityPanel .dev-palette button[data-tile="v"], #communityPanel .dev-palette button[data-tile="h"], #communityPanel .dev-palette button[data-tile="F"], #communityPanel .dev-palette button[data-tile="s"] { color: #ff8c9e; }
   @media (max-width: 500px) { #devPanel .editor-modes button, #communityPanel .editor-modes button { min-width: 0; flex: 1; } #devPanel .dev-palette button, #communityPanel .dev-palette button { min-width: 56px; } }
   @media (max-width: 500px) { #devPanel { font-size: 12px; padding: 9px; } #devPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #devPanel .dev-cell { width: 25px; height: 27px; } #communityPanel { font-size: 12px; padding: 9px; } #communityPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #communityPanel .dev-cell { width: 25px; height: 27px; } }
+
+  /* Main-level editor: a wide scene with a compact, game-like tool dock. */
+  #devPanel { inset: 0; width: 100vw; height: 100vh; height: 100dvh; max-width: none; padding: 0; border: 0; border-radius: 0; overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr) 178px 25px; gap: 0; background: #0a1831; color: #f4f8ff; font: 13px/1.2 system-ui, sans-serif; box-shadow: none; }
+  #devPanel .editor-topbar { position: absolute; z-index: 4; inset: 0 0 auto; min-height: 58px; display: grid; grid-template-columns: minmax(190px, .9fr) minmax(150px, .65fr) minmax(210px, 1fr) auto; align-items: center; gap: 10px; padding: 7px 12px; background: linear-gradient(180deg, rgba(8,22,48,.97), rgba(11,34,70,.9)); border-bottom: 1px solid #79baff66; box-shadow: 0 4px 15px #06142d66; }
+  #devPanel .editor-topbar button, #devPanel .editor-topbar select, #devPanel .editor-topbar input { margin: 0; }
+  #devPanel .editor-back { width: 42px; height: 42px; padding: 0; border-radius: 50%; font-size: 24px; font-weight: 900; color: #d8eeff; background: linear-gradient(#496e9e,#1c3d70); border: 2px solid #93c5ff; box-shadow: inset 0 2px #d7ecff55, 0 2px 5px #06152b; }
+  #devPanel .editor-heading { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  #devPanel .editor-heading strong { color: #eaf5ff; font-size: 15px; letter-spacing: .09em; text-shadow: 0 2px #06152b; }
+  #devPanel .editor-heading span { color: #a8c7ec; font-size: 11px; }
+  #devPanel .editor-level-picker { display: flex; align-items: center; gap: 8px; min-width: 0; color: #91bfe9; font-size: 10px; font-weight: 900; letter-spacing: .08em; }
+  #devPanel .editor-level-picker select { min-width: 0; width: 100%; padding: 9px 10px; border-radius: 8px; border-color: #4f83bd; background: #153b72; font-size: 13px; font-weight: 700; }
+  #devPanel .editor-column-picker { min-width: 0; display: grid; grid-template-columns: 30px minmax(82px,1fr) 30px; align-items: center; gap: 6px; }
+  #devPanel .editor-column-picker label { grid-column: 2; display: flex; justify-content: space-between; color: #b8d7f7; font-size: 10px; font-weight: 900; letter-spacing: .06em; }
+  #devPanel .editor-column-picker label output { color: #fff; font-size: 12px; }
+  #devPanel .editor-column-picker input { grid-column: 2; grid-row: 2; width: 100%; padding: 0; accent-color: #74e845; }
+  #devPanel .editor-column-picker .editor-step:first-child { grid-column: 1; grid-row: 1 / span 2; }
+  #devPanel .editor-column-picker .editor-step:last-child { grid-column: 3; grid-row: 1 / span 2; }
+  #devPanel .editor-step { width: 29px; height: 30px; padding: 0; color: #e2f1ff; border-radius: 7px; font-weight: 900; }
+  #devPanel .editor-header-tools { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
+  #devPanel .editor-header-tools button { min-height: 34px; padding: 6px 9px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+  #devPanel .editor-header-tools .editor-icon-action { width: 34px; padding: 0; border-radius: 50%; font-size: 21px; background: linear-gradient(#456b9d,#1b3b69); }
+  #devPanel .editor-header-tools .editor-save { border-color: #82ed58; background: linear-gradient(#8bfb55,#38b936); color: #08240e; text-shadow: 0 1px #d7ffb9; }
+  #devPanel .editor-header-tools .editor-export { border-color: #65e4dc; background: linear-gradient(#57d7d4,#188a9c); }
+  #devPanel .editor-workspace { grid-row: 1; position: relative; min-height: 0; overflow: hidden; background: #155ab3; }
+  #devPanel .editor-scene { position: absolute; inset: 0; min-height: 0; max-height: none; overflow: hidden; border: 0; border-radius: 0; background: transparent; }
+  #devPanel #devVisualCanvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+  #devPanel .editor-canvas-tools { position: absolute; z-index: 2; left: 12px; bottom: 12px; display: flex; gap: 6px; padding: 6px; border: 1px solid #9dcaff88; border-radius: 10px; background: #0b1c38d9; box-shadow: 0 3px 10px #06142d66; }
+  #devPanel .editor-canvas-tools button { padding: 7px 10px; border-radius: 7px; color: #ebf6ff; background: linear-gradient(#496e9e,#203d6b); border-color: #8bbdf1; font-size: 11px; font-weight: 800; }
+  #devPanel .editor-dock { grid-row: 2; min-height: 0; display: grid; grid-template-columns: 148px minmax(220px,1fr) 220px; gap: 10px; padding: 9px 10px; border-top: 2px solid #9bc9ff; background: linear-gradient(180deg,#192b4d,#0e1931 88%); box-shadow: 0 -5px 18px #07152b66; }
+  #devPanel .editor-mode-rail, #devPanel .editor-library, #devPanel .editor-tools-panel { min-width: 0; min-height: 0; }
+  #devPanel .editor-mode-rail { display: flex; flex-direction: column; gap: 7px; }
+  #devPanel .editor-modes { display: grid; grid-template-rows: repeat(3, 1fr); gap: 5px; margin: 0; }
+  #devPanel .editor-modes button { min-width: 0; min-height: 30px; padding: 4px 10px; border: 2px solid #8ba6c7; border-radius: 9px; background: linear-gradient(#48658e,#243e66); color: #eff7ff; font-size: 15px; font-weight: 1000; letter-spacing: .07em; text-shadow: 0 2px #10213d; text-transform: uppercase; box-shadow: inset 0 2px #ffffff3b, 0 2px 3px #07152b; }
+  #devPanel .editor-modes button[data-mode="build"] { border-color: #72dc60; }
+  #devPanel .editor-modes button[data-mode="edit"] { border-color: #59dbe4; }
+  #devPanel .editor-modes button[data-mode="delete"] { border-color: #fa6884; }
+  #devPanel .editor-modes button[aria-pressed="true"] { outline: 2px solid #ecf8ff; outline-offset: 0; filter: brightness(1.25); }
+  #devPanel .editor-modes button[data-mode="build"][aria-pressed="true"] { background: linear-gradient(#88ef64,#38a944); color: #092a11; text-shadow: 0 1px #d8ffc5; }
+  #devPanel .editor-modes button[data-mode="edit"][aria-pressed="true"] { background: linear-gradient(#6eebef,#1997b0); color: #062d39; text-shadow: 0 1px #c9ffff; }
+  #devPanel .editor-modes button[data-mode="delete"][aria-pressed="true"] { background: linear-gradient(#ff8292,#c63758); color: #390713; text-shadow: 0 1px #ffd6dc; }
+  #devPanel .editor-selection { display: flex; justify-content: space-between; align-items: center; gap: 5px; color: #9eb8db; font-size: 9px; font-weight: 900; letter-spacing: .05em; }
+  #devPanel .editor-selection strong { overflow: hidden; color: #f1f6ff; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+  #devPanel .editor-selection-actions { display: flex; gap: 5px; }
+  #devPanel .editor-selection-actions button { flex: 1; padding: 5px 4px; border-radius: 7px; font-size: 10px; font-weight: 800; }
+  #devPanel .editor-selection-actions .editor-delete-selected { color: #ffe7eb; border-color: #e3546a; }
+  #devPanel .editor-library { display: flex; flex-direction: column; overflow: hidden; padding: 0 8px; border-left: 1px solid #a9c9f044; border-right: 1px solid #a9c9f044; }
+  #devPanel .editor-library-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; }
+  #devPanel .editor-library-heading > strong, #devPanel .editor-tools-heading { color: #91bde9; font-size: 10px; font-weight: 900; letter-spacing: .1em; white-space: nowrap; }
+  #devPanel .editor-categories { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 4px; margin: 0; }
+  #devPanel .editor-categories button { min-width: 0; padding: 5px 8px; border-radius: 7px; background: #243e66; border-color: #5179a6; font-size: 10px; font-weight: 800; }
+  #devPanel .editor-categories button[aria-pressed="true"] { background: linear-gradient(#3ec2d2,#176f94); border-color: #8bedff; box-shadow: 0 0 0 1px #59dbe466; }
+  #devPanel .dev-palette { display: grid; grid-template-columns: repeat(auto-fit, minmax(63px,1fr)); align-content: start; gap: 5px; overflow: auto; max-height: none; margin: 0; padding: 4px; border-radius: 8px; background: #09172d99; }
+  #devPanel .dev-palette button { min-width: 0; height: 54px; padding: 4px 3px; border: 1px solid #6d91bd; border-radius: 8px; background: linear-gradient(#314f78,#1a3153); color: #f0f6ff; font-size: 9px; font-weight: 800; box-shadow: inset 0 1px #ffffff35; }
+  #devPanel .dev-palette button .tile-icon { font-size: 20px; filter: drop-shadow(0 1px #06142d); }
+  #devPanel .dev-palette button[aria-pressed="true"] { background: linear-gradient(#85e75b,#3ba942); color: #102a13; border-color: #dcffb8; box-shadow: 0 0 0 2px #f8fff1, inset 0 2px #fff9; }
+  #devPanel .dev-palette button[data-tile="#"] { background: linear-gradient(#758ba5,#364d6c); }
+  #devPanel .dev-palette button[data-tile="^"], #devPanel .dev-palette button[data-tile="G"], #devPanel .dev-palette button[data-tile="v"], #devPanel .dev-palette button[data-tile="h"], #devPanel .dev-palette button[data-tile="F"], #devPanel .dev-palette button[data-tile="s"] { color: #ffd0da; }
+  #devPanel .editor-tools-panel { display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+  #devPanel .editor-tools-heading { min-height: 18px; }
+  #devPanel .editor-tools-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5px; }
+  #devPanel .editor-tools-grid button, #devPanel .editor-tools-grid .editor-toggle { min-width: 0; min-height: 30px; padding: 5px 6px; border-radius: 8px; background: linear-gradient(#405f89,#203b64); border-color: #789ac3; color: #f2f7ff; font-size: 10px; font-weight: 800; text-align: center; white-space: nowrap; }
+  #devPanel .editor-tools-grid #devTestStart { background: linear-gradient(#7dee52,#39ad40); border-color: #c8ff9d; color: #0c2b12; }
+  #devPanel .editor-tools-grid #devSetStart[aria-pressed="true"] { background: linear-gradient(#ffd95d,#e38a2c); border-color: #fff0b0; color: #382006; }
+  #devPanel .editor-tools-grid #devClearStart { color: #ffd8df; border-color: #d86a7d; }
+  #devPanel .editor-toggle { display: flex; justify-content: center; align-items: center; gap: 4px; }
+  #devPanel .editor-toggle input { width: 13px; height: 13px; margin: 0; padding: 0; accent-color: #79ee54; }
+  #devPanel .editor-status { grid-row: 3; display: flex; align-items: center; overflow: hidden; padding: 2px 12px; border-top: 1px solid #243d65; background: #081326; color: #9db5d5; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+  #devPanel .dev-primary { border-color: #91ed61; color: #d7ffbb; }
+  #devPanel button:disabled { cursor: default; opacity: .42; filter: saturate(.5); }
+  @media (max-width: 900px) {
+    #devPanel .editor-topbar { grid-template-columns: 36px minmax(85px,.7fr) minmax(150px,1fr) auto; gap: 6px; padding-inline: 7px; }
+    #devPanel .editor-heading { display: none; }
+    #devPanel .editor-dock { grid-template-columns: 122px minmax(180px,1fr) 194px; gap: 6px; padding-inline: 7px; }
+    #devPanel .editor-library { padding-inline: 5px; }
+    #devPanel .editor-categories button { padding-inline: 5px; }
+    #devPanel .editor-header-tools button { padding-inline: 6px; }
+  }
+  @media (max-width: 650px) {
+    #devPanel { grid-template-rows: minmax(0,1fr) 205px 23px; }
+    #devPanel .editor-topbar { grid-template-columns: 36px minmax(95px,.8fr) minmax(100px,1fr) auto; min-height: 52px; }
+    #devPanel .editor-level-picker { display: block; }
+    #devPanel .editor-level-picker > span { display: none; }
+    #devPanel .editor-level-picker select { padding: 7px 6px; font-size: 11px; }
+    #devPanel .editor-header-tools { gap: 3px; }
+    #devPanel .editor-header-tools button { min-height: 30px; padding: 4px 5px; font-size: 9px; }
+    #devPanel .editor-header-tools .editor-icon-action { width: 29px; font-size: 17px; }
+    #devPanel .editor-header-tools #devReset { display: none; }
+    #devPanel .editor-dock { grid-template-columns: 91px minmax(110px,1fr); grid-template-rows: minmax(0,1fr) 65px; gap: 4px; padding: 6px; }
+    #devPanel .editor-mode-rail { grid-column: 1; grid-row: 1; gap: 4px; }
+    #devPanel .editor-modes { gap: 3px; }
+    #devPanel .editor-modes button { min-height: 25px; padding: 2px 4px; font-size: 12px; }
+    #devPanel .editor-selection { font-size: 8px; }
+    #devPanel .editor-library { grid-column: 2; grid-row: 1; padding-inline: 3px; border-right: 0; }
+    #devPanel .editor-library-heading { align-items: flex-start; flex-direction: column; gap: 2px; min-height: 42px; }
+    #devPanel .editor-library-heading > strong { display: none; }
+    #devPanel .editor-categories { width: 100%; justify-content: flex-start; }
+    #devPanel .editor-categories button { padding: 4px; font-size: 9px; }
+    #devPanel .dev-palette { grid-template-columns: repeat(auto-fit,minmax(48px,1fr)); gap: 3px; padding: 2px; }
+    #devPanel .dev-palette button { height: 47px; font-size: 8px; }
+    #devPanel .dev-palette button .tile-icon { font-size: 17px; }
+    #devPanel .editor-tools-panel { grid-column: 1 / -1; grid-row: 2; gap: 2px; }
+    #devPanel .editor-tools-heading { display: none; }
+    #devPanel .editor-tools-grid { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 3px; }
+    #devPanel .editor-tools-grid button, #devPanel .editor-tools-grid .editor-toggle { min-height: 26px; padding: 3px 2px; font-size: 8px; }
+    #devPanel .editor-canvas-tools { left: 6px; bottom: 6px; padding: 4px; }
+    #devPanel .editor-canvas-tools button { padding: 6px; font-size: 9px; }
+  }
+  @media (max-height: 620px) and (min-width: 651px) {
+    #devPanel { grid-template-rows: minmax(0,1fr) 154px 22px; }
+    #devPanel .editor-dock { padding-block: 6px; }
+    #devPanel .editor-modes button { min-height: 24px; padding-block: 2px; }
+    #devPanel .dev-palette button { height: 44px; }
+  }
+
 </style>
 </head>
 <body>
 <canvas id="game" width="960" height="480" aria-label="Deometry Gash, a Geometry Dash style game. Pick a level with the arrow keys and Enter, then hold Space, Up or click to jump."></canvas>
-<section id="devPanel" hidden aria-label="Developer tools">
-  <div class="dev-row" style="justify-content:space-between">
-    <div><h2>Developer panel</h2><div class="dev-muted">Local dev tools · save changes in this browser or export a portable ZIP.</div></div>
-    <button id="devClose" type="button">Close</button>
-  </div>
-  <div class="dev-row">
-    <label for="devLevel">Level</label><select id="devLevel"></select>
-    <label for="devOffset">Column</label><input id="devOffset" type="number" min="0" value="0" style="width:76px">
-    <button id="devPrev" type="button">◀ 20</button><button id="devNext" type="button">20 ▶</button>
-  </div>
-  <div class="dev-row editor-modes" id="devModes" aria-label="Editor mode"></div>
-  <div class="dev-row"><span>Selected object:</span><strong id="devTileName">Block</strong><span class="dev-muted">Build places · Edit selects/moves · Delete removes.</span></div>
-<div class="dev-row editor-tools"><button id="devRotateLeft" type="button">↶ Rotate −90°</button><button id="devRotateRight" type="button">↷ Rotate +90°</button><button id="devDeselect" type="button">Deselect</button><button id="devSetStart" type="button" aria-pressed="false">⊙ Place test start</button><button id="devTestStart" class="dev-primary" type="button">▶ Test from start</button><button id="devClearStart" type="button">Clear start</button></div>
-  <div class="editor-categories" id="devCategories" aria-label="Object category"></div>
-  <div id="devPalette" class="dev-palette" aria-label="Tile palette"></div>
-  <div class="editor-scene"><canvas id="devVisualCanvas" aria-label="Visual level editor. Click or drag to place objects."></canvas></div>
-  <div class="dev-row">
-    <button id="devAddColumn" type="button">Add 1 column</button><button id="devRemoveColumn" type="button">Remove last column</button>
-    <label><input id="devNoclip" type="checkbox"> Noclip</label><button id="devAllSkins" type="button">Unlock every skin</button>
-  </div>
-  <div class="dev-row dev-actions"><button id="devSave" class="dev-primary" type="button">Save level</button><button id="devReset" type="button">Reset level</button><button id="devExport" class="dev-primary" type="button">Export ZIP</button></div>
-  <div id="devStatus" class="dev-muted" role="status">Changes are not saved until you press Save level.</div>
+<section id="devPanel" hidden aria-label="Main level editor">
+  <header class="editor-topbar">
+    <button id="devClose" class="editor-back" type="button" aria-label="Exit editor" title="Exit editor">←</button>
+    <div class="editor-heading"><strong>MAIN LEVEL EDITOR</strong><span>Build, tune, and test official levels</span></div>
+    <label class="editor-level-picker"><span>LEVEL</span><select id="devLevel" aria-label="Select official level"></select></label>
+    <div class="editor-column-picker">
+      <button id="devPrev" class="editor-step" type="button" aria-label="Previous 20 columns" title="Previous 20 columns">◀</button>
+      <label for="devOffset">COLUMN <output id="devColumnValue">1</output></label>
+      <input id="devOffset" type="range" min="0" max="0" value="0" aria-label="Scroll through level columns">
+      <button id="devNext" class="editor-step" type="button" aria-label="Next 20 columns" title="Next 20 columns">▶</button>
+    </div>
+    <div class="editor-header-tools">
+      <button id="devUndo" class="editor-icon-action" type="button" aria-label="Undo" title="Undo">↶</button>
+      <button id="devRedo" class="editor-icon-action" type="button" aria-label="Redo" title="Redo">↷</button>
+      <button id="devSave" class="editor-save" type="button">Save</button>
+      <button id="devReset" type="button">Reset</button>
+      <button id="devExport" class="editor-export" type="button">Export ZIP</button>
+    </div>
+  </header>
+  <main class="editor-workspace">
+    <div class="editor-scene"><canvas id="devVisualCanvas" aria-label="Visual level editor. Click or drag to place objects."></canvas></div>
+    <div class="editor-canvas-tools" aria-label="Level length tools">
+      <button id="devAddColumn" type="button" title="Add a blank column">＋ Column</button>
+      <button id="devRemoveColumn" type="button" title="Remove the final column">− Column</button>
+    </div>
+  </main>
+  <footer class="editor-dock">
+    <section class="editor-mode-rail" aria-label="Editing tools">
+      <div id="devModes" class="editor-modes" aria-label="Editor mode"></div>
+      <div class="editor-selection"><span>SELECTED OBJECT</span><strong id="devTileName">Block</strong></div>
+      <div class="editor-selection-actions">
+        <button id="devDeselect" type="button" title="Clear selection">Deselect</button>
+        <button id="devDeleteSelected" class="editor-delete-selected" type="button" title="Delete selected object">Delete</button>
+      </div>
+    </section>
+    <section class="editor-library" aria-label="Object library">
+      <div class="editor-library-heading"><strong>OBJECT LIBRARY</strong><div id="devCategories" class="editor-categories" aria-label="Object category"></div></div>
+      <div id="devPalette" class="dev-palette" aria-label="Tile palette"></div>
+    </section>
+    <section class="editor-tools-panel" aria-label="Object and test tools">
+      <strong class="editor-tools-heading">OBJECT / TEST TOOLS</strong>
+      <div class="editor-tools-grid">
+        <button id="devRotateLeft" type="button" title="Rotate selected object counter-clockwise">↶ Rotate</button>
+        <button id="devRotateRight" type="button" title="Rotate selected object clockwise">↷ Rotate</button>
+        <button id="devSetStart" type="button" aria-pressed="false">⊙ Set start</button>
+        <button id="devTestStart" class="dev-primary" type="button">▶ Test start</button>
+        <button id="devClearStart" type="button">Clear start</button>
+        <label class="editor-toggle"><input id="devNoclip" type="checkbox"> Noclip</label>
+        <button id="devAllSkins" type="button">Unlock skins</button>
+      </div>
+    </section>
+  </footer>
+  <div id="devStatus" class="editor-status" role="status">Changes are not saved until you press Save.</div>
 </section>
 <button id="communityButton" type="button" hidden>Create Level</button>
 <section id="communityPanel" hidden aria-label="Community level editor">
@@ -3155,6 +3300,40 @@ function wireEditorModes(element, getMode, setMode) {
 }
 let devPanelOpen = false, devReturnState = 'menu', devRows = [], devOffset = 0, devTile = '#', devMode = 'build';
 let devTestStart=null,devPlacingStart=false,devTestMode=false,devTestStartSnapshot=null;
+let devUndoStack=[],devRedoStack=[],devHistoryBaseline=null;
+function devHistorySnapshot(){
+  if(!devRows.length)return null;
+  const name=devCurrentLevel().name;
+  return {rows:devRows.map(row=>row.slice()),rotations:{...(DEV_ROTATIONS[name]||{})},testStart:devTestStart?{...devTestStart}:null};
+}
+function devUpdateHistoryButtons(){
+  document.getElementById('devUndo').disabled=devUndoStack.length===0;
+  document.getElementById('devRedo').disabled=devRedoStack.length===0;
+}
+function devHistorySync(){
+  const next=devHistorySnapshot();if(!next)return;
+  if(devHistoryBaseline&&JSON.stringify(next)!==JSON.stringify(devHistoryBaseline)){
+    devUndoStack.push(devHistoryBaseline);if(devUndoStack.length>60)devUndoStack.shift();devRedoStack=[];
+  }
+  devHistoryBaseline=next;devUpdateHistoryButtons();
+}
+function devRestoreHistory(snapshot){
+  const name=devCurrentLevel().name;
+  devRows=snapshot.rows.map(row=>row.slice());
+  if(Object.keys(snapshot.rotations||{}).length)DEV_ROTATIONS[name]={...snapshot.rotations};else delete DEV_ROTATIONS[name];
+  devTestStart=snapshot.testStart?{...snapshot.testStart}:null;
+  devSelectedCell=null;devHistoryBaseline=devHistorySnapshot();devRenderGrid();
+  devHistoryBaseline=devHistorySnapshot();devUpdateHistoryButtons();
+}
+function devUndo(){
+  if(!devUndoStack.length)return;
+  devRedoStack.push(devHistorySnapshot());devRestoreHistory(devUndoStack.pop());devStatusText('Undid the last editor change.');
+}
+function devRedo(){
+  if(!devRedoStack.length)return;
+  devUndoStack.push(devHistorySnapshot());devRestoreHistory(devRedoStack.pop());devStatusText('Restored the editor change.');
+}
+
 function devAfterVisualChange(message){devRenderGrid();if(message)devStatusText(message+' Unsaved edits in '+devCurrentLevel().name+'. Press Save level to keep them.');}
 wireVisualEditor(devVisualCanvas,()=>devRows,()=>devOffset,v=>{devOffset=v;},()=>devMode,()=>devTile,()=>devSelectedCell,v=>{devSelectedCell=v;},devAfterVisualChange);
 const devTilePalette = buildTilePalette(document.getElementById('devCategories'), devPalette, devTile, (tile, label) => {
@@ -3162,6 +3341,9 @@ const devTilePalette = buildTilePalette(document.getElementById('devCategories')
 });
 devTilePalette.setGetter(() => devTile);
 wireEditorModes(document.getElementById('devModes'), () => devMode, mode => { devMode = mode; });
+document.getElementById('devUndo').addEventListener('click',devUndo);
+document.getElementById('devRedo').addEventListener('click',devRedo);
+document.getElementById('devDeleteSelected').addEventListener('click',()=>{const p=devSelectedCell;if(!p||!devRows[p.y]||devRows[p.y][p.x]==='.')return devStatusText('Select an object in Edit mode first.');devRows[p.y]=devRows[p.y].slice(0,p.x)+'.'+devRows[p.y].slice(p.x+1);devSetRotation(devCurrentLevel().name,p.x,p.y,0);devSelectedCell=null;devRenderGrid();devStatusText('Deleted selected object.');});
 document.getElementById('devRotateLeft').addEventListener('click',()=>devRotateSelected(-90));
 document.getElementById('devRotateRight').addEventListener('click',()=>devRotateSelected(90));
 document.getElementById('devDeselect').addEventListener('click',()=>{devSelectedCell=null;devRenderGrid();});
@@ -3179,6 +3361,7 @@ function devLoadDraft() {
   devSelectedCell = null;devTestStart=null;devPlacingStart=false;document.getElementById('devSetStart').setAttribute('aria-pressed','false');
   devRows = levelToRows(devCurrentLevel());
   devOffset = 0; devOffsetInput.value = '0';
+  devUndoStack=[];devRedoStack=[];devHistoryBaseline=devHistorySnapshot();devUpdateHistoryButtons();
   devRenderGrid();
 }
 function editorSceneMetrics(canvas) {
@@ -3225,12 +3408,13 @@ function drawVisualEditor(canvas,rows,offset,mode,selectedCell,rotations={},test
   if(canvas.width!==Math.round(box.width*dpr)||canvas.height!==Math.round(box.height*dpr)){canvas.width=Math.round(box.width*dpr);canvas.height=Math.round(box.height*dpr);}
   const g=canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
   const m=editorSceneMetrics(canvas),{width,height,cell,top,cols}=m;
-  const bg=g.createLinearGradient(0,0,0,height);bg.addColorStop(0,'#202947');bg.addColorStop(1,'#111425');g.fillStyle=bg;g.fillRect(0,0,width,height);
-  g.fillStyle='rgba(90,150,220,.09)';for(let i=0;i<cols;i++)for(let y=0;y<ROWS;y++)if((i+offset+y)%2===0)g.fillRect(i*cell,top+y*cell,cell,cell);
-  g.strokeStyle='rgba(177,199,255,.2)';g.lineWidth=1;
+  const bg=g.createLinearGradient(0,0,0,height);bg.addColorStop(0,'#2787e8');bg.addColorStop(.62,'#1d67c2');bg.addColorStop(1,'#154c9b');g.fillStyle=bg;g.fillRect(0,0,width,height);
+  g.fillStyle='rgba(5,35,88,.12)';for(let i=0;i<cols;i++)for(let y=0;y<ROWS;y++)if((i+offset+y)%2===0)g.fillRect(i*cell,top+y*cell,cell,cell);
+  g.fillStyle='rgba(7,35,82,.13)';for(let i=-1;i<cols;i+=4)for(let y=0;y<ROWS;y+=3)g.fillRect(i*cell+3,top+y*cell+3,cell*2.5,cell*2.2);
+  g.strokeStyle='rgba(6,29,71,.42)';g.lineWidth=1;
   for(let i=0;i<=cols;i++){g.beginPath();g.moveTo(i*cell+.5,top);g.lineTo(i*cell+.5,top+ROWS*cell);g.stroke();}
   for(let y=0;y<=ROWS;y++){g.beginPath();g.moveTo(0,top+y*cell+.5);g.lineTo(width,top+y*cell+.5);g.stroke();}
-  const floorY=top+ROWS*cell;g.fillStyle='#27314b';g.fillRect(0,floorY,width,height-floorY);g.fillStyle='#7c8db9';g.fillRect(0,floorY,width,3);
+  const floorY=top+ROWS*cell;g.fillStyle='#15356d';g.fillRect(0,floorY,width,height-floorY);g.fillStyle='#a2dcff';g.fillRect(0,floorY,width,3);
   for(let col=0;col<cols;col++){const x=offset+col;if(x<0)continue;for(let y=0;y<ROWS;y++){
     const tile=x<(rows[0]||'').length?(rows[y]||'')[x]||'.':'.';
     if(tile!=='.')drawEditorObject(g,tile,col*cell,top+y*cell,cell,rotations[x+','+y]||0);
@@ -3275,8 +3459,9 @@ function wireVisualEditor(canvas,getRows,getOffset,setOffset,getMode,getTile,get
 
 function devRenderGrid() {
   if(!devRows.length)return;
+  devHistorySync();
   devOffset=Math.max(0,Math.min(Math.max(0,devRows[0].length-1),devOffset));
-  devOffsetInput.max=String(Math.max(0,devRows[0].length-1));devOffsetInput.value=String(devOffset);
+  devOffsetInput.max=String(Math.max(0,devRows[0].length-1));devOffsetInput.value=String(devOffset);document.getElementById('devColumnValue').textContent=String(devOffset+1);
   drawVisualEditor(devVisualCanvas,devRows,devOffset,devMode,devSelectedCell,DEV_ROTATIONS[devCurrentLevel().name]||{},devTestStart,devPlacingStart);
 }
 function openDevPanel() {
@@ -3378,7 +3563,7 @@ function devExportZip() {
   devStatusText('ZIP exported with saved layouts embedded. Share the ZIP; recipients can extract and open index.html.');
 }
 devLevelSelect.addEventListener('change', () => { devLoadDraft(); devStatusText('Loaded ' + devCurrentLevel().name + '.'); });
-devOffsetInput.addEventListener('change', () => { devOffset = Math.max(0, Number.parseInt(devOffsetInput.value, 10) || 0); devRenderGrid(); });
+devOffsetInput.addEventListener('input', () => { devOffset = Math.max(0, Number.parseInt(devOffsetInput.value, 10) || 0); devRenderGrid(); });
 document.getElementById('devPrev').addEventListener('click', () => { devOffset = Math.max(0, devOffset - DEV_VIEW_COLS); devRenderGrid(); });
 document.getElementById('devNext').addEventListener('click', () => { devOffset += DEV_VIEW_COLS; devRenderGrid(); });
 document.getElementById('devAddColumn').addEventListener('click', () => {
