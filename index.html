@@ -3157,6 +3157,7 @@ function devPersistOverrides() {
   try { localStorage.setItem(DEV_LEVEL_KEY, JSON.stringify(DEV_OVERRIDES)); } catch {}
 }
 function devLoadDraft() {
+  devSelectedCell = null;
   devRows = levelToRows(devCurrentLevel());
   devOffset = 0; devOffsetInput.value = '0';
   devRenderGrid();
@@ -3405,6 +3406,7 @@ function communityRenderSelect(preferredId) {
   else if (COMMUNITY_LEVELS.length) communitySelect.value = COMMUNITY_LEVELS[0].id;
 }
 function communityLoadDraft() {
+  communitySelectedCell = null;
   const item = communityCurrent();
   communityRows = item ? item.rows.map(row => String(row).slice(0, 2000)) : Array.from({ length: ROWS }, () => '.'.repeat(30));
   const width = Math.max(1, ...communityRows.map(row => row.length));
