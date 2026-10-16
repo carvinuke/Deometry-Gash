@@ -52,6 +52,15 @@
   #communityButton { position: fixed; z-index: 10; right: 18px; bottom: 18px; border: 2px solid #5ffff0; border-radius: 10px; background: #102a35ee; color: #eaffff; padding: 11px 16px; font: 800 14px system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 18px #0008; }
   #communityButton[hidden] { display: none; }
   /* Geometry Dash-inspired editor toolbars and object palette. */
+  #devPanel, #communityPanel { inset: 0; width: 100vw; height: 100vh; height: 100dvh; max-width: none; padding: 12px 16px; border-radius: 0; display: flex; flex-direction: column; gap: 3px; }
+  #devPanel .editor-scene, #communityPanel .editor-scene { flex: 1 1 auto; min-height: 230px; max-height: 60vh; overflow: hidden; border: 1px solid #514a72; border-radius: 10px; background: #101323; }
+  #devPanel #devVisualCanvas, #communityPanel #communityVisualCanvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+  #devPanel .dev-grid-wrap, #communityPanel .dev-grid-wrap { display: none; }
+  #devPanel .dev-actions, #communityPanel .dev-actions { flex: 0 0 auto; }
+  #devPanel .editor-categories, #communityPanel .editor-categories { margin-top: 3px; }
+  #devPanel .dev-palette, #communityPanel .dev-palette { flex: 0 0 auto; max-height: 108px; overflow-y: auto; }
+  @media (max-height: 650px) { #devPanel .editor-scene, #communityPanel .editor-scene { max-height: 48vh; min-height: 180px; } #devPanel .dev-palette, #communityPanel .dev-palette { max-height: 80px; } }
+  @media (max-width: 500px) { #devPanel, #communityPanel { padding: 7px; } #devPanel .editor-scene, #communityPanel .editor-scene { min-height: 190px; } }
   #devPanel .editor-modes, #communityPanel .editor-modes { display: flex; gap: 7px; margin: 10px 0; }
   #devPanel .editor-modes button, #communityPanel .editor-modes button { min-width: 88px; padding: 9px 13px; border-radius: 8px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
   #devPanel .editor-modes button[data-mode="build"], #communityPanel .editor-modes button[data-mode="build"] { border-color: #53d86a; }
@@ -88,7 +97,7 @@
   <div class="dev-row"><span>Selected object:</span><strong id="devTileName">Block</strong><span class="dev-muted">Build places · Edit picks · Delete removes.</span></div>
   <div class="editor-categories" id="devCategories" aria-label="Object category"></div>
   <div id="devPalette" class="dev-palette" aria-label="Tile palette"></div>
-  <div class="dev-grid-wrap"><div id="devGrid" class="dev-grid" aria-label="Level tile grid"></div></div>
+  <div class="editor-scene"><canvas id="devVisualCanvas" aria-label="Visual level editor. Click or drag to place objects."></canvas></div>
   <div class="dev-row">
     <button id="devAddColumn" type="button">Add 1 column</button><button id="devRemoveColumn" type="button">Remove last column</button>
     <label><input id="devNoclip" type="checkbox"> Noclip</label><button id="devAllSkins" type="button">Unlock every skin</button>
@@ -115,7 +124,7 @@
     <button id="communityPrev" type="button">◀ 20</button><button id="communityNext" type="button">20 ▶</button>
     <button id="communityAddColumn" type="button">Add column</button><button id="communityRemoveColumn" type="button">Remove last</button>
   </div>
-  <div class="dev-grid-wrap"><div id="communityGrid" class="dev-grid" aria-label="Community level grid"></div></div>
+  <div class="editor-scene"><canvas id="communityVisualCanvas" aria-label="Visual community level editor. Click or drag to place objects."></canvas></div>
   <div class="dev-row dev-actions"><button id="communitySave" class="dev-primary" type="button">Save level</button><button id="communityTest" type="button">Test play</button><button id="communityExport" class="dev-primary" type="button">Export JSON</button></div>
   <div id="communityStatus" class="dev-muted" role="status">Create a level, build it, then save or test it.</div>
 </section>
@@ -3070,6 +3079,8 @@ const devPanel = document.getElementById('devPanel');
 const devLevelSelect = document.getElementById('devLevel');
 const devOffsetInput = document.getElementById('devOffset');
 const devGrid = document.getElementById('devGrid');
+const devVisualCanvas=document.getElementById('devVisualCanvas');
+let devSelectedCell=null;
 const devPalette = document.getElementById('devPalette');
 const devTileName = document.getElementById('devTileName');
 const devStatus = document.getElementById('devStatus');
@@ -3133,6 +3144,8 @@ function wireEditorModes(element, getMode, setMode) {
   }
 }
 let devPanelOpen = false, devReturnState = 'menu', devRows = [], devOffset = 0, devTile = '#', devMode = 'build';
+function devAfterVisualChange(message){devRenderGrid();if(message)devStatusText(message+' Unsaved edits in '+devCurrentLevel().name+'. Press Save level to keep them.');}
+wireVisualEditor(devVisualCanvas,()=>devRows,()=>devOffset,v=>{devOffset=v;},()=>devMode,()=>devTile,()=>devSelectedCell,v=>{devSelectedCell=v;},devAfterVisualChange);
 const devTilePalette = buildTilePalette(document.getElementById('devCategories'), devPalette, devTile, (tile, label) => {
   devTile = tile; devTileName.textContent = label;
 });
@@ -3144,40 +3157,104 @@ function devPersistOverrides() {
   try { localStorage.setItem(DEV_LEVEL_KEY, JSON.stringify(DEV_OVERRIDES)); } catch {}
 }
 function devLoadDraft() {
+  devSelectedCell = null;
   devRows = levelToRows(devCurrentLevel());
   devOffset = 0; devOffsetInput.value = '0';
   devRenderGrid();
 }
-function devRenderGrid() {
-  if (!devRows.length) return;
-  const width = devRows[0].length;
-  devOffset = Math.max(0, Math.min(Math.max(0, width - DEV_VIEW_COLS), devOffset));
-  devOffsetInput.max = String(Math.max(0, width - DEV_VIEW_COLS));
-  devOffsetInput.value = String(devOffset);
-  devGrid.replaceChildren();
-  for (let y = 0; y < ROWS; y++) for (let column = 0; column < DEV_VIEW_COLS; column++) {
-    const x = devOffset + column, tile = x < width ? devRows[y][x] : '.';
-    const cell = document.createElement('button');
-    cell.type = 'button'; cell.className = 'dev-cell';
-    cell.dataset.x = String(column); cell.dataset.y = String(y); cell.dataset.tile = tile;
-    cell.textContent = tile === '.' ? '·' : tile;
-    cell.title = 'Column ' + (x + 1) + ', row ' + (ROWS - y);
-    cell.setAttribute('aria-label', cell.title + ', tile ' + tile);
-    cell.addEventListener('click', () => {
-      if (x >= devRows[0].length) return;
-      if (devMode === 'edit') {
-        devTile = devRows[y][x]; devTileName.textContent = tileLabel(devTile);
-        devTilePalette.selectCategory(tileCategory(devTile)); devTilePalette.render();
-        devStatusText('Selected ' + tileLabel(devTile) + '.');
-        return;
-      }
-      const placedTile = devMode === 'delete' ? '.' : devTile;
-      devRows[y] = devRows[y].slice(0, x) + placedTile + devRows[y].slice(x + 1);
-      devRenderGrid();
-      devStatusText('Unsaved edits in ' + devCurrentLevel().name + '. Press Save level to keep them.');
-    });
-    devGrid.appendChild(cell);
+function editorSceneMetrics(canvas) {
+  const width=canvas.clientWidth||800,height=canvas.clientHeight||360;
+  const cell=Math.max(20,Math.min(52,Math.floor((height-34)/ROWS)));
+  const top=Math.max(10,Math.floor((height-ROWS*cell-26)/2));
+  return {width,height,cell,top,cols:Math.ceil(width/cell)};
+}
+function drawEditorObject(g,tile,x,y,c) {
+  const cx=x+c/2,cy=y+c/2;g.save();
+  if(tile==='#'){
+    const grad=g.createLinearGradient(x,y,x+c,y+c);grad.addColorStop(0,'#7a83b5');grad.addColorStop(1,'#333b68');
+    g.fillStyle=grad;g.fillRect(x+2,y+2,c-4,c-4);g.strokeStyle='#b8c8ff';g.lineWidth=2;g.strokeRect(x+3,y+3,c-6,c-6);
+    g.strokeStyle='#525d8e';g.lineWidth=1;g.beginPath();g.moveTo(x+c*.25,y+4);g.lineTo(x+c*.25,y+c-4);g.moveTo(x+4,y+c*.25);g.lineTo(x+c-4,y+c*.25);g.stroke();
+  } else if(['^','G','v','h','F'].includes(tile)){
+    g.fillStyle=tile==='G'?'#ff587b':'#ff8eaa';g.strokeStyle='#ffe0e8';g.lineWidth=1.5;g.beginPath();
+    if(tile==='v'){g.moveTo(x+3,y+3);g.lineTo(x+c-3,y+3);g.lineTo(cx,y+c-3);}
+    else if(tile==='h'){g.moveTo(x+2,y+c*.35);g.lineTo(x+c*.25,y+c-3);g.lineTo(x+c*.5,y+c*.35);g.lineTo(x+c*.75,y+c-3);g.lineTo(x+c-2,y+c*.35);}
+    else{g.moveTo(x+(tile==='G'?2:c*.15),y+c-3);g.lineTo(cx,y+(tile==='G'?2:c*.2));g.lineTo(x+c-(tile==='G'?2:c*.15),y+c-3);}
+    g.closePath();g.fill();g.stroke();
+  } else if(tile==='s'){
+    g.translate(cx,cy);g.fillStyle='#ff587b';g.strokeStyle='#ffd2dd';g.lineWidth=1.5;g.beginPath();
+    for(let i=0;i<24;i++){const a=i*Math.PI/12,r=i%2?c*.34:c*.46;g.lineTo(Math.cos(a)*r,Math.sin(a)*r);}
+    g.closePath();g.fill();g.stroke();g.beginPath();g.fillStyle='#30223d';g.arc(0,0,c*.15,0,Math.PI*2);g.fill();
+  } else if(['o','b','c'].includes(tile)){
+    g.beginPath();g.arc(cx,cy,c*.28,0,Math.PI*2);g.fillStyle=tile==='c'?'#ffd95a':tile==='b'?'#53f3ff':'#ffe77a';g.fill();g.strokeStyle='#fff';g.lineWidth=2;g.stroke();
+    if(tile!=='c'){g.beginPath();g.arc(cx,cy,c*.4,0,Math.PI*2);g.strokeStyle=tile==='b'?'#a1fcff':'#fff0b2';g.lineWidth=1.5;g.stroke();}
+  } else if(tile==='p'||tile==='r'){
+    g.fillStyle=tile==='r'?'#ff4f61':'#ffdc58';g.strokeStyle='#fff';g.lineWidth=1.5;g.beginPath();
+    g.moveTo(x+3,y+c*.72);g.lineTo(x+c*.25,y+c*.42);g.lineTo(cx,y+c*.72);g.lineTo(x+c*.75,y+c*.42);g.lineTo(x+c-3,y+c*.72);g.lineTo(x+c-3,y+c-4);g.lineTo(x+3,y+c-4);g.closePath();g.fill();g.stroke();
+  } else if(['S','C','B','W'].includes(tile)){
+    const col=tile==='S'?'#ffb64c':tile==='C'?'#59f5d6':tile==='B'?'#d38bff':'#61c9ff';
+    g.strokeStyle=col;g.lineWidth=Math.max(3,c*.1);g.beginPath();g.ellipse(cx,cy,c*.23,c*.42,0,0,Math.PI*2);g.stroke();
+    g.strokeStyle='#fff';g.lineWidth=1.5;g.beginPath();g.ellipse(cx,cy,c*.14,c*.32,0,0,Math.PI*2);g.stroke();
+  } else if(tile==='i'){
+    g.strokeStyle='#8af2ff';g.lineWidth=3;g.beginPath();g.moveTo(cx,y+c*.12);g.lineTo(cx,y+c*.88);g.moveTo(x+c*.2,y+c*.4);g.lineTo(x+c*.8,y+c*.4);g.stroke();
   }
+  g.restore();
+}
+function drawVisualEditor(canvas,rows,offset,mode,selectedCell) {
+  if(!canvas||!canvas.isConnected)return;
+  const box=canvas.getBoundingClientRect();if(!box.width||!box.height)return;
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  if(canvas.width!==Math.round(box.width*dpr)||canvas.height!==Math.round(box.height*dpr)){canvas.width=Math.round(box.width*dpr);canvas.height=Math.round(box.height*dpr);}
+  const g=canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  const m=editorSceneMetrics(canvas),{width,height,cell,top,cols}=m;
+  const bg=g.createLinearGradient(0,0,0,height);bg.addColorStop(0,'#202947');bg.addColorStop(1,'#111425');g.fillStyle=bg;g.fillRect(0,0,width,height);
+  g.fillStyle='rgba(90,150,220,.09)';for(let i=0;i<cols;i++)for(let y=0;y<ROWS;y++)if((i+offset+y)%2===0)g.fillRect(i*cell,top+y*cell,cell,cell);
+  g.strokeStyle='rgba(177,199,255,.2)';g.lineWidth=1;
+  for(let i=0;i<=cols;i++){g.beginPath();g.moveTo(i*cell+.5,top);g.lineTo(i*cell+.5,top+ROWS*cell);g.stroke();}
+  for(let y=0;y<=ROWS;y++){g.beginPath();g.moveTo(0,top+y*cell+.5);g.lineTo(width,top+y*cell+.5);g.stroke();}
+  const floorY=top+ROWS*cell;g.fillStyle='#27314b';g.fillRect(0,floorY,width,height-floorY);g.fillStyle='#7c8db9';g.fillRect(0,floorY,width,3);
+  for(let col=0;col<cols;col++){const x=offset+col;if(x<0)continue;for(let y=0;y<ROWS;y++){
+    const tile=x<(rows[0]||'').length?(rows[y]||'')[x]||'.':'.';
+    if(tile!=='.')drawEditorObject(g,tile,col*cell,top+y*cell,cell);
+    if(selectedCell&&selectedCell.x===x&&selectedCell.y===y){g.strokeStyle='#ffe75b';g.lineWidth=3;g.strokeRect(col*cell+2,top+y*cell+2,cell-4,cell-4);}
+  }}
+  g.fillStyle='rgba(4,7,16,.75)';g.fillRect(8,8,Math.min(width-16,255),24);g.fillStyle='#e8eeff';g.font='12px system-ui';g.fillText('LEVEL VIEW  ·  drag to place  ·  scroll to travel',16,24);
+  g.fillStyle='rgba(4,7,16,.65)';g.fillRect(8,height-23,Math.min(width-16,220),17);g.fillStyle='#c7d6ff';g.font='11px system-ui';g.fillText('Column '+(offset+1)+'  ·  '+rows[0].length+' total',14,height-11);
+}
+function wireVisualEditor(canvas,getRows,getOffset,setOffset,getMode,getTile,getSelected,setSelected,afterChange) {
+  let painting=false,lastKey='';
+  function point(e){const r=canvas.getBoundingClientRect(),m=editorSceneMetrics(canvas);return{x:Math.floor((e.clientX-r.left)/m.cell)+getOffset(),y:Math.floor((e.clientY-r.top-m.top)/m.cell)};}
+  function act(e,isDrag=false){
+    const p=point(e),rows=getRows();if(p.y<0||p.y>=ROWS||p.x<0||p.x>=rows[0].length)return;
+    const key=p.x+','+p.y;if(isDrag&&key===lastKey)return;lastKey=key;
+    const mode=getMode(),rowIndex=p.y;
+    if(mode==='edit'){
+      const selected=getSelected();
+      if(!selected){if(rows[rowIndex][p.x]!=='.')setSelected({x:p.x,y:p.y,type:rows[rowIndex][p.x]});}
+      else if(selected.x===p.x&&selected.y===p.y){setSelected(null);}
+      else if(rows[rowIndex][p.x]==='.'){
+        const srcRow=selected.y;
+        rows[srcRow]=rows[srcRow].slice(0,selected.x)+'.'+rows[srcRow].slice(selected.x+1);
+        rows[rowIndex]=rows[rowIndex].slice(0,p.x)+selected.type+rows[rowIndex].slice(p.x+1);
+        setSelected(null);afterChange('Moved object.');
+      }else{setSelected({x:p.x,y:p.y,type:rows[rowIndex][p.x]});}
+      afterChange('');return;
+    }
+    rows[rowIndex]=rows[rowIndex].slice(0,p.x)+(mode==='delete'?'.':getTile())+rows[rowIndex].slice(p.x+1);
+    afterChange(mode==='delete'?'Object deleted.':'Object placed.');
+  }
+  canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;painting=true;lastKey='';canvas.setPointerCapture?.(e.pointerId);act(e);});
+  canvas.addEventListener('pointermove',e=>{if(painting&&getMode()==='build')act(e,true);});
+  canvas.addEventListener('pointerup',()=>{painting=false;lastKey='';});
+  canvas.addEventListener('pointercancel',()=>{painting=false;lastKey='';});
+  canvas.addEventListener('wheel',e=>{e.preventDefault();setOffset(Math.max(0,Math.min(Math.max(0,getRows()[0].length-1),getOffset()+Math.sign(Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)*3)));afterChange('');},{passive:false});
+  new ResizeObserver(()=>afterChange('')).observe(canvas);
+}
+
+function devRenderGrid() {
+  if(!devRows.length)return;
+  devOffset=Math.max(0,Math.min(Math.max(0,devRows[0].length-1),devOffset));
+  devOffsetInput.max=String(Math.max(0,devRows[0].length-1));devOffsetInput.value=String(devOffset);
+  drawVisualEditor(devVisualCanvas,devRows,devOffset,devMode,devSelectedCell);
 }
 function openDevPanel() {
   if (devPanelOpen) return;
@@ -3305,6 +3382,8 @@ const communityPanel = document.getElementById('communityPanel');
 const communityButton = document.getElementById('communityButton');
 const communitySelect = document.getElementById('communityLevel');
 const communityGrid = document.getElementById('communityGrid');
+const communityVisualCanvas=document.getElementById('communityVisualCanvas');
+let communitySelectedCell=null;
 const communityPalette = document.getElementById('communityPalette');
 const communityOffsetInput = document.getElementById('communityOffset');
 const communityTileName = document.getElementById('communityTileName');
@@ -3327,6 +3406,7 @@ function communityRenderSelect(preferredId) {
   else if (COMMUNITY_LEVELS.length) communitySelect.value = COMMUNITY_LEVELS[0].id;
 }
 function communityLoadDraft() {
+  communitySelectedCell = null;
   const item = communityCurrent();
   communityRows = item ? item.rows.map(row => String(row).slice(0, 2000)) : Array.from({ length: ROWS }, () => '.'.repeat(30));
   const width = Math.max(1, ...communityRows.map(row => row.length));
@@ -3334,33 +3414,14 @@ function communityLoadDraft() {
   communityOffset = 0; communityOffsetInput.value = '0'; communityRenderGrid();
 }
 function communityRenderGrid() {
-  if (!communityRows.length) return;
-  const width = communityRows[0].length;
-  communityOffset = Math.max(0, Math.min(Math.max(0, width - COMMUNITY_VIEW_COLS), communityOffset));
-  communityOffsetInput.max = String(Math.max(0, width - COMMUNITY_VIEW_COLS)); communityOffsetInput.value = String(communityOffset);
-  communityGrid.replaceChildren();
-  for (let y = 0; y < ROWS; y++) for (let col = 0; col < COMMUNITY_VIEW_COLS; col++) {
-    const x = communityOffset + col, tile = x < width ? communityRows[y][x] : '.';
-    const cell = document.createElement('button'); cell.type = 'button'; cell.className = 'dev-cell';
-    cell.dataset.x = String(x); cell.dataset.y = String(y); cell.dataset.tile = tile;
-    cell.textContent = tile === '.' ? '·' : tile;
-    cell.title = 'Column ' + (x + 1) + ', row ' + (ROWS - y);
-    cell.addEventListener('click', () => {
-      if (x >= communityRows[0].length) return;
-      if (communityMode === 'edit') {
-        communityTile = communityRows[y][x]; communityTileName.textContent = tileLabel(communityTile);
-        communityTilePalette.selectCategory(tileCategory(communityTile)); communityTilePalette.render();
-        communityStatusText('Selected ' + tileLabel(communityTile) + '.');
-        return;
-      }
-      const placedTile = communityMode === 'delete' ? '.' : communityTile;
-      communityRows[y] = communityRows[y].slice(0, x) + placedTile + communityRows[y].slice(x + 1);
-      communityRenderGrid(); communityStatusText('Unsaved edits. Save before closing to keep them.');
-    });
-    communityGrid.appendChild(cell);
-  }
+  if(!communityRows.length)return;
+  communityOffset=Math.max(0,Math.min(Math.max(0,communityRows[0].length-1),communityOffset));
+  communityOffsetInput.max=String(Math.max(0,communityRows[0].length-1));communityOffsetInput.value=String(communityOffset);
+  drawVisualEditor(communityVisualCanvas,communityRows,communityOffset,communityMode,communitySelectedCell);
 }
 let communityMode = 'build';
+function communityAfterVisualChange(message){communityRenderGrid();if(message)communityStatusText(message+' Unsaved edits. Save before closing to keep them.');}
+wireVisualEditor(communityVisualCanvas,()=>communityRows,()=>communityOffset,v=>{communityOffset=v;},()=>communityMode,()=>communityTile,()=>communitySelectedCell,v=>{communitySelectedCell=v;},communityAfterVisualChange);
 const communityTilePalette = buildTilePalette(document.getElementById('communityCategories'), communityPalette, communityTile, (tile, label) => {
   communityTile = tile; communityTileName.textContent = label;
 });
