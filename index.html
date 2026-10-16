@@ -406,8 +406,8 @@ function buildLevel(name, difficulty, stars, hue, segs) {
 }
 
 function flutterclunkLayout() {
-  // One coordinate grid makes the mode transitions and safe lanes easy to audit.
-  const width = 144;
+  // Shared grid keeps the longer cube-to-ship-to-cube route easy to inspect.
+  const width = 208;
   const cells = Array.from({ length: ROWS }, () => Array(width).fill('.'));
   const put = (x, y, type) => {
     if (x < 0 || x >= width || y < 0 || y >= ROWS) throw new Error('Flutterclunk tile is out of bounds');
@@ -417,7 +417,7 @@ function flutterclunkLayout() {
   };
   const run = (y, type, start, count = 1) => { for (let x = start; x < start + count; x++) put(x, y, type); };
 
-  // Cube opener: three clear jump beats lead into a low, reachable ship portal.
+  // Cube opener: a short warm-up, then a low portal into the ship gauntlet.
   put(12, 0, 'i');
   run(0, '^', 15, 2);
   put(23, 0, 'G');
@@ -425,27 +425,36 @@ function flutterclunkLayout() {
   put(16, 2, 'c');
   for (const y of [1, 2, 3]) put(33, y, 'S');
 
-  // Ship lane: staggered floor and ceiling hazards leave a deliberate high route.
+  // Ship gauntlet: alternating floor bars and ceiling spikes force controlled climbs.
   put(44, 2, 'h');
   put(49, 1, 's');
   put(56, 5, 'v');
   put(58, 3, 'c');
   put(63, 1, 'h');
   put(69, 4, 'v');
-  for (const y of [1, 2, 3]) put(76, y, 'C');
+  put(81, 3, 'h');
+  put(87, 5, 'v');
+  put(93, 6, 's');
+  put(98, 4, 'h');
+  put(103, 6, 'v');
+  for (const y of [1, 2, 3]) put(110, y, 'C');
 
-  // Cube finale: escalating clusters, a ground saw, and a final triple spike.
-  put(78, 0, 'i');
-  run(0, '^', 80, 2);
-  put(88, 0, 'G');
-  run(0, '^', 96, 2);
-  put(96, 2, 'c');
-  put(104, 0, 's');
-  run(0, '^', 112, 2);
-  put(120, 0, 'G');
-  run(0, '^', 127, 3);
-  put(108, 4, 'v');
-  put(116, 0, 'i');
+  // Cube finale: tighter recoveries, giant spikes, saws and escalating clusters.
+  put(112, 0, 'i');
+  run(0, '^', 114, 2);
+  put(121, 0, 'G');
+  run(0, '^', 128, 2);
+  put(128, 2, 'c');
+  put(136, 0, 's');
+  run(0, '^', 141, 2);
+  put(149, 0, 'G');
+  put(157, 0, 's');
+  run(0, '^', 162, 2);
+  put(171, 0, 'G');
+  run(0, '^', 178, 3);
+  put(187, 0, 's');
+  put(194, 0, 'G');
+  run(0, '^', 201, 3);
   return [seg(...cells.map(row => row.join('')))];
 }
 
