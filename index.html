@@ -30,7 +30,28 @@
   #devPanel .dev-muted { color: #b8b2ce; }
   #devPanel .dev-actions { position: sticky; bottom: -14px; background: #100e20; padding: 9px 0 2px; }
   #devPanel .dev-primary { border-color: #ffd400; color: #ffd400; }
-  @media (max-width: 500px) { #devPanel { font-size: 12px; padding: 9px; } #devPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #devPanel .dev-cell { width: 25px; height: 27px; } }
+  #communityPanel[hidden] { display: none; }
+  #communityPanel { position: fixed; z-index: 21; inset: 10px 10px 10px auto; width: min(720px, calc(100vw - 20px)); overflow: auto; box-sizing: border-box; padding: 14px; border: 1px solid #37d9cb; border-radius: 12px; background: rgba(8, 18, 27, .98); color: #f2ffff; font: 13px/1.35 system-ui, sans-serif; box-shadow: 0 10px 40px #0009; }
+  #communityPanel * { box-sizing: border-box; }
+  #communityPanel h2 { margin: 0; font-size: 18px; }
+  #communityPanel .dev-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 9px 0; }
+  #communityPanel button, #communityPanel select, #communityPanel input { border: 1px solid #286e76; border-radius: 6px; background: #102a35; color: #fff; padding: 6px 8px; font: inherit; }
+  #communityPanel button { cursor: pointer; }
+  #communityPanel button:hover, #communityPanel button:focus-visible { border-color: #5ffff0; }
+  #communityPanel .dev-palette { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+  #communityPanel .dev-palette button { min-width: 34px; height: 31px; padding: 3px 7px; }
+  #communityPanel .dev-palette button[aria-pressed="true"] { background: #176d70; border-color: #5ffff0; }
+  #communityPanel .dev-grid-wrap { overflow-x: auto; padding: 6px 0; }
+  #communityPanel .dev-grid { display: grid; grid-template-columns: repeat(20, 29px); gap: 2px; width: max-content; }
+  #communityPanel .dev-cell { width: 29px; height: 29px; padding: 0; font-weight: 700; }
+  #communityPanel .dev-cell[data-tile="#"] { background: #45405c; }
+  #communityPanel .dev-cell[data-tile="^"], #communityPanel .dev-cell[data-tile="G"], #communityPanel .dev-cell[data-tile="v"], #communityPanel .dev-cell[data-tile="h"], #communityPanel .dev-cell[data-tile="F"] { color: #ff8c9e; }
+  #communityPanel .dev-muted { color: #a8d5d7; }
+  #communityPanel .dev-actions { position: sticky; bottom: -14px; background: #081923; padding: 9px 0 2px; }
+  #communityPanel .dev-primary { border-color: #5ffff0; color: #5ffff0; }
+  #communityButton { position: fixed; z-index: 10; right: 18px; bottom: 18px; border: 2px solid #5ffff0; border-radius: 10px; background: #102a35ee; color: #eaffff; padding: 11px 16px; font: 800 14px system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 18px #0008; }
+  #communityButton[hidden] { display: none; }
+  @media (max-width: 500px) { #devPanel { font-size: 12px; padding: 9px; } #devPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #devPanel .dev-cell { width: 25px; height: 27px; } #communityPanel { font-size: 12px; padding: 9px; } #communityPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #communityPanel .dev-cell { width: 25px; height: 27px; } }
 </style>
 </head>
 <body>
@@ -54,6 +75,27 @@
   </div>
   <div class="dev-row dev-actions"><button id="devSave" class="dev-primary" type="button">Save level</button><button id="devReset" type="button">Reset level</button><button id="devExport" class="dev-primary" type="button">Export ZIP</button></div>
   <div id="devStatus" class="dev-muted" role="status">Changes are not saved until you press Save level.</div>
+</section>
+<button id="communityButton" type="button" hidden>Create Level</button>
+<section id="communityPanel" hidden aria-label="Community level editor">
+  <div class="dev-row" style="justify-content:space-between">
+    <div><h2>Community Level Editor</h2><div class="dev-muted">Your own levels only · never changes the official levels.</div></div>
+    <button id="communityClose" type="button">Close</button>
+  </div>
+  <div class="dev-row">
+    <label for="communityLevel">My levels</label><select id="communityLevel"></select>
+    <button id="communityCreate" type="button">+ New</button><button id="communityRename" type="button">Rename</button><button id="communityDelete" type="button">Delete</button>
+  </div>
+  <div class="dev-row"><span>Selected tile:</span><strong id="communityTileName">Small spike</strong><span class="dev-muted">Click grid cells to paint.</span></div>
+  <div id="communityPalette" class="dev-palette" aria-label="Community tile palette"></div>
+  <div class="dev-row">
+    <label for="communityOffset">Column</label><input id="communityOffset" type="number" min="0" value="0" style="width:76px">
+    <button id="communityPrev" type="button">◀ 20</button><button id="communityNext" type="button">20 ▶</button>
+    <button id="communityAddColumn" type="button">Add column</button><button id="communityRemoveColumn" type="button">Remove last</button>
+  </div>
+  <div class="dev-grid-wrap"><div id="communityGrid" class="dev-grid" aria-label="Community level grid"></div></div>
+  <div class="dev-row dev-actions"><button id="communitySave" class="dev-primary" type="button">Save level</button><button id="communityTest" type="button">Test play</button><button id="communityExport" class="dev-primary" type="button">Export JSON</button></div>
+  <div id="communityStatus" class="dev-muted" role="status">Create a level, build it, then save or test it.</div>
 </section>
 <script>
 const canvas = document.getElementById('game');
@@ -643,6 +685,15 @@ LEVELS.sort((a, b) => DIFFICULTY_RANK[a.difficulty] - DIFFICULTY_RANK[b.difficul
 
 const DEV_EMBEDDED_OVERRIDES = {}; // Export ZIP replaces this with saved layouts.
 const DEV_LEVEL_KEY = 'deometry-gash-level-overrides-v1';
+const COMMUNITY_LEVEL_KEY = 'deometry-gash-community-levels-v1';
+let COMMUNITY_LEVELS = [];
+try {
+  const storedCommunity = JSON.parse(localStorage.getItem(COMMUNITY_LEVEL_KEY) || '[]');
+  if (Array.isArray(storedCommunity)) COMMUNITY_LEVELS = storedCommunity
+    .filter(item => item && typeof item.name === 'string' && Array.isArray(item.rows) && item.rows.length === ROWS)
+    .map((item, index) => ({ id: String(item.id || ('custom-' + index)), name: item.name.slice(0, 40), rows: item.rows.map(row => String(row).slice(0, 2000)) }));
+} catch {}
+let communityTestMode = false, communityTestLevel = null;
 let devNoclip = false;
 function levelToRows(lvl) {
   const rows = Array.from({ length: ROWS }, () => Array(lvl.len).fill('.'));
@@ -957,11 +1008,18 @@ let particles = [], history = [], winNote = '', shopTab = 0, shopPick = 0, title
 let visRot = 0, shake = 0, ceilAnim = 0, menuScroll = 0, mouse = { x: -1, y: -1 }, cursorHot = false, drag = null;
 
 function startLevel(i) {
+  communityTestMode = false; communityTestLevel = null;
   selected = i; level = LEVELS[i]; player = newPlayer(); attempts = 1; particles = []; history = [];
   visRot = 0; shake = 0; ceilAnim = 0; state = 'play'; stateTime = 0; holding = false; jumpPressed = false; activePointerId = null; was = { x: 0, y: 0, rot: 0 };
   playSong(SONGS[i % SONGS.length]);
 }
-function respawn() { player = newPlayer(); visRot = 0; state = 'play'; attempts++; history = []; playSong(SONGS[selected % SONGS.length]); }
+function respawn() {
+  if (communityTestMode && communityTestLevel) {
+    level = buildLevel(communityTestLevel.name, 'Normal', 1, 185, [communityTestLevel.rows]);
+    player = newPlayer(); visRot = 0; state = 'play'; attempts++; history = []; playSong(SONGS[selected % SONGS.length]); return;
+  }
+  player = newPlayer(); visRot = 0; state = 'play'; attempts++; history = []; playSong(SONGS[selected % SONGS.length]);
+}
 function pause() { // only during a level; a pause during the crash skips straight to the next attempt
   if (state === 'dead') respawn();
   if (state === 'play') { state = 'pause'; holding = false; sfx('click'); }
@@ -1280,6 +1338,7 @@ function playEffects(prev) {
 
 function finishLevel() {
   song = null; sfx('win');
+  if (communityTestMode) { state = 'win'; stateTime = 0; winNote = 'Community test complete · no official progress changed'; return; }
   const firstClear = !beaten(selected);
   const had = save.coins[selected] || [];
   const coins = [...new Set([...had, ...player.coins])];
@@ -1301,6 +1360,12 @@ function finishLevel() {
 
 function die() {
   const pct = progress();
+  if (communityTestMode) {
+    save.deaths++; persist();
+    deathEffect(particles, player.x + 0.5, player.y + 0.5, skin('death').name, mainColor(skin(player.mode)));
+    if (!REDUCED_MOTION && save.settings.shake) shake = 0.35;
+    song = null; sfx('death'); return;
+  }
   save.best[selected] = Math.max(save.best[selected] || 0, pct);
   save.deaths++; persist();
   if (save.deaths >= 50) unlockSecret('deaths');
@@ -3161,6 +3226,150 @@ document.getElementById('devReset').addEventListener('click', devResetLevel);
 document.getElementById('devExport').addEventListener('click', devExportZip);
 document.getElementById('devClose').addEventListener('click', closeDevPanel);
 
+// ---- Community level editor (isolated from official level data) ----
+const communityPanel = document.getElementById('communityPanel');
+const communityButton = document.getElementById('communityButton');
+const communitySelect = document.getElementById('communityLevel');
+const communityGrid = document.getElementById('communityGrid');
+const communityPalette = document.getElementById('communityPalette');
+const communityOffsetInput = document.getElementById('communityOffset');
+const communityTileName = document.getElementById('communityTileName');
+const communityStatus = document.getElementById('communityStatus');
+const COMMUNITY_VIEW_COLS = 20;
+let communityPanelOpen = false, communityRows = [], communityOffset = 0, communityTile = '^', communityReturnState = 'menu';
+
+function communityStatusText(message) { communityStatus.textContent = message; }
+function communityPersist() {
+  try { localStorage.setItem(COMMUNITY_LEVEL_KEY, JSON.stringify(COMMUNITY_LEVELS)); }
+  catch { communityStatusText('Could not save: browser storage may be full or disabled.'); }
+}
+function communityCurrent() { return COMMUNITY_LEVELS.find(item => item.id === communitySelect.value) || null; }
+function communityRenderSelect(preferredId) {
+  communitySelect.replaceChildren();
+  for (const item of COMMUNITY_LEVELS) {
+    const option = document.createElement('option'); option.value = item.id; option.textContent = item.name; communitySelect.appendChild(option);
+  }
+  if (preferredId && COMMUNITY_LEVELS.some(item => item.id === preferredId)) communitySelect.value = preferredId;
+  else if (COMMUNITY_LEVELS.length) communitySelect.value = COMMUNITY_LEVELS[0].id;
+}
+function communityLoadDraft() {
+  const item = communityCurrent();
+  communityRows = item ? item.rows.map(row => String(row).slice(0, 2000)) : Array.from({ length: ROWS }, () => '.'.repeat(30));
+  const width = Math.max(1, ...communityRows.map(row => row.length));
+  communityRows = Array.from({ length: ROWS }, (_, y) => (communityRows[y] || '').padEnd(width, '.').slice(0, 2000));
+  communityOffset = 0; communityOffsetInput.value = '0'; communityRenderGrid();
+}
+function communityRenderGrid() {
+  if (!communityRows.length) return;
+  const width = communityRows[0].length;
+  communityOffset = Math.max(0, Math.min(Math.max(0, width - COMMUNITY_VIEW_COLS), communityOffset));
+  communityOffsetInput.max = String(Math.max(0, width - COMMUNITY_VIEW_COLS)); communityOffsetInput.value = String(communityOffset);
+  communityGrid.replaceChildren();
+  for (let y = 0; y < ROWS; y++) for (let col = 0; col < COMMUNITY_VIEW_COLS; col++) {
+    const x = communityOffset + col, tile = x < width ? communityRows[y][x] : '.';
+    const cell = document.createElement('button'); cell.type = 'button'; cell.className = 'dev-cell';
+    cell.dataset.x = String(x); cell.dataset.y = String(y); cell.dataset.tile = tile;
+    cell.textContent = tile === '.' ? '·' : tile;
+    cell.title = 'Column ' + (x + 1) + ', row ' + (ROWS - y);
+    cell.addEventListener('click', () => {
+      if (x >= communityRows[0].length) return;
+      communityRows[y] = communityRows[y].slice(0, x) + communityTile + communityRows[y].slice(x + 1);
+      communityRenderGrid(); communityStatusText('Unsaved edits. Save before closing to keep them.');
+    });
+    communityGrid.appendChild(cell);
+  }
+}
+for (const [tile, label] of DEV_TILE_TYPES) {
+  const button = document.createElement('button'); button.type = 'button'; button.textContent = tile === '.' ? '·' : tile;
+  button.title = label; button.setAttribute('aria-label', label); button.setAttribute('aria-pressed', String(tile === communityTile));
+  button.addEventListener('click', () => {
+    communityTile = tile; communityTileName.textContent = label;
+    for (const b of communityPalette.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b === button));
+  });
+  communityPalette.appendChild(button);
+}
+function openCommunityEditor() {
+  if (communityPanelOpen || devPanelOpen) return;
+  communityReturnState = state; state = 'pause'; holding = false; jumpPressed = false;
+  communityRenderSelect(); communityLoadDraft();
+  communityPanel.hidden = false; communityPanelOpen = true; communityButton.hidden = true;
+  communityStatusText(COMMUNITY_LEVELS.length ? 'Custom levels are saved only in this browser.' : 'Create your first level with + New.');
+}
+function closeCommunityEditor() {
+  communityPanel.hidden = true; communityPanelOpen = false;
+  communityTestMode = false; communityTestLevel = null;
+  state = communityReturnState === 'play' || communityReturnState === 'dead' ? 'pause' : communityReturnState;
+  if (state === 'pause' && communityReturnState === 'menu') state = 'menu';
+}
+function communityNewLevel() {
+  const name = (prompt('Name your level:', 'My Level') || '').trim().slice(0, 40);
+  if (!name) return;
+  if (COMMUNITY_LEVELS.length >= 50) return communityStatusText('You can save up to 50 custom levels in this browser.');
+  const item = { id: 'custom-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7), name, rows: Array.from({ length: ROWS }, () => '.'.repeat(30)) };
+  COMMUNITY_LEVELS.push(item); communityPersist(); communityRenderSelect(item.id); communityLoadDraft();
+  communityStatusText('Created "' + name + '". Build it, then Save level.');
+}
+function communitySaveLevel() {
+  const item = communityCurrent();
+  if (!item) return communityStatusText('Create a level first.');
+  item.rows = communityRows.map(row => row.slice(0, 2000)); communityPersist();
+  communityStatusText('Saved "' + item.name + '" in this browser. Official levels are untouched.');
+}
+function communityRenameLevel() {
+  const item = communityCurrent(); if (!item) return communityStatusText('Create a level first.');
+  const name = (prompt('Rename your level:', item.name) || '').trim().slice(0, 40);
+  if (!name) return;
+  item.name = name; communityPersist(); communityRenderSelect(item.id);
+  communityStatusText('Renamed level to "' + name + '".');
+}
+function communityDeleteLevel() {
+  const item = communityCurrent(); if (!item) return communityStatusText('There is no custom level to delete.');
+  if (!confirm('Delete "' + item.name + '"? This cannot be undone.')) return;
+  COMMUNITY_LEVELS = COMMUNITY_LEVELS.filter(other => other.id !== item.id);
+  communityPersist(); communityRenderSelect(); communityLoadDraft();
+  communityStatusText('Deleted custom level. Official levels were not changed.');
+}
+function communityTest() {
+  const item = communityCurrent();
+  if (!item) return communityStatusText('Create and save a level first.');
+  communitySaveLevel();
+  communityTestLevel = { id: item.id, name: item.name, rows: communityRows.map(row => row.slice()) };
+  communityTestMode = true;
+  level = buildLevel(communityTestLevel.name, 'Normal', 1, 185, [communityTestLevel.rows]);
+  player = newPlayer(); attempts = 1; particles = []; history = []; visRot = 0; shake = 0; ceilAnim = 0;
+  state = 'play'; stateTime = 0; holding = false; jumpPressed = false; activePointerId = null;
+  playSong(SONGS[selected % SONGS.length]); communityPanel.hidden = true; communityPanelOpen = false; communityButton.hidden = true;
+  say('Testing custom level: ' + communityTestLevel.name);
+}
+function communityExport() {
+  const item = communityCurrent(); if (!item) return communityStatusText('Create a level first.');
+  const payload = JSON.stringify({ format: 'deometry-gash-community-level-v1', name: item.name, rows: communityRows }, null, 2);
+  const blob = new Blob([payload], { type: 'application/json' }), url = URL.createObjectURL(blob);
+  const link = document.createElement('a'); link.href = url; link.download = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json';
+  document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+  communityStatusText('Exported JSON. Share the file to share your layout.');
+}
+communitySelect.addEventListener('change', () => { communityLoadDraft(); communityStatusText('Loaded ' + (communityCurrent()?.name || 'new draft') + '.'); });
+communityOffsetInput.addEventListener('change', () => { communityOffset = Math.max(0, Number.parseInt(communityOffsetInput.value, 10) || 0); communityRenderGrid(); });
+document.getElementById('communityPrev').addEventListener('click', () => { communityOffset = Math.max(0, communityOffset - COMMUNITY_VIEW_COLS); communityRenderGrid(); });
+document.getElementById('communityNext').addEventListener('click', () => { communityOffset += COMMUNITY_VIEW_COLS; communityRenderGrid(); });
+document.getElementById('communityAddColumn').addEventListener('click', () => {
+  if (!communityRows.length || communityRows[0].length >= 2000) return communityStatusText('Maximum level length is 2,000 columns.');
+  communityRows = communityRows.map(row => row + '.'); communityRenderGrid(); communityStatusText('Added a blank column. Save to keep it.');
+});
+document.getElementById('communityRemoveColumn').addEventListener('click', () => {
+  if (!communityRows.length || communityRows[0].length <= 1) return communityStatusText('A level must have at least one column.');
+  communityRows = communityRows.map(row => row.slice(0, -1)); communityRenderGrid(); communityStatusText('Removed the last column. Save to keep it.');
+});
+document.getElementById('communityCreate').addEventListener('click', communityNewLevel);
+document.getElementById('communityRename').addEventListener('click', communityRenameLevel);
+document.getElementById('communityDelete').addEventListener('click', communityDeleteLevel);
+document.getElementById('communitySave').addEventListener('click', communitySaveLevel);
+document.getElementById('communityTest').addEventListener('click', communityTest);
+document.getElementById('communityExport').addEventListener('click', communityExport);
+document.getElementById('communityClose').addEventListener('click', closeCommunityEditor);
+communityButton.addEventListener('click', openCommunityEditor);
+
 // ---- Loop ----
 let last = performance.now(), acc = 0, clock = 0, tween = 1, was = { x: 0, y: 0, rot: 0 };
 function frame(now) {
@@ -3193,6 +3402,7 @@ function frame(now) {
   tickMusic();
   ctx.setTransform(VIEW.k, 0, 0, VIEW.k, VIEW.x * VIEW.k, VIEW.y * VIEW.k);
   cursorHot = false;
+  communityButton.hidden = state !== 'menu' || communityPanelOpen || devPanelOpen;
   const time = clock + acc;
   if (state === 'menu') drawTitle(time);
   else if (state === 'levels') drawLevels(time);
@@ -3216,8 +3426,12 @@ function press() {
 }
 function pauseAction(id) {
   if (id === 'resume') { state = 'play'; sfx('click'); }
-  else if (id === 'restart') startLevel(selected);
-  else go('levels');
+  else if (id === 'restart') {
+    if (communityTestMode && communityTestLevel) {
+      level = buildLevel(communityTestLevel.name, 'Normal', 1, 185, [communityTestLevel.rows]);
+      player = newPlayer(); attempts = 1; particles = []; history = []; visRot = 0; state = 'play'; stateTime = 0; holding = false; jumpPressed = false; playSong(SONGS[selected % SONGS.length]);
+    } else startLevel(selected);
+  } else { communityTestMode = false; communityTestLevel = null; go('levels'); }
 }
 function shopSelect(tab, i) { shopTab = tab; shopPick = Math.max(0, Math.min(ITEMS[KINDS[tab]].length - 1, i)); stageClock = 0; stageParticles = []; }
 function browseShopPage(direction) {
@@ -3229,6 +3443,8 @@ function openShop() { go('shop'); shopSelect(shopTab, shopPick); }
 const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
 addEventListener('keydown', e => {
   audio(); // the first key press is allowed to start the sound
+  if (communityPanelOpen) { if (e.code === 'Escape') { e.preventDefault(); closeCommunityEditor(); } return; }
+  if (devPanelOpen) { if (e.code === 'Escape') { e.preventDefault(); closeDevPanel(); } return; }
   keys = [...keys, e.code].slice(-KONAMI.length);
   if (keys.join() === KONAMI.join()) { unlockSecret('konami'); devArmed = true; typed = ''; }
   if (state === 'pause') {
@@ -3249,6 +3465,7 @@ addEventListener('keydown', e => {
     if (devArmed && state === 'menu' && typed.endsWith('dev')) { devArmed = false; openDevPanel(); return; }
   }
   if (state === 'menu') {
+    if (e.code === 'KeyC') { e.preventDefault(); openCommunityEditor(); return; }
     if (e.code === 'KeyS') return openShop();
     if (e.code === 'KeyO') return go('settings');
   }
