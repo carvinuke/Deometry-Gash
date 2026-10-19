@@ -1592,9 +1592,9 @@ function playEffects(prev) {
     if (p.grounded && Math.random() < 0.6) emit(particles, { x: p.x + 0.2, y: contact, vx: -3 - Math.random() * 2, vy: p.grav * (0.5 + Math.random()), life: 0.3, size: 4, color, shrink: true, add: true });
   }
   emitTrail(particles, p.x + 0.5, p.y + 0.5, skin('trail').name, color);
-  if (p.used.length > prev.used) { const o = level.tiles[p.used[p.used.length - 1]]; burstAt(o.x + 0.5, o.y + 0.5, o.type === 'b' ? '#45edff' : '#ffd400'); sfx('orb'); }
+  if (p.used.length > prev.used) { const o = level.tiles.find(t => t.id === p.used[p.used.length - 1]); burstAt(o.x + 0.5, o.y + 0.5, o.type === 'b' ? '#45edff' : '#ffd400'); sfx('orb'); }
   if ((p.vy === PAD || p.vy === RED_PAD) && prev.vy !== p.vy) { burstAt(p.x + 0.5, p.y + 0.1, p.vy === RED_PAD ? '#ff4545' : '#ffd400'); sfx('pad'); }
-  if (p.coins.length > prev.coins) { const c = level.tiles[p.coins[p.coins.length - 1]]; burstAt(c.x + 0.5, c.y + 0.5, '#ffcc33', 18); sfx('coin'); }
+  if (p.coins.length > prev.coins) { const c = level.tiles.find(t => t.id === p.coins[p.coins.length - 1]); burstAt(c.x + 0.5, c.y + 0.5, '#ffcc33', 18); sfx('coin'); }
   if (p.mode !== prev.mode) { burstAt(p.x + 0.5, p.y + 0.5, MODE_COLOR[p.mode], 16); sfx('portal'); }
 }
 

@@ -147,6 +147,14 @@ for (const r of redPadRunways) {
     throw new Error(`${r.level}: red pad lane needs a playable clearance margin (spikes=${r.count}, min=${minMargin})`);
   }
 }
+// Editor-saved levels give coins ids past the end of the tile list; collecting one used to crash the game loop.
+const lateCoinEffect = await page.evaluate(() => {
+  startLevel(0); level = { ...level, tiles: [...level.tiles, { id: 9999, x: 3, y: 0, type: 'c' }] };
+  const prev = { grounded: player.grounded, vy: player.vy, mode: player.mode, grav: player.grav, used: 0, coins: 0 };
+  player.coins = [9999];
+  try { playEffects(prev); return 'ok'; } catch (e) { return e.message; } finally { state = 'menu'; }
+});
+if (lateCoinEffect !== 'ok') throw new Error('collecting a coin in an editor-saved level crashes: ' + lateCoinEffect);
 const devToolsChecks = await page.evaluate(async () => {
   const name = LEVELS[0].name, base = DEV_BASE_ROWS.get(name).slice();
   const editedRows = base.slice();
