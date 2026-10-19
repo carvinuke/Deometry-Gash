@@ -32,13 +32,14 @@ assert.deepEqual(shapedCubes, ['prism', 'jelly', 'orbit', 'aegis', 'bloom', 'nov
 const exhaustAnchors = await page.evaluate(() => Object.keys(SHIPS).every(look => Array.isArray(EXHAUST[look]) && EXHAUST[look].length === 2));
 assert.equal(exhaustAnchors, true, 'every ship skin has a tailored exhaust anchor');
 const renderers = await page.evaluate(() => ({
-  cube: ITEMS.cube.every(it => typeof LOOKS[it.look] === 'function'),
+  cube: ITEMS.cube.every(it => typeof LOOKS[it.look] === 'function' || KIT[it.look]),
+  kit: Object.keys(KIT).length === 36 && Object.keys(KIT).every(look => ITEMS.cube.some(it => it.look === look && it.base)),
   ship: ITEMS.ship.every(it => typeof SHIPS[it.look] === 'function' && EXHAUST[it.look]),
   ball: ITEMS.ball.every(it => typeof BALLS[it.look] === 'function'),
   wave: ITEMS.wave.every(it => typeof WAVES[it.look] === 'function'),
   added: ['Helix', 'Shard', 'Stinger', 'Lancer', 'Comet', 'Quasar', 'Ion', 'Aurora', 'Prism', 'Rift', 'Meteor'].every(name => KINDS.some(k => ITEMS[k].some(it => it.name === name))),
 }));
-assert.deepEqual(renderers, { cube: true, ship: true, ball: true, wave: true, added: true }, 'every new shop item has a registered visual and stays available to equip');
+assert.deepEqual(renderers, { cube: true, kit: true, ship: true, ball: true, wave: true, added: true }, 'every new shop item has a registered visual and stays available to equip, and every traced icon is a paintable cube');
 const extraIcons = await page.evaluate(() => {
   drawTrailIcon('Aurora', 40, 40); drawTrailIcon('Prism', 80, 40);
   drawDeathIcon('Rift', 120, 40); drawDeathIcon('Meteor', 160, 40);
@@ -123,17 +124,37 @@ await page.evaluate(() => localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 5, 
 await page.reload();
 await page.waitForTimeout(100); // the title screen draws the equipped cube
 const customFixed = await page.evaluate(() => ({ fixed: save.custom, defaults: CUSTOM }));
+// A paintable cube: using it again opens the editor, where a preset and a typed hex code survive a reload.
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+const paintOpened = await page.evaluate(() => {
+  const i = ITEMS.cube.findIndex(it => it.name === 'Squid'); save.owned.push(`cube:${i}`); openShop(); shopSelect(0, i);
+  buyOrEquip('cube', i); const first = state; buyOrEquip('cube', i); return [first, state, editing.name];
+});
+await clickBox(await page.evaluate(() => facePos(PRESETS.findIndex(p => p?.[0] === '#ffd400'))));
+await clickBox(await page.evaluate(() => colorTabPos(1)));
+await page.fill('#customHex', '#F80');
+await page.reload();
+const paintKept = await page.evaluate(() => { const s = skin('cube'); return { name: s.name, body: s.body, inner: s.inner, base: s.base }; });
+// A saved color the game can't draw falls back to the cube's own, and a cube with no detail parts only offers its main color.
+await page.evaluate(() => localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 5, equipped: { cube: ITEMS.cube.findIndex(it => it.name === 'Squid') }, paint: { Squid: { body: 'red', inner: '#00ff00' } } })));
+await page.reload();
+await page.waitForTimeout(100);
+const paintFixed = await page.evaluate(() => { const s = skin('cube'); openEditor(ITEMS.cube.find(it => it.name === 'Spooked')); return { body: s.body, inner: s.inner, spookedTabs: colorTabs() }; });
 await browser.close();
 assert.deepEqual(errors, []);
 assert.equal(customOpened, 'custom', 'using the Custom cube opens its editor');
 assert.deepEqual(customKept, { look: 'custom', face: 'kitty', body: '#2b5bff', inner: '#ff8800' }, 'the Custom cube keeps the face and colors picked for it');
 assert.deepEqual(customFixed.fixed, customFixed.defaults, 'a Custom cube the game cannot draw falls back to the default look');
+assert.deepEqual(paintOpened, ['shop', 'custom', 'Squid'], 'buying a paintable cube equips it, and using it again opens its colors');
+assert.deepEqual(paintKept, { name: 'Squid', body: '#ffd400', inner: '#ff8800', base: { body: '#ff4fa8', inner: '#ffffff' } }, 'a paintable cube keeps the preset and hex code picked for it');
+assert.deepEqual(paintFixed, { body: '#ff4fa8', inner: '#00ff00', spookedTabs: ['body'] }, 'a bad saved color falls back to the cube\'s own, and Spooked only has a main color');
 assert.deepEqual(keptV4, { version: 5, rolling: [0, 2], flutter: [0, 2], names: ['Rolling Thunder', 'Flutterclunk'] }, 'version 4 coins map to their place among the level coins');
 assert.deepEqual(after.secrets, ['close', 'code', 'deaths', 'jumps', 'konami', 'title']);
 assert.deepEqual(after.locked, [], 'everything is unlockable');
-assert.equal(after.stars, 46, 'the new levels, Flutterclunk included, add 37 spendable stars after shop purchases');
-assert.equal(after.coins, 15, 'the new levels, Flutterclunk included, add 11 spendable coins after shop purchases');
-assert.equal(after.saved, 36, 'purchases persist');
+assert.equal(after.stars, 0, 'the icon-kit cubes cost exactly the stars the levels give beyond the other items');
+assert.equal(after.coins, 0, 'and exactly the leftover coins');
+assert.equal(after.saved, 57, 'purchases persist');
 assert.equal(kept.version, 5, 'old saves migrate to the reordered level list');
 assert.deepEqual([kept.firstStepsBest, kept.skyRushBest], [100, 75], 'legacy completion percentages stay with their levels');
 assert.deepEqual(kept.sky, kept.skyIds, 'old saves keep their Sky Rush coins');
