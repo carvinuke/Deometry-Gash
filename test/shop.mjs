@@ -103,17 +103,22 @@ const keptV3 = await page.evaluate(() => ({
   skyCoins: save.coins[LEVELS.findIndex(l => l.name === 'Sky Rush')],
   gauntletCoins: save.coins[LEVELS.findIndex(l => l.name === 'Gash Gauntlet')],
 }));
+// A version 4 save stored coins by tile id; coins are now numbered among themselves so level edits can't move them.
+await page.evaluate(() => localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 4, best: {}, coins: { 3: [10, 199], 13: [195, 237] } })));
+await page.reload();
+const keptV4 = await page.evaluate(() => ({ version: save.v, rolling: save.coins[3], flutter: save.coins[13], names: [LEVELS[3].name, LEVELS[13].name] }));
 await browser.close();
 assert.deepEqual(errors, []);
+assert.deepEqual(keptV4, { version: 5, rolling: [0, 2], flutter: [0, 2], names: ['Rolling Thunder', 'Flutterclunk'] }, 'version 4 coins map to their place among the level coins');
 assert.deepEqual(after.secrets, ['close', 'code', 'deaths', 'jumps', 'konami', 'title']);
 assert.deepEqual(after.locked, [], 'everything is unlockable');
 assert.equal(after.stars, 46, 'the new levels, Flutterclunk included, add 37 spendable stars after shop purchases');
 assert.equal(after.coins, 15, 'the new levels, Flutterclunk included, add 11 spendable coins after shop purchases');
 assert.equal(after.saved, 36, 'purchases persist');
-assert.equal(kept.version, 4, 'old saves migrate to the reordered level list');
+assert.equal(kept.version, 5, 'old saves migrate to the reordered level list');
 assert.deepEqual([kept.firstStepsBest, kept.skyRushBest], [100, 75], 'legacy completion percentages stay with their levels');
 assert.deepEqual(kept.sky, kept.skyIds, 'old saves keep their Sky Rush coins');
 assert.deepEqual(kept.gash, [kept.gashId], 'old saves keep their Gash Gauntlet coin');
-assert.deepEqual(keptV2, { version: 4, firstStepsBest: 100, skyRushBest: 75, skyCoins: [29], gauntletCoins: [28] }, 'version 2 progress migrates to the new order');
-assert.deepEqual(keptV3, { version: 4, skyRushBest: 75, demonBest: 100, skyCoins: [29], gauntletCoins: [28] }, 'version 3 progress migrates to the added levels');
+assert.deepEqual(keptV2, { version: 5, firstStepsBest: 100, skyRushBest: 75, skyCoins: [0], gauntletCoins: [1] }, 'version 2 progress migrates to the new order');
+assert.deepEqual(keptV3, { version: 5, skyRushBest: 75, demonBest: 100, skyCoins: [0], gauntletCoins: [1] }, 'version 3 progress migrates to the added levels');
 console.log('OK');
