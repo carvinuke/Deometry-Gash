@@ -72,8 +72,6 @@
   #communityPanel .editor-categories button[aria-pressed="true"] { background: #14575d; border-color: #5ffff0; }
   #devPanel .dev-palette, #communityPanel .dev-palette { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border-radius: 8px; background: #080812; }
   #devPanel .dev-palette button, #communityPanel .dev-palette button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 64px; height: 58px; padding: 5px; font-size: 11px; font-weight: 800; }
-  #devPanel .dev-palette button .tile-icon, #communityPanel .dev-palette button .tile-icon { font-size: 21px; line-height: 1; }
-  #devPanel .dev-palette button[data-tile="#"], #communityPanel .dev-palette button[data-tile="#"] { background: #39364c; }
   #devPanel .dev-palette button[data-tile="^"], #devPanel .dev-palette button[data-tile="G"], #devPanel .dev-palette button[data-tile="v"], #devPanel .dev-palette button[data-tile="h"], #devPanel .dev-palette button[data-tile="F"], #devPanel .dev-palette button[data-tile="s"], #communityPanel .dev-palette button[data-tile="^"], #communityPanel .dev-palette button[data-tile="G"], #communityPanel .dev-palette button[data-tile="v"], #communityPanel .dev-palette button[data-tile="h"], #communityPanel .dev-palette button[data-tile="F"], #communityPanel .dev-palette button[data-tile="s"] { color: #ff8c9e; }
   @media (max-width: 500px) { #devPanel .editor-modes button, #communityPanel .editor-modes button { min-width: 0; flex: 1; } #devPanel .dev-palette button, #communityPanel .dev-palette button { min-width: 56px; } }
   @media (max-width: 500px) { #devPanel { font-size: 12px; padding: 9px; } #devPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #devPanel .dev-cell { width: 25px; height: 27px; } #communityPanel { font-size: 12px; padding: 9px; } #communityPanel .dev-grid { grid-template-columns: repeat(20, 25px); } #communityPanel .dev-cell { width: 25px; height: 27px; } }
@@ -130,9 +128,7 @@
   #devPanel .editor-categories button[aria-pressed="true"] { background: linear-gradient(#3ec2d2,#176f94); border-color: #8bedff; box-shadow: 0 0 0 1px #59dbe466; }
   #devPanel .dev-palette { display: grid; grid-template-columns: repeat(auto-fit, minmax(63px,1fr)); align-content: start; gap: 5px; overflow: auto; max-height: none; margin: 0; padding: 4px; border-radius: 8px; background: #09172d99; }
   #devPanel .dev-palette button { min-width: 0; height: 54px; padding: 4px 3px; border: 1px solid #6d91bd; border-radius: 8px; background: linear-gradient(#314f78,#1a3153); color: #f0f6ff; font-size: 9px; font-weight: 800; box-shadow: inset 0 1px #ffffff35; }
-  #devPanel .dev-palette button .tile-icon { font-size: 20px; filter: drop-shadow(0 1px #06142d); }
   #devPanel .dev-palette button[aria-pressed="true"] { background: linear-gradient(#85e75b,#3ba942); color: #102a13; border-color: #dcffb8; box-shadow: 0 0 0 2px #f8fff1, inset 0 2px #fff9; }
-  #devPanel .dev-palette button[data-tile="#"] { background: linear-gradient(#758ba5,#364d6c); }
   #devPanel .dev-palette button[data-tile="^"], #devPanel .dev-palette button[data-tile="G"], #devPanel .dev-palette button[data-tile="v"], #devPanel .dev-palette button[data-tile="h"], #devPanel .dev-palette button[data-tile="F"], #devPanel .dev-palette button[data-tile="s"] { color: #ffd0da; }
   #devPanel .editor-tools-panel { display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
   #devPanel .editor-tools-heading { min-height: 18px; }
@@ -176,7 +172,6 @@
     #devPanel .editor-categories button { padding: 4px; font-size: 9px; }
     #devPanel .dev-palette { grid-template-columns: repeat(auto-fit,minmax(48px,1fr)); gap: 3px; padding: 2px; }
     #devPanel .dev-palette button { height: 47px; font-size: 8px; }
-    #devPanel .dev-palette button .tile-icon { font-size: 17px; }
     #devPanel .editor-tools-panel { grid-column: 1 / -1; grid-row: 2; gap: 2px; }
     #devPanel .editor-tools-heading { display: none; }
     #devPanel .editor-tools-grid { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 3px; }
@@ -208,7 +203,6 @@
   #devPanel .editor-categories button { padding: 6px 10px; font-size: 11px; }
   #devPanel .dev-palette { grid-template-columns: repeat(auto-fit,minmax(82px,1fr)); gap: 7px; padding: 6px; }
   #devPanel .dev-palette button { height: 78px; padding: 6px; border-radius: 9px; font-size: 12px; }
-  #devPanel .dev-palette button .tile-icon { font-size: 30px; }
   #devPanel .editor-tools-grid { gap: 6px; }
   #devPanel .editor-tools-grid button, #devPanel .editor-tools-grid .editor-toggle { min-height: 32px; font-size: 11px; }
   #devPanel .editor-tools-grid #devAllSkins { grid-column: 1 / -1; }
@@ -232,7 +226,6 @@
     #devPanel .editor-library-heading { min-height: 40px; }
     #devPanel .dev-palette { grid-template-columns: repeat(auto-fit,minmax(48px,1fr)); gap: 3px; }
     #devPanel .dev-palette button { height: 48px; font-size: 9px; }
-    #devPanel .dev-palette button .tile-icon { font-size: 21px; }
     #devPanel .editor-tools-panel { grid-column: 1 / -1; grid-row: 2; gap: 2px; }
     #devPanel .editor-tools-heading { display: none; }
     #devPanel .editor-tools-grid { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 3px; }
@@ -247,6 +240,44 @@
     #devPanel .editor-tools-grid button, #devPanel .editor-tools-grid .editor-toggle { min-height: 27px; }
   }
 
+  /* Level editor refresh: game-sprite thumbnails, and on phones a two-row header over a stacked dock. */
+  #devPanel .tile-thumb, #communityPanel .tile-thumb { display: block; flex: none; width: 34px; height: 34px; }
+  #devPanel .dev-palette button .tile-thumb, #communityPanel .dev-palette button .tile-thumb { width: 42px; height: 42px; filter: drop-shadow(0 2px 2px #03091a99); }
+  #devPanel .dev-palette { grid-template-columns: repeat(auto-fill,minmax(82px,1fr)); }
+  #devPanel .dev-palette button { gap: 4px; }
+  #devPanel .dev-palette button[aria-pressed="true"] { background: linear-gradient(#2c6b49,#173a2b); color: #eaffdf; border-color: #9dff76; box-shadow: 0 0 0 2px #9dff76, inset 0 0 14px #9dff7655; }
+  #devPanel .editor-selection { display: grid; grid-template-columns: 34px minmax(0,1fr); column-gap: 8px; align-items: center; }
+  #devPanel .editor-selection .tile-thumb { grid-row: 1 / span 2; padding: 2px; border: 1px solid #6d91bd; border-radius: 8px; background: #09172d; }
+  @media (max-height: 620px) and (min-width: 651px) {
+    #devPanel .dev-palette button .tile-thumb { width: 30px; height: 30px; }
+  }
+  @media (max-width: 650px) {
+    #devPanel { grid-template-rows: minmax(0,1fr) auto 23px; }
+    #devPanel .editor-topbar { grid-template-columns: 34px minmax(0,1fr) auto; row-gap: 6px; padding: 6px 8px 7px; }
+    #devPanel .editor-column-picker { grid-column: 1 / -1; grid-row: 2; }
+    #devPanel .editor-header-tools { gap: 4px; }
+    #devPanel .editor-header-tools button { min-height: 30px; padding: 4px 7px; font-size: 10px; }
+    #devPanel .editor-header-tools .editor-icon-action { width: 30px; font-size: 17px; }
+    #devPanel .editor-dock { grid-template-columns: minmax(0,1fr); grid-template-rows: none; gap: 8px; padding: 7px 8px 8px; }
+    #devPanel .editor-mode-rail { grid-column: 1; grid-row: auto; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px 8px; align-items: center; }
+    #devPanel .editor-modes { grid-column: 1 / -1; grid-template-rows: none; grid-template-columns: repeat(3,minmax(0,1fr)); min-height: 0; }
+    #devPanel .editor-modes button { min-height: 34px; font-size: 13px; }
+    #devPanel .editor-selection { font-size: 9px; }
+    #devPanel .editor-selection-actions button { padding: 7px 12px; font-size: 11px; }
+    #devPanel .editor-library { grid-column: 1; grid-row: auto; padding: 0; border: 0; }
+    #devPanel .editor-library-heading { flex-direction: row; min-height: 0; margin-bottom: 5px; }
+    #devPanel .editor-categories { width: 100%; }
+    #devPanel .editor-categories button { flex: 1; padding: 7px 4px; font-size: 11px; }
+    #devPanel .dev-palette { grid-template-columns: repeat(5,minmax(0,1fr)); grid-auto-rows: 58px; height: 131px; gap: 5px; padding: 5px; }
+    #devPanel .dev-palette button { height: auto; font-size: 9px; }
+    #devPanel .dev-palette button .tile-thumb { width: 30px; height: 30px; }
+    #devPanel .editor-tools-panel { grid-column: 1; grid-row: auto; }
+    #devPanel .editor-tools-grid { gap: 4px; }
+    #devPanel .editor-tools-grid button, #devPanel .editor-tools-grid .editor-toggle { min-height: 30px; font-size: 9.5px; }
+  }
+  @media (max-width: 650px) and (max-height: 760px) { /* short phones: one row of objects that scrolls sideways */
+    #devPanel .dev-palette { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 62px; height: 68px; overflow-x: auto; }
+  }
 </style>
 </head>
 <body>
@@ -276,7 +307,7 @@
   <footer class="editor-dock">
     <section class="editor-mode-rail" aria-label="Editing tools">
       <div id="devModes" class="editor-modes" aria-label="Editor mode"></div>
-      <div class="editor-selection"><span>SELECTED OBJECT</span><strong id="devTileName">Block</strong></div>
+      <div class="editor-selection"><canvas id="devTileThumb" class="tile-thumb" width="84" height="84" aria-hidden="true"></canvas><span>SELECTED OBJECT</span><strong id="devTileName">Block</strong></div>
       <div class="editor-selection-actions">
         <button id="devDeselect" type="button" title="Clear selection">Deselect</button>
         <button id="devDeleteSelected" class="editor-delete-selected" type="button" title="Delete selected object">Delete</button>
@@ -327,7 +358,7 @@
 </section>
 <script>
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d'); // every draw helper paints through ctx; the level editor points it at its own canvas while it draws
 const W = 960, H = 480;       // layout units: menus fit inside this box, and the world extends past it to fill the screen
 let VIEW;                     // CSS pixels per unit (s), backing pixels per unit (k), and how far the screen reaches past the box on each side (x, y)
 function fit() {
@@ -1195,7 +1226,7 @@ function applyLevelOverrides(overrides) {
     const width = Math.max(1, Math.min(2000, Math.max(...sourceRows.map(row => String(row ?? '').length))));
     const rows = Array.from({ length: ROWS }, (_, y) => String(sourceRows[y] ?? '').slice(0, width).padEnd(width, '.'));
     const fresh = buildLevel(old.name, old.difficulty, old.stars, old.hue, [rows]);
-    for(const t of fresh.tiles)t.rotation=devRotationAt(old.name,t.x,t.y);
+    for(const t of fresh.tiles)t.rotation=devRotationAt(old.name,t.x,ROWS-1-t.y); // the editor keys rotations by row from the top
     const oldCoins = new Map(old.tiles.filter(t => t.type === 'c').map(t => [t.x + ',' + t.y, t.id]));
     let nextCoinId = Math.max(-1, ...old.tiles.map(t => t.id)) + 1;
     for (const t of fresh.tiles) if (t.type === 'c') {
@@ -3286,7 +3317,7 @@ function chainLinkSprite(hue, sideways) {
   CHAIN_LINK_SPRITES.set(key, sprite); return sprite;
 }
 
-function drawSpike(x, y, down, hue, fill) {
+function drawSpike(x, y, down, hue) {
   ctx.drawImage(spikeSprite(hue, down), x, y);
 }
 
@@ -3537,6 +3568,32 @@ function drawFinish(fx) {
   }
 }
 
+// Draws one level object with its tile's top-left at (x, y); sy maps a row to the screen. `at` is the player's x, which moves
+// the falling spike, moving saw and rising spike; the editor passes null to show them at rest. A portal draws its back half here.
+function drawTile(t, x, y, sy, hue, time, at, used = false, coin = false) {
+  switch (t.type) {
+    case '^': drawSpike(x, y, false, hue); break;
+    case 'v':
+      if (t.chainTop) drawChain(x + T / 2, sy(ROWS), y + 3, hue);
+      drawSpike(x, y, true, hue); break;
+    case 'h': drawHangingBar(x, y, sy(ROWS), hue); break;
+    case 'F': drawFallingSpike(x, sy((at === null ? t.y : fallingSpikeY(t, at)) + 1), sy(ROWS), hue); break;
+    case 'G': drawGiantSpike(x, y, hue); break;
+    case 's': drawSaw(x, y, time, hue); break;
+    case 'm': drawSawTrack(x, sy(t.y + 2.5), sy(t.y - 0.5), hue); drawSaw(x, sy((at === null ? t.y : sawBobY(t, at)) + 1), time, hue); break;
+    case 'R': drawRisingSpike(x, y, at === null ? 1 : spikeRise(t, at), hue); break;
+    case 'i': drawSignalPole(x, y, time, hue); break;
+    case 'p': case 'r': drawPad(x, y, time, t.type === 'r'); break;
+    case 'o': case 'b': case 'q': case 'g': drawOrb(x, y, used, time, t.type); break;
+    case 'c': if (coin) drawCoin(x, y, coin === 'old', time); break;
+    default: if (t.tall) drawPortal(t, x, y, false, time);
+  }
+}
+function drawPortalFront(t, x, y, time) {
+  drawPortal(t, x, y, true, time);
+  if (PORTAL_GLYPH[t.type]) ui(PORTAL_GLYPH[t.type], x + T / 2, y + t.tall * T / 2 + 7, 22, '#fff');
+}
+
 function drawWorld(time) {
   // Physics takes 60 steps a second; drawing the player part way to its next spot keeps motion smooth at any refresh rate.
   const blend = Math.abs(player.x - was.x) < 1 && was.mode === player.mode ? tween : 1; // not across a respawn or a portal
@@ -3561,29 +3618,14 @@ function drawWorld(time) {
   for (let x = fromTile; x < toTile; x++) vis.push(...(level.columns?.get(x) || []));
   vis.sort((a, b) => a.id - b.id);
   drawBlocks(vis.filter(t => t.type === '#'), sx, sy, hue, level.name === 'Flutterclunk');
-  const spikeFill = vgrad(0, T, `hsl(${hue},45%,22%)`, '#050508');
   const portals = [];
   for (const t of vis) {
     const x = sx(t.x), y = sy(t.y + 1);
     ctx.save();if(t.rotation){ctx.translate(x+T/2,y+T/2);ctx.rotate(t.rotation*Math.PI/180);ctx.translate(-(x+T/2),-(y+T/2));}
-    switch (t.type) {
-      case '^': drawSpike(x, y, false, hue, spikeFill); break;
-      case 'v':
-        if (t.chainTop) drawChain(x + T / 2, sy(ROWS), y + 3, hue);
-        drawSpike(x, y, true, hue, spikeFill); break;
-      case 'h': drawHangingBar(x, y, sy(ROWS), hue); break;
-      case 'F': drawFallingSpike(x, sy(fallingSpikeY(t, me.x) + 1), sy(ROWS), hue); break;
-      case 'G': drawGiantSpike(x, y, hue); break;
-      case 's': drawSaw(x, y, time, hue); break;
-      case 'm': drawSawTrack(x, sy(t.y + 2.5), sy(t.y - 0.5), hue); drawSaw(x, sy(sawBobY(t, me.x) + 1), time, hue); break;
-      case 'R': drawRisingSpike(x, y, spikeRise(t, me.x), hue); break;
-      case 'i': drawSignalPole(x, y, time, hue); break;
-      case 'p': case 'r': drawPad(x, y, time, t.type === 'r'); break;
-      case 'o': case 'b': case 'q': case 'g': drawOrb(x, y, player.used.includes(t.id), time, t.type); break;
-      case 'c': if (!player.coins.includes(t.id)) drawCoin(x, y, (save.coins[selected] || []).includes(t.id), time); break;
-      case 'S': case 'C': case 'B': case 'W': case 'U': case 'N': case 'M': case 'Z': case 'X': case 'Y': if (t.tall) { drawPortal(t, x, y, false, time); portals.push([t, x, y]); } break;
-    }
+    const coin = t.type === 'c' && !player.coins.includes(t.id) && ((save.coins[selected] || []).includes(t.id) ? 'old' : 'new');
+    drawTile(t, x, y, sy, hue, time, me.x, player.used.includes(t.id), coin);
     ctx.restore();
+    if (t.tall) portals.push([t, x, y]);
   }
   if (state !== 'dead') {
     const size = q => q.mini ? T * MINI : T, cx = q => sx(q.x) + size(q) / 2, cy = q => sy(q.y) - size(q) / 2, trail = [...history.slice(0, -1), me];
@@ -3595,10 +3637,7 @@ function drawWorld(time) {
     ICON[me.mode](cx(me), cy(me), me.rot, skin(me.mode), size(me));
     ctx.restore();
   }
-  for (const [t, x, y] of portals) {
-    drawPortal(t, x, y, true, time);
-    if (PORTAL_GLYPH[t.type]) ui(PORTAL_GLYPH[t.type], x + T / 2, y + t.tall * T / 2 + 7, 22, '#fff');
-  }
+  for (const [t, x, y] of portals) drawPortalFront(t, x, y, time);
   if (state !== 'win') worldParticles();
   ctx.restore();
 
@@ -4023,33 +4062,61 @@ const devVisualCanvas=document.getElementById('devVisualCanvas');
 let devSelectedCell=null;
 const devPalette = document.getElementById('devPalette');
 const devTileName = document.getElementById('devTileName');
+const devTileThumb = document.getElementById('devTileThumb');
 const devStatus = document.getElementById('devStatus');
 const DEV_VIEW_COLS = 20;
-const DEV_TILE_TYPES = [
-  ['.', 'Empty'], ['#', 'Block'], ['^', 'Small spike'], ['G', 'Giant spike'],
-  ['v', 'Hanging spike'], ['h', 'Spike bar'], ['F', 'Falling spike'], ['s', 'Saw'],
-  ['i', 'Pole light'], ['p', 'Jump pad'], ['r', 'Red pad'], ['o', 'Jump orb'],
-  ['b', 'Boost orb'], ['q', 'Pink orb'], ['g', 'Gravity orb'], ['U', 'Gravity flip'], ['N', 'Gravity normal'], ['M', 'Mini portal'], ['Z', 'Big portal'], ['X', 'Mirror portal'], ['Y', 'Unmirror portal'], ['m', 'Moving saw'], ['R', 'Rising spike'], ['c', 'Coin'], ['S', 'Ship portal'], ['C', 'Cube portal'],
-  ['B', 'Ball portal'], ['W', 'Wave portal']
+const DEV_TILE_TYPES = [ // [tile, label, category], in palette order
+  ['.', 'Empty', 'Blocks'], ['#', 'Block', 'Blocks'], ['i', 'Pole light', 'Blocks'],
+  ['^', 'Small spike', 'Hazards'], ['G', 'Giant spike', 'Hazards'], ['R', 'Rising spike', 'Hazards'], ['v', 'Hanging spike', 'Hazards'],
+  ['h', 'Spike bar', 'Hazards'], ['F', 'Falling spike', 'Hazards'], ['s', 'Saw', 'Hazards'], ['m', 'Moving saw', 'Hazards'],
+  ['p', 'Jump pad', 'Items'], ['r', 'Red pad', 'Items'], ['o', 'Jump orb', 'Items'], ['q', 'Pink orb', 'Items'],
+  ['b', 'Boost orb', 'Items'], ['g', 'Gravity orb', 'Items'], ['c', 'Coin', 'Items'],
+  ['C', 'Cube portal', 'Portals'], ['S', 'Ship portal', 'Portals'], ['B', 'Ball portal', 'Portals'], ['W', 'Wave portal', 'Portals'],
+  ['U', 'Gravity flip', 'Portals'], ['N', 'Gravity normal', 'Portals'], ['M', 'Mini portal', 'Portals'], ['Z', 'Big portal', 'Portals'],
+  ['X', 'Mirror portal', 'Portals'], ['Y', 'Unmirror portal', 'Portals'],
 ];
-const TILE_INFO = {
-  '.': ['Empty', '·', 'Blocks'], '#': ['Block', '▦', 'Blocks'],
-  '^': ['Small spike', '▲', 'Hazards'], 'G': ['Giant spike', '⏶', 'Hazards'],
-  'v': ['Hanging spike', '▼', 'Hazards'], 'h': ['Spike bar', '╱', 'Hazards'],
-  'F': ['Falling spike', '⤓', 'Hazards'], 's': ['Saw', '⚙', 'Hazards'],
-  'i': ['Pole light', '╂', 'Items'], 'p': ['Jump pad', '⬆', 'Items'],
-  'r': ['Red pad', '⬆', 'Items'], 'o': ['Jump orb', '●', 'Items'],
-  'b': ['Boost orb', '✦', 'Items'], 'q': ['Pink orb', '•', 'Items'], 'g': ['Gravity orb', '⇅', 'Items'],
-  'U': ['Gravity flip', '▲', 'Portals'], 'N': ['Gravity normal', '▼', 'Portals'], 'M': ['Mini portal', '▪', 'Portals'], 'Z': ['Big portal', '■', 'Portals'], 'X': ['Mirror portal', '⇄', 'Portals'], 'Y': ['Unmirror portal', '⇆', 'Portals'], 'c': ['Coin', '◉', 'Items'],
-  'm': ['Moving saw', '⚙', 'Hazards'], 'R': ['Rising spike', '⇡', 'Hazards'],
-  'S': ['Ship portal', '🚀', 'Portals'], 'C': ['Cube portal', '◇', 'Portals'],
-  'B': ['Ball portal', '◈', 'Portals'], 'W': ['Wave portal', '〰', 'Portals']
-};
+const TILE_INFO = Object.fromEntries(DEV_TILE_TYPES.map(([tile, ...info]) => [tile, info]));
 const TILE_CATEGORIES = ['Blocks', 'Hazards', 'Items', 'Portals'];
 function tileLabel(tile) { return TILE_INFO[tile]?.[0] || 'Unknown'; }
-function tileIcon(tile) { return TILE_INFO[tile]?.[1] || tile; }
-function tileCategory(tile) { return TILE_INFO[tile]?.[2] || 'Blocks'; }
-function buildTilePalette(categoryEl, paletteEl, initialTile, onSelect) {
+function tileCategory(tile) { return TILE_INFO[tile]?.[1] || 'Blocks'; }
+// The editors draw with the game's own sprite code: ctx points at the editor's canvas while `draw` runs.
+function withCtx(g, draw) { const prev = ctx; ctx = g; try { draw(); } finally { ctx = prev; } }
+// One tile as the level builder sees it (block edges, portal height), for drawing outside a level.
+function loneTile(tile, tall = 1) { return buildLevel('', '', 0, 0, [seg(...Array(tall).fill(tile))]).tiles.find(t => t.tall || !(tile in PORTAL_COLOR)); }
+// Draws tiles at rest in world units. `hints` adds what the scene can't show still: where a falling spike lands,
+// and a faded rising spike, since it hides until the player is near.
+function drawEditorTiles(tiles, sx, sy, look, hints = false, rotationOf = () => 0) {
+  const hue = look.hue ?? 220, portals = [];
+  drawBlocks(tiles.filter(t => t.type === '#'), sx, sy, hue, look.industrial);
+  for (const t of tiles) {
+    const x = sx(t.x), y = sy(t.y + 1), r = rotationOf(t);
+    ctx.save();
+    if (hints && t.type === 'F' && t.y > 0) {
+      ctx.setLineDash([5, 7]); ctx.strokeStyle = 'rgba(255,120,95,0.8)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(x + T / 2, sy(t.y) + 2); ctx.lineTo(x + T / 2, GROUND - 3); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(x + T / 2 - 7, GROUND - 11); ctx.lineTo(x + T / 2, GROUND - 3); ctx.lineTo(x + T / 2 + 7, GROUND - 11); ctx.stroke();
+    }
+    if (r) { ctx.translate(x + T / 2, y + T / 2); ctx.rotate(r * Math.PI / 180); ctx.translate(-(x + T / 2), -(y + T / 2)); }
+    if (hints && t.type === 'R') ctx.globalAlpha *= 0.6;
+    drawTile(t, x, y, sy, hue, 0, null, false, 'new');
+    ctx.restore();
+    if (t.tall) portals.push([t, x, y]);
+  }
+  for (const [t, x, y] of portals) drawPortalFront(t, x, y, 0);
+}
+// Paints a palette thumbnail: the tile zoomed out so tall portals and giant spikes fit.
+function drawTileThumb(canvas, tile, look = {}) {
+  const g = canvas.getContext('2d'), c = canvas.width;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c, c);
+  if (tile === '.') { // an empty cell
+    g.setLineDash([c / 10, c / 14]); g.strokeStyle = 'rgba(220,235,255,0.75)'; g.lineWidth = c / 22;
+    g.strokeRect(c * 0.24, c * 0.24, c * 0.52, c * 0.52); g.setLineDash([]); return;
+  }
+  const tall = tile in PORTAL_COLOR ? 2 : 1, zoom = tall > 1 ? 2.6 : tile === 'G' ? 1.8 : tile === 'm' ? 2.2 : 1.35, s = c / (T * zoom);
+  g.setTransform(s, 0, 0, s, c / 2 - s * T / 2, c / 2 - s * (GROUND - tall * T / 2 - (tile === 'G' ? 6 : 0)));
+  withCtx(g, () => drawEditorTiles([loneTile(tile, tall)], x => x * T, y => GROUND - y * T, look, true));
+}
+function buildTilePalette(categoryEl, paletteEl, initialTile, onSelect, getLook = () => ({})) {
   let activeCategory = tileCategory(initialTile);
   function render() {
     categoryEl.replaceChildren();
@@ -4060,13 +4127,15 @@ function buildTilePalette(categoryEl, paletteEl, initialTile, onSelect) {
       categoryEl.appendChild(button);
     }
     paletteEl.replaceChildren();
-    for (const [tile] of DEV_TILE_TYPES.filter(([tile]) => tileCategory(tile) === activeCategory)) {
-      const label = tileLabel(tile), button = document.createElement('button');
+    const look = getLook();
+    for (const [tile, label] of DEV_TILE_TYPES.filter(([tile]) => tileCategory(tile) === activeCategory)) {
+      const button = document.createElement('button');
       button.type = 'button'; button.dataset.tile = tile; button.title = label;
       button.setAttribute('aria-label', label); button.setAttribute('aria-pressed', String(tile === getSelected()));
-      const icon = document.createElement('span'); icon.className = 'tile-icon'; icon.textContent = tileIcon(tile);
+      const thumb = document.createElement('canvas'); thumb.className = 'tile-thumb'; thumb.width = thumb.height = 84;
+      drawTileThumb(thumb, tile, look);
       const caption = document.createElement('span'); caption.textContent = label;
-      button.append(icon, caption);
+      button.append(thumb, caption);
       button.addEventListener('click', () => { onSelect(tile, label); render(); });
       paletteEl.appendChild(button);
     }
@@ -4124,8 +4193,8 @@ function devRedo(){
 function devAfterVisualChange(message){devRenderGrid();if(message)devStatusText(message+' Unsaved edits in '+devCurrentLevel().name+'. Press Save level to keep them.');}
 wireVisualEditor(devVisualCanvas,()=>devRows,()=>devOffset,v=>{devOffset=v;},()=>devMode,()=>devTile,()=>devSelectedCell,v=>{devSelectedCell=v;},devAfterVisualChange);
 const devTilePalette = buildTilePalette(document.getElementById('devCategories'), devPalette, devTile, (tile, label) => {
-  devTile = tile; devTileName.textContent = label;
-});
+  devTile = tile; devTileName.textContent = label; drawTileThumb(devTileThumb, tile, devLook());
+}, devLook);
 devTilePalette.setGetter(() => devTile);
 wireEditorModes(document.getElementById('devModes'), () => devMode, mode => { devMode = mode; });
 document.getElementById('devUndo').addEventListener('click',devUndo);
@@ -4138,7 +4207,7 @@ document.getElementById('devSetStart').addEventListener('click',()=>{devPlacingS
 document.getElementById('devClearStart').addEventListener('click',()=>{devTestStart=null;devPlacingStart=false;document.getElementById('devSetStart').setAttribute('aria-pressed','false');devRenderGrid();devStatusText('Temporary test start cleared.');});
 document.getElementById('devTestStart').addEventListener('click',devTestFromStart);
 function devRotateSelected(d){const p=devSelectedCell;if(!p||!devRows[p.y]||devRows[p.y][p.x]==='.')return devStatusText('Select an object in Edit mode first.');const n=devCurrentLevel().name;devSetRotation(n,p.x,p.y,devRotationAt(n,p.x,p.y)+d);devRenderGrid();devStatusText('Rotated object. Save level to keep it.');}
-function devTestFromStart(){if(!devTestStart)return devStatusText('Place a temporary test start in the scene first.');const m=devCurrentLevel(),rows=devRows.map(r=>r.slice()),start={...devTestStart};level=buildLevel(m.name+' (test)',m.difficulty,m.stars,m.hue,[rows]);for(const t of level.tiles)t.rotation=devRotationAt(m.name,t.x,t.y);player=newPlayer();player.x=start.x;player.y=Math.max(0,ROWS-1-start.y);player.grounded=player.y===0;attempts=1;particles=[];history=[];visRot=0;shake=0;ceilAnim=0;mirrorAnim=1;was={x:player.x,y:player.y,rot:0};devTestMode=true;devTestStartSnapshot={meta:{...m},rows,start};state='play';stateTime=0;holding=false;jumpPressed=false;activePointerId=null;playSong(SONGS[selected%SONGS.length]);devPanel.hidden=true;devPanelOpen=false;}
+function devTestFromStart(){if(!devTestStart)return devStatusText('Place a temporary test start in the scene first.');const m=devCurrentLevel(),rows=devRows.map(r=>r.slice()),start={...devTestStart};level=buildLevel(m.name+' (test)',m.difficulty,m.stars,m.hue,[rows]);for(const t of level.tiles)t.rotation=devRotationAt(m.name,t.x,ROWS-1-t.y);player=newPlayer();player.x=start.x;player.y=Math.max(0,ROWS-1-start.y);player.grounded=player.y===0;attempts=1;particles=[];history=[];visRot=0;shake=0;ceilAnim=0;mirrorAnim=1;was={x:player.x,y:player.y,rot:0};devTestMode=true;devTestStartSnapshot={meta:{...m},rows,start};state='play';stateTime=0;holding=false;jumpPressed=false;activePointerId=null;playSong(SONGS[selected%SONGS.length]);devPanel.hidden=true;devPanelOpen=false;}
 function devCurrentLevel() { return LEVELS.find(lvl => lvl.name === devLevelSelect.value) || LEVELS[0]; }
 function devStatusText(message) { devStatus.textContent = message; }
 function devPersistOverrides() {
@@ -4149,70 +4218,108 @@ function devLoadDraft() {
   devRows = levelToRows(devCurrentLevel());
   devOffset = 0; devOffsetInput.value = '0';
   devUndoStack=[];devRedoStack=[];devHistoryBaseline=devHistorySnapshot();devUpdateHistoryButtons();
+  devTilePalette.render(); drawTileThumb(devTileThumb, devTile, devLook()); // thumbnails take the level's colors
   devRenderGrid();
 }
 function editorSceneMetrics(canvas) {
-  const width=canvas.clientWidth||800,height=canvas.clientHeight||360;
-  const cell=Math.max(20,Math.min(52,Math.floor((height-34)/ROWS)));
-  const top=Math.max(10,Math.floor((height-ROWS*cell-26)/2));
-  return {width,height,cell,top,cols:Math.ceil(width/cell)};
+  const width = canvas.clientWidth || 800, height = canvas.clientHeight || 360;
+  const head = canvas.closest('#devPanel')?.querySelector('.editor-topbar')?.offsetHeight || 0; // the dev header floats over the scene
+  const below = height - head > 280 ? 46 : 12; // room under the ground for the minimap, when there is space for it
+  const cell = Math.max(12, Math.min(64, Math.floor((height - head - 18 - below) / ROWS)));
+  return { width, height, cell, top: head + 18, cols: Math.ceil(width / cell), map: below > 12 && { x: 12, y: height - 34, w: width - 24, h: 24 } };
 }
-function drawEditorObject(g,tile,x,y,c,rotation=0) {
-  const cx=x+c/2,cy=y+c/2;g.save();g.translate(cx,cy);g.rotate(rotation*Math.PI/180);g.translate(-cx,-cy);
-  if(tile==='#'){
-    const grad=g.createLinearGradient(x,y,x+c,y+c);grad.addColorStop(0,'#7a83b5');grad.addColorStop(1,'#333b68');
-    g.fillStyle=grad;g.fillRect(x+2,y+2,c-4,c-4);g.strokeStyle='#b8c8ff';g.lineWidth=2;g.strokeRect(x+3,y+3,c-6,c-6);
-    g.strokeStyle='#525d8e';g.lineWidth=1;g.beginPath();g.moveTo(x+c*.25,y+4);g.lineTo(x+c*.25,y+c-4);g.moveTo(x+4,y+c*.25);g.lineTo(x+c-4,y+c*.25);g.stroke();
-  } else if(['^','G','v','h','F','R'].includes(tile)){
-    g.fillStyle=tile==='G'?'#ff587b':'#ff8eaa';g.strokeStyle='#ffe0e8';g.lineWidth=1.5;g.beginPath();
-    if(tile==='v'){g.moveTo(x+3,y+3);g.lineTo(x+c-3,y+3);g.lineTo(cx,y+c-3);}
-    else if(tile==='h'){g.moveTo(x+2,y+c*.35);g.lineTo(x+c*.25,y+c-3);g.lineTo(x+c*.5,y+c*.35);g.lineTo(x+c*.75,y+c-3);g.lineTo(x+c-2,y+c*.35);}
-    else{g.moveTo(x+(tile==='G'?2:c*.15),y+c-3);g.lineTo(cx,y+(tile==='G'?2:c*.2));g.lineTo(x+c-(tile==='G'?2:c*.15),y+c-3);}
-    g.closePath();g.fill();g.stroke();
-  } else if(tile==='s'||tile==='m'){
-    g.translate(cx,cy);g.fillStyle='#ff587b';g.strokeStyle='#ffd2dd';g.lineWidth=1.5;g.beginPath();
-    for(let i=0;i<24;i++){const a=i*Math.PI/12,r=i%2?c*.34:c*.46;g.lineTo(Math.cos(a)*r,Math.sin(a)*r);}
-    g.closePath();g.fill();g.stroke();g.beginPath();g.fillStyle='#30223d';g.arc(0,0,c*.15,0,Math.PI*2);g.fill();
-  } else if(['o','b','c','q','g'].includes(tile)){
-    g.beginPath();g.arc(cx,cy,c*.28,0,Math.PI*2);g.fillStyle=tile==='c'?'#ffd95a':tile==='b'?'#53f3ff':tile==='q'?'#ff7ad9':tile==='g'?'#5f86ff':'#ffe77a';g.fill();g.strokeStyle='#fff';g.lineWidth=2;g.stroke();
-    if(tile!=='c'){g.beginPath();g.arc(cx,cy,c*.4,0,Math.PI*2);g.strokeStyle=tile==='b'?'#a1fcff':'#fff0b2';g.lineWidth=1.5;g.stroke();}
-  } else if(tile==='p'||tile==='r'){
-    g.fillStyle=tile==='r'?'#ff4f61':'#ffdc58';g.strokeStyle='#fff';g.lineWidth=1.5;g.beginPath();
-    g.moveTo(x+3,y+c*.72);g.lineTo(x+c*.25,y+c*.42);g.lineTo(cx,y+c*.72);g.lineTo(x+c*.75,y+c*.42);g.lineTo(x+c-3,y+c*.72);g.lineTo(x+c-3,y+c-4);g.lineTo(x+3,y+c-4);g.closePath();g.fill();g.stroke();
-  } else if(tile in PORTAL_COLOR){
-    const col=PORTAL_COLOR[tile];
-    g.strokeStyle=col;g.lineWidth=Math.max(3,c*.1);g.beginPath();g.ellipse(cx,cy,c*.23,c*.42,0,0,Math.PI*2);g.stroke();
-    g.strokeStyle='#fff';g.lineWidth=1.5;g.beginPath();g.ellipse(cx,cy,c*.14,c*.32,0,0,Math.PI*2);g.stroke();
-  } else if(tile==='i'){
-    g.strokeStyle='#8af2ff';g.lineWidth=3;g.beginPath();g.moveTo(cx,y+c*.12);g.lineTo(cx,y+c*.88);g.moveTo(x+c*.2,y+c*.4);g.lineTo(x+c*.8,y+c*.4);g.stroke();
-  }
-  g.restore();
-}
-function drawVisualEditor(canvas,rows,offset,mode,selectedCell,rotations={},testStart=null,placingStart=false) {
+const PORTAL_TAG = { S: 'SHIP', C: 'CUBE', B: 'BALL', W: 'WAVE', U: 'FLIP', N: 'UNFLIP', M: 'MINI', Z: 'BIG', X: 'MIRROR', Y: 'UNMIRROR' };
+const mapColor = c => c === '.' || c === 'i' ? null : c === '#' ? '#e6ecff' : PORTAL_COLOR[c] || (tileCategory(c) === 'Hazards' ? '#ff5d73' : '#ffd84a');
+function drawVisualEditor(canvas,rows,offset,mode,selectedCell,rotations={},testStart=null,placingStart=false,look={}) {
   if(!canvas||!canvas.isConnected)return;
   const box=canvas.getBoundingClientRect();if(!box.width||!box.height)return;
+  canvas._editorArgs=[rows,offset,mode,selectedCell,rotations,testStart,placingStart,look]; // so hovering can redraw on its own
   const dpr=Math.min(2,window.devicePixelRatio||1);
   if(canvas.width!==Math.round(box.width*dpr)||canvas.height!==Math.round(box.height*dpr)){canvas.width=Math.round(box.width*dpr);canvas.height=Math.round(box.height*dpr);}
-  const g=canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
-  const m=editorSceneMetrics(canvas),{width,height,cell,top,cols}=m;
-  const bg=g.createLinearGradient(0,0,0,height);bg.addColorStop(0,'#2787e8');bg.addColorStop(.62,'#1d67c2');bg.addColorStop(1,'#154c9b');g.fillStyle=bg;g.fillRect(0,0,width,height);
-  g.fillStyle='rgba(5,35,88,.12)';for(let i=0;i<cols;i++)for(let y=0;y<ROWS;y++)if((i+offset+y)%2===0)g.fillRect(i*cell,top+y*cell,cell,cell);
-  g.fillStyle='rgba(7,35,82,.13)';for(let i=-1;i<cols;i+=4)for(let y=0;y<ROWS;y+=3)g.fillRect(i*cell+3,top+y*cell+3,cell*2.5,cell*2.2);
-  g.strokeStyle='rgba(6,29,71,.42)';g.lineWidth=1;
-  for(let i=0;i<=cols;i++){g.beginPath();g.moveTo(i*cell+.5,top);g.lineTo(i*cell+.5,top+ROWS*cell);g.stroke();}
-  for(let y=0;y<=ROWS;y++){g.beginPath();g.moveTo(0,top+y*cell+.5);g.lineTo(width,top+y*cell+.5);g.stroke();}
-  const floorY=top+ROWS*cell;g.fillStyle='#15356d';g.fillRect(0,floorY,width,height-floorY);g.fillStyle='#a2dcff';g.fillRect(0,floorY,width,3);
-  for(let col=0;col<cols;col++){const x=offset+col;if(x<0)continue;for(let y=0;y<ROWS;y++){
-    const tile=x<(rows[0]||'').length?(rows[y]||'')[x]||'.':'.';
-    if(tile!=='.')drawEditorObject(g,tile,col*cell,top+y*cell,cell,rotations[x+','+y]||0);
-    if(testStart&&testStart.x===x&&testStart.y===y){g.save();g.strokeStyle='#69ffb0';g.lineWidth=3;g.beginPath();g.arc(col*cell+cell/2,top+y*cell+cell/2,cell*.38,0,Math.PI*2);g.stroke();g.fillStyle='#69ffb0';g.font='bold 10px system-ui';g.textAlign='center';g.fillText('START',col*cell+cell/2,top+y*cell-3);g.restore();}
-    if(selectedCell&&selectedCell.x===x&&selectedCell.y===y){g.strokeStyle='#ffe75b';g.lineWidth=3;g.strokeRect(col*cell+2,top+y*cell+2,cell-4,cell-4);}
-  }}
-  if(placingStart){g.fillStyle='rgba(7,19,42,.94)';g.fillRect(Math.max(8,width/2-150),68,300,30);g.strokeStyle='#ffe16b';g.lineWidth=1.5;g.strokeRect(Math.max(8,width/2-150),68,300,30);g.fillStyle='#fff3bf';g.font='bold 12px system-ui';g.textAlign='center';g.fillText('CLICK A GRID CELL TO PLACE TEST START',width/2,87);g.textAlign='left';}
+  const g=canvas.getContext('2d'),{width,height,cell,top,cols,map}=editorSceneMetrics(canvas);
+  const hue=look.hue??220,len=rows[0].length,floorY=top+ROWS*cell,colX=x=>(x-offset)*cell,hover=canvas._hover;
+  g.setTransform(dpr,0,0,dpr,0,0);
+  withCtx(g,()=>{
+    // Sky and grid, every fifth column line brighter so places are easy to count; then the ground.
+    g.fillStyle=vgrad(top,floorY,`hsl(${hue},75%,36%)`,`hsl(${hue},70%,17%)`);g.fillRect(0,0,width,floorY);
+    g.lineWidth=1;
+    for(let i=0;i<=cols;i++){g.strokeStyle=`hsla(${hue},90%,85%,${(offset+i)%5?0.08:0.24})`;g.beginPath();g.moveTo(i*cell+.5,top);g.lineTo(i*cell+.5,floorY);g.stroke();}
+    g.strokeStyle=`hsla(${hue},90%,85%,0.08)`;g.beginPath();
+    for(let r=1;r<ROWS;r++){g.moveTo(0,top+r*cell+.5);g.lineTo(width,top+r*cell+.5);}
+    g.stroke();
+    g.fillStyle=vgrad(floorY,height,`hsl(${hue},70%,22%)`,`hsl(${hue},70%,8%)`);g.fillRect(0,floorY,width,height-floorY);
+    g.fillStyle='rgba(255,255,255,0.9)';g.fillRect(0,floorY-1,width,2);
+    const endX=colX(len); // past the end of the level: dimmed, behind a checkered finish line
+    if(endX<width){
+      g.fillStyle='rgba(2,4,14,0.5)';g.fillRect(endX,top,width-endX,floorY-top);
+      for(let y=top,i=0;y<floorY;y+=cell/4,i++)for(const k of[0,1]){g.fillStyle=(i+k)%2?'#141414':'#fff';g.fillRect(endX+k*5,y,5,cell/4);}
+    }
+    // Objects, drawn by the game's sprite code in world units, from a slice of the level a little wider than the view.
+    const from=Math.max(0,offset-2),slice=buildLevel('','',0,hue,[rows.map(row=>row.slice(from,offset+cols+2))]);
+    const s=cell/T,sx=x=>(x+from-offset)*T,sy=y=>GROUND-y*T;
+    g.setTransform(dpr*s,0,0,dpr*s,0,dpr*(top-(GROUND-ROWS*T)*s));
+    drawEditorTiles(slice.tiles,sx,sy,look,true,t=>rotations[(t.x+from)+','+(ROWS-1-t.y)]||0);
+    const inGrid=hover&&hover.y>=0&&hover.y<ROWS&&hover.x>=offset&&hover.x<len;
+    const ghost=inGrid&&!placingStart&&(mode==='build'?hover.tile:mode==='edit'&&selectedCell&&rows[hover.y][hover.x]==='.'?selectedCell.type:'.');
+    if(ghost&&ghost!=='.'){ // a see-through preview of what a click puts here
+      const t=loneTile(ghost);t.x=hover.x-from;t.y=ROWS-1-hover.y;
+      g.globalAlpha=.5;drawEditorTiles([t],sx,sy,look,true);g.globalAlpha=1;
+    }
+    g.setTransform(dpr,0,0,dpr,0,0);
+    if(cell>=18)for(const t of slice.tiles)if(t.tall){ // name each portal, since several share a color
+      const x=colX(t.x+from)+cell/2,y=Math.max(top+15,top+(ROWS-1-t.y)*cell-3),tag=PORTAL_TAG[t.type];
+      g.font='800 9px system-ui, sans-serif';const w=g.measureText(tag).width+10;
+      rr(x-w/2,y-13,w,13,6.5);g.fillStyle='rgba(6,8,22,0.86)';g.fill();g.strokeStyle=PORTAL_COLOR[t.type];g.lineWidth=1.3;g.stroke();
+      g.fillStyle='#fff';g.textAlign='center';g.fillText(tag,x,y-3.5);
+    }
+    if(testStart&&testStart.x>=offset){
+      const x=colX(testStart.x)+cell/2,y=top+testStart.y*cell;
+      g.strokeStyle='#69ffb0';g.lineWidth=3;g.beginPath();g.arc(x,y+cell/2,cell*.38,0,TAU);g.stroke();
+      ui('START',x,Math.max(top+11,y-3),10,'#69ffb0');
+    }
+    if(selectedCell&&selectedCell.x>=offset){
+      g.shadowColor='#ffe75b';g.shadowBlur=10;g.strokeStyle='#ffe75b';g.lineWidth=3;
+      g.strokeRect(colX(selectedCell.x)+2,top+selectedCell.y*cell+2,cell-4,cell-4);g.shadowBlur=0;
+    }
+    if(inGrid){ // the cell under the pointer, colored by what a click does
+      const x=colX(hover.x),y=top+hover.y*cell,erase=(mode==='delete'||mode==='build'&&hover.tile==='.')&&!placingStart;
+      if(erase){g.fillStyle='rgba(255,60,90,0.3)';g.fillRect(x,y,cell,cell);ui('×',x+cell/2,y+cell*.7,cell*.6,'#ffd6dd');}
+      g.setLineDash([4,3]);g.lineWidth=2;g.strokeStyle=placingStart?'#69ffb0':erase?'#ff6b84':mode==='edit'?'#6ff3ff':'rgba(255,255,255,0.9)';
+      g.strokeRect(x+1,y+1,cell-2,cell-2);g.setLineDash([]);
+    }
+    if(placingStart){
+      const x=Math.max(8,width/2-150),y=top+10;
+      g.fillStyle='rgba(7,19,42,.94)';g.fillRect(x,y,300,30);g.strokeStyle='#ffe16b';g.lineWidth=1.5;g.strokeRect(x,y,300,30);
+      g.fillStyle='#fff3bf';g.font='bold 12px system-ui';g.textAlign='center';g.fillText('CLICK A GRID CELL TO PLACE TEST START',x+150,y+19);
+    }
+    // Ruler: every fifth column numbered, over a strip in the color of the game mode each column plays in.
+    g.fillStyle='rgba(4,9,24,0.88)';g.fillRect(0,top-18,width,18);
+    let modeNow='cube';
+    for(let x=0;x<Math.min(len,offset+cols);x++){
+      for(let r=0;r<ROWS;r++)modeNow=PORTAL_MODE[rows[r][x]]||modeNow;
+      if(x<offset)continue;
+      g.fillStyle=MODE_COLOR[modeNow];g.fillRect(colX(x),top-4,cell,4);
+      if((x+1)%5===0)ui(String(x+1),colX(x)+cell/2,top-7,10,'#dbe7ff');
+    }
+    if(map){ // the whole level in miniature, with the view framed; clicking or dragging here moves the view
+      const k=map.w/len,rh=map.h/ROWS,paths=new Map();
+      rr(map.x-4,map.y-4,map.w+8,map.h+8,6);g.fillStyle='rgba(2,5,16,0.65)';g.fill();g.strokeStyle=`hsla(${hue},90%,80%,0.35)`;g.lineWidth=1;g.stroke();
+      rows.forEach((row,r)=>{for(let x=0;x<len;x++){const c=mapColor(row[x]);if(c){if(!paths.has(c))paths.set(c,new Path2D());paths.get(c).rect(map.x+x*k,map.y+r*rh,Math.max(1,k),rh);}}});
+      for(const[c,p]of paths){g.fillStyle=c;g.fill(p);}
+      rr(map.x+offset*k-1,map.y-3,Math.max(4,Math.min(cols,len-offset)*k+2),map.h+6,3);
+      g.fillStyle='rgba(255,255,255,0.14)';g.fill();g.strokeStyle='#fff';g.lineWidth=1.5;g.stroke();
+    }
+  });
 }
 function wireVisualEditor(canvas,getRows,getOffset,setOffset,getMode,getTile,getSelected,setSelected,afterChange) {
-  let painting=false,lastKey='';
+  let painting=false,scrubbing=false,lastKey='';
+  const redraw=()=>canvas._editorArgs&&drawVisualEditor(canvas,...canvas._editorArgs);
   function point(e){const r=canvas.getBoundingClientRect(),m=editorSceneMetrics(canvas);return{x:Math.floor((e.clientX-r.left)/m.cell)+getOffset(),y:Math.floor((e.clientY-r.top-m.top)/m.cell)};}
+  function onMap(e){const{map}=editorSceneMetrics(canvas);return map&&e.clientY-canvas.getBoundingClientRect().top>=map.y-6;}
+  function scrub(e){ // centers the view on the minimap column under the pointer
+    const r=canvas.getBoundingClientRect(),{map,cols}=editorSceneMetrics(canvas),len=getRows()[0].length;
+    setOffset(Math.max(0,Math.min(len-1,Math.round((e.clientX-r.left-map.x)/map.w*len-cols/2))));afterChange('');
+  }
   function act(e,isDrag=false){
     const p=point(e),rows=getRows();if(p.y<0||p.y>=ROWS||p.x<0||p.x>=rows[0].length)return;
     const key=p.x+','+p.y;if(isDrag&&key===lastKey)return;lastKey=key;
@@ -4235,20 +4342,33 @@ function wireVisualEditor(canvas,getRows,getOffset,setOffset,getMode,getTile,get
     rows[rowIndex]=rows[rowIndex].slice(0,p.x)+(mode==='delete'?'.':getTile())+rows[rowIndex].slice(p.x+1);
     afterChange(mode==='delete'?'Object deleted.':'Object placed.');
   }
-  canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;painting=true;lastKey='';canvas.setPointerCapture?.(e.pointerId);act(e);});
-  canvas.addEventListener('pointermove',e=>{if(painting&&getMode()==='build')act(e,true);});
-  canvas.addEventListener('pointerup',()=>{painting=false;lastKey='';});
-  canvas.addEventListener('pointercancel',()=>{painting=false;lastKey='';});
+  canvas.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    canvas.setPointerCapture?.(e.pointerId);
+    if(onMap(e)){scrubbing=true;scrub(e);return;}
+    painting=true;lastKey='';act(e);
+  });
+  canvas.addEventListener('pointermove',e=>{
+    if(scrubbing)return scrub(e);
+    const p=point(e),moved=canvas._hover?.x!==p.x||canvas._hover?.y!==p.y;
+    canvas._hover={...p,tile:getTile()};canvas.style.cursor=onMap(e)?'ew-resize':'';
+    if(painting&&getMode()==='build')act(e,true);
+    if(moved)redraw();
+  });
+  canvas.addEventListener('pointerleave',()=>{canvas._hover=null;redraw();});
+  canvas.addEventListener('pointerup',()=>{painting=scrubbing=false;lastKey='';});
+  canvas.addEventListener('pointercancel',()=>{painting=scrubbing=false;lastKey='';});
   canvas.addEventListener('wheel',e=>{e.preventDefault();setOffset(Math.max(0,Math.min(Math.max(0,getRows()[0].length-1),getOffset()+Math.sign(Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)*3)));afterChange('');},{passive:false});
   new ResizeObserver(()=>afterChange('')).observe(canvas);
 }
 
+function devLook() { const lvl = devCurrentLevel(); return { hue: lvl.hue, industrial: lvl.name === 'Flutterclunk' }; }
 function devRenderGrid() {
   if(!devRows.length)return;
   devHistorySync();
   devOffset=Math.max(0,Math.min(Math.max(0,devRows[0].length-1),devOffset));
   devOffsetInput.max=String(Math.max(0,devRows[0].length-1));devOffsetInput.value=String(devOffset);document.getElementById('devColumnValue').textContent=String(devOffset+1);
-  drawVisualEditor(devVisualCanvas,devRows,devOffset,devMode,devSelectedCell,DEV_ROTATIONS[devCurrentLevel().name]||{},devTestStart,devPlacingStart);
+  drawVisualEditor(devVisualCanvas,devRows,devOffset,devMode,devSelectedCell,DEV_ROTATIONS[devCurrentLevel().name]||{},devTestStart,devPlacingStart,devLook());
 }
 function openDevPanel() {
   if (devPanelOpen) return;
@@ -4560,7 +4680,7 @@ function press() {
 function pauseAction(id) {
   if (id === 'resume') { state = 'play'; sfx('click'); }
   else if (id === 'restart') {
-    if(devTestMode&&devTestStartSnapshot){const z=devTestStartSnapshot,m=z.meta;level=buildLevel(m.name+' (test)',m.difficulty,m.stars,m.hue,[z.rows]);for(const t of level.tiles)t.rotation=devRotationAt(m.name,t.x,t.y);player=newPlayer();player.x=z.start.x;player.y=Math.max(0,ROWS-1-z.start.y);player.grounded=player.y===0;attempts++;particles=[];history=[];visRot=0;state='play';stateTime=0;holding=false;jumpPressed=false;playSong(SONGS[selected%SONGS.length]);return;}
+    if(devTestMode&&devTestStartSnapshot){const z=devTestStartSnapshot,m=z.meta;level=buildLevel(m.name+' (test)',m.difficulty,m.stars,m.hue,[z.rows]);for(const t of level.tiles)t.rotation=devRotationAt(m.name,t.x,ROWS-1-t.y);player=newPlayer();player.x=z.start.x;player.y=Math.max(0,ROWS-1-z.start.y);player.grounded=player.y===0;attempts++;particles=[];history=[];visRot=0;state='play';stateTime=0;holding=false;jumpPressed=false;playSong(SONGS[selected%SONGS.length]);return;}
     if (communityTestMode && communityTestLevel) {
       level = buildLevel(communityTestLevel.name, 'Normal', 1, 185, [communityTestLevel.rows]);
       player = newPlayer(); attempts = 1; particles = []; history = []; visRot = 0; state = 'play'; stateTime = 0; holding = false; jumpPressed = false; playSong(SONGS[selected % SONGS.length]);
