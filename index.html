@@ -345,6 +345,7 @@ const SPEED = 10;             // tiles / second
 const GRAVITY = -100;         // tiles / second^2
 const JUMP = 22;              // ~2.4 tiles high, ~4.4 tiles long
 const BOOST_ORB_JUMP = 26;    // cyan orbs add a little extra lift for planned mid-air routes
+const PINK_ORB_JUMP = 15;     // pink orbs give a short hop, about 1.1 tiles
 const PAD = 28;               // yellow pad launch, ~3.9 tiles high
 const RED_PAD = 30;           // a controlled boost over yellow pads, with enough time for the charts it serves
 const SHIP_UP = 60, SHIP_DOWN = 50, SHIP_MAX = 9;
@@ -358,11 +359,12 @@ document.fonts?.load(`24px ${FONT}`).catch(() => {}); // text drawn only on a ca
 const mod = (a, n) => ((a % n) + n) % n;
 
 // Level tiles: '#' block, '^' spike, 'v' chained hanging spike, 'h' chained spike bar, 'F' falling spike, 's' saw, 'G' giant spike, 'i' beat-pulsing pole light,
+// 'm' saw that bobs up and down on a track, 'R' spike that springs out of the ground as the player nears,
 // 'p' yellow jump pad, 'r' red jump pad, 'o' jump orb (press while touching),
-// 'b' cyan boost orb, 'c' secret coin, portals 'S' ship, 'C' cube, 'B' ball, 'W' wave, '.' empty. seg() takes rows top to bottom; the last
+// 'b' cyan boost orb, 'q' pink orb (a short hop), 'c' secret coin, portals 'S' ship, 'C' cube, 'B' ball, 'W' wave, '.' empty. seg() takes rows top to bottom; the last
 // row sits on the ground. Short rows are padded with '.' on the right.
 const PORTAL_MODE = { S: 'ship', C: 'cube', B: 'ball', W: 'wave' };
-const NEW_LEVEL_TILES = new Set(['h', 'F', 's', 'G', 'i']); // keep existing coin/orb IDs stable when adding hazards and scenery
+const NEW_LEVEL_TILES = new Set(['h', 'F', 's', 'G', 'i', 'm', 'R', 'q']); // listed after the older tiles so their ids keep the order they had
 function seg(...rows) {
   const w = Math.max(...rows.map(r => r.length));
   while (rows.length < ROWS) rows.unshift('');
@@ -375,8 +377,12 @@ function buildLevel(name, difficulty, stars, hue, segs) {
   const rows = [...Array(ROWS)].map((_, r) => segs.map(s => s[r]).join(''));
   const tiles = [];
   let nextId = 0;
+  // Coins take the first ids, in reading order, so saved coins survive any change to the level around them.
   rows.forEach((row, r) => [...row].forEach((c, x) => {
-    if (c !== '.' && !NEW_LEVEL_TILES.has(c)) tiles.push({ id: nextId++, x, y: ROWS - 1 - r, type: c });
+    if (c === 'c') tiles.push({ id: nextId++, x, y: ROWS - 1 - r, type: c });
+  }));
+  rows.forEach((row, r) => [...row].forEach((c, x) => {
+    if (c !== '.' && c !== 'c' && !NEW_LEVEL_TILES.has(c)) tiles.push({ id: nextId++, x, y: ROWS - 1 - r, type: c });
   }));
   rows.forEach((row, r) => [...row].forEach((c, x) => {
     if (NEW_LEVEL_TILES.has(c)) tiles.push({ id: nextId++, x, y: ROWS - 1 - r, type: c });
@@ -421,6 +427,10 @@ const LEVELS = [
         '.......#######.......',
         '....##########..^^...'),
     seg('....^....^^....^....'),
+    seg('...R......R.R......RR.....'),
+    seg('.....q..........',
+        '................',
+        '...^^^^^^.......'),
     seg('...^^.....G......^^....'),
     gap(16),
   ]),
@@ -449,6 +459,13 @@ const LEVELS = [
         '...hh.hh..',
         '', '', '', 'i.........'),
     seg('....s.....'),
+    seg('.....q..q..q..q.......',
+        '......................',
+        '..^^^^^^^^^^^^^^......'),
+    seg('....q..............',
+        '...................',
+        '........o..........',
+        '..^^^^^^^^^........'),
     seg('...^^....G....^^...'),
     gap(16),
   ]),
@@ -465,6 +482,24 @@ const LEVELS = [
         '..S.............###.......###...c...###......###.............',
         '..S.............###.......###.......###......###.............'),
     seg('i..^^....^^^.....'),
+    seg('##################################',
+        '.......m..........m...............',
+        '..................................',
+        '..S...........................C...',
+        '..S.....m...........m.........C...',
+        '..S...........................C...',
+        '..S..........m.............m..C...',
+        '..................................',
+        '^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^....'),
+    seg('........################################....',
+        '........##########............##########....',
+        '........####................................',
+        '..S.......................m...............C.',
+        '..S.............m.........................C.',
+        '..S..............................m........C.',
+        '........######..............................',
+        '........##############............######....',
+        '........################################....'),
     seg('..^^......G.....^^...'),
     gap(16),
   ]),
@@ -487,6 +522,19 @@ const LEVELS = [
         '..S........###.....###...####.....................',
         '..S........###.....###...####.................##..'),
     seg('..##^^##^^##^^##....'),
+    seg('..RR...m...RRR....m..R.R...'),
+    seg('....q..q..o............',
+        '.......................',
+        '..^^^^^^^^^^^^^........'),
+    seg('',
+        '',
+        '',
+        '',
+        '',
+        '...........h........h....h.....',
+        '',
+        '',
+        '..R....RR...m...R....^^....RRR..'),
     seg('..........c.....',
         '................',
         '...^^^..o.......',
@@ -533,6 +581,15 @@ const LEVELS = [
         '...hh..hh.hh',
         '', '', '',
         'i...........'),
+    seg('..B.........vv..........vv.........C..',
+        '..B.................................C..',
+        '..B.................................C..',
+        '..B.................................C..',
+        '',
+        '',
+        '',
+        '',
+        '.......RR........m........RR...........'),
     seg('....^^....G....^^^....'),
     gap(16),
   ]),
@@ -581,6 +638,24 @@ const LEVELS = [
         '.................',
         '..p....^^^^^.....'),
     seg('i...^^.....^^^.......'),
+    seg('..W.........................C...',
+        '..W.......m...........m.......C...',
+        '..W...........................C...',
+        '..W....m.........m.........m..C...',
+        '',
+        '.............m..........m........',
+        '',
+        '',
+        '^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...'),
+    seg('......##################################....',
+        '......##################################....',
+        '............................................',
+        '..W.......................................C.',
+        '..W..........m.......m.......m............C.',
+        '..W.......................................C.',
+        '............................................',
+        '......##################################....',
+        '......##################################....'),
     seg('...^^....G.....^^....'),
     gap(16),
   ]),
@@ -636,6 +711,33 @@ const LEVELS = [
         '................',
         '..........^^^...'),
     seg('....^^^.....p^^^^.....#^^^#....'),
+    seg('..W.........................C...',
+        '..W.....m........m............C...',
+        '..W...........................C...',
+        '..W.........m.........m.......C...',
+        '',
+        '.......m.........m......m........',
+        '',
+        '',
+        '^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...'),
+    seg('..B.........vv.......vv........C..',
+        '..B............................C..',
+        '..B............................C..',
+        '..B............................C..',
+        '',
+        '',
+        '',
+        '',
+        '.......RR......m.......RR.........'),
+    seg('',
+        '',
+        '',
+        '',
+        '',
+        '...........h........h....h.....',
+        '',
+        '',
+        '..R....RR...m...R....^^....RRR..'),
     seg('...^^..G..^^....^^...'),
     gap(16),
   ]),
@@ -695,6 +797,34 @@ const LEVELS = [
         '.............................',
         '..........^^^^^^^^^^.........'),
     seg('i..^^...^^.....^^^.......#^^^#....'),
+    seg('##################################',
+        '.....m......m........m.........#',
+        '...............................#',
+        '..S.......#######..............C...',
+        '..S..m...........m........m....C...',
+        '..S............................C...',
+        '..S.......m..........m.........C...',
+        '...........................m......',
+        '^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^....'),
+    seg('..RR..m..RRR...q...m..R...RR....'),
+    seg('',
+        '',
+        '',
+        '',
+        '',
+        '...........h........h....h.....',
+        '',
+        '',
+        '..R....RR...m...R....^^....RRR..'),
+    seg('........################################....',
+        '........##########............##########....',
+        '........####................................',
+        '..S.......................m...............C.',
+        '..S.............m.........................C.',
+        '..S..............................m........C.',
+        '........######..............................',
+        '........##############............######....',
+        '........################################....'),
     seg('..^^....G....^^...^^...'),
     gap(16),
   ]),
@@ -716,6 +846,10 @@ const LEVELS = [
         '..hh...hh...',
         '', '', '',
         'i...G.......'),
+    seg('..R..R....RR.....G.....R.R...'),
+    seg('....q.............',
+        '..................',
+        '..^^^^^^...R..R...'),
     seg('....^^.....G.....^^...'),
     gap(16),
   ]),
@@ -733,6 +867,18 @@ const LEVELS = [
         '..................',
         '..^^^^^^..........'),
     seg('i...^^...^^..^....'),
+    seg('',
+        '',
+        '',
+        '...hh....hh......hh.....',
+        '',
+        '',
+        '',
+        '',
+        '.R....RR....R.R.....RRR....'),
+    seg('....q........m......',
+        '....................',
+        '..^^^^^^............'),
     seg('..^^...G...^^....'),
     gap(16),
   ]),
@@ -750,6 +896,10 @@ const LEVELS = [
         '...............',
         'i.^^.....^^....'),
     seg('', '', '', '', '', '', '', '', 'i..#....'),
+    seg('..R...^....R.....RR....^R....'),
+    seg('....q............',
+        '.................',
+        '..^^^^^^....m....'),
     seg('....^^...G....^^...'),
     gap(16),
   ]),
@@ -775,6 +925,13 @@ const LEVELS = [
         '..hh..hh....',
         '', '', '',
         '....s.......'),
+    seg('.......m.........m..........',
+        '',
+        '',
+        '...^^.......^^.......^^.....'),
+    seg('....q..b..............',
+        '......................',
+        '..^^^^^^^^^^^.........'),
     seg('..^^....G....^^..'),
     gap(16),
   ]),
@@ -793,6 +950,12 @@ const LEVELS = [
         '..^^^^^...^^......'),
     seg('...p^^^^....o....'),
     seg('i.^^...^^..^^....'),
+    seg('............m......',
+        '',
+        '....q...b..........',
+        '...................',
+        '..^^^^^^^^^^^......'),
+    seg('..R.R...RR..m...RRR.....'),
     seg('...^^...G....^^...'),
     gap(16),
   ]),
@@ -851,6 +1014,9 @@ const LEVELS = [
         '', '',
         '...r^^^.......^^^^^^^^^^^.....'),
     seg('', '', '', '', '', '......hh....hh....hh.......', '', '', 'i..^^^...^^^...^^^...^^...G...'),
+    seg('....q..q..........',
+        '..................',
+        '..^^^^^^^^^...m...'),
     seg('..s.^^^...G..^^^..s..^^^...'),
     gap(18),
   ]),
@@ -907,6 +1073,7 @@ const LEVELS = [
         '..C.....................',
         '..C....^^^...G...s......'),
     seg('', '', '', '', '', '......hh....hh...hh.......', '', '', 'i..^^^...^^^...^^...^^^..G...'),
+    seg('..R.R..m...RR..m..RRR....'),
     seg('..s..^^^...G..^^^..s..^^^...'),
     gap(16),
   ]),
@@ -969,6 +1136,8 @@ applyLevelOverrides(DEV_EMBEDDED_OVERRIDES); // saved browser layouts load only 
 function newPlayer() { return { x: 0, y: 0, vy: 0, grounded: true, coyote: 0.1, jumpBuffer: 0, rot: 0, mode: 'cube', grav: 1, used: [], coins: [] }; }
 const clamp = (v, m) => Math.max(-m, Math.min(m, v));
 const fallingSpikeY = (t, x) => Math.max(0, t.y - Math.max(0, x - (t.x - 4)) * 2);
+const sawBobY = (t, x) => t.y + Math.sin(x * 0.6 + t.x * 2.3) * 1.5; // tied to the player's x, like every hazard, so a run plays the same each time
+const spikeRise = (t, x) => Math.min(1, Math.max(0, (x - (t.x - 6)) / 2)); // hidden until 6 tiles away, fully up at 4
 
 // Advances one frame. Returns 'dead', 'win' or null. Only mutates p, so tests can drive it.
 // The cube jumps, the ship flies up while held, the ball flips its gravity and the wave climbs while held.
@@ -1008,15 +1177,16 @@ function step(p, hold, lvl, justPressed = hold) {
     const inX = (a, b) => p.x + 1 > t.x + a && p.x < t.x + b;
     const inY = (a, b) => p.y < t.y + b && p.y + 1 > t.y + a;
     switch (t.type) {
-      case '^': if (!devNoclip && inX(0.35, 0.65) && inY(0, 0.3)) return 'dead'; break; // a small box at the base, like GD's, so triple spikes are fair
+      case '^': case 'R': if (!devNoclip && inX(0.35, 0.65) && inY(0, 0.3)) return 'dead'; break; // a small box at the base, like GD's, so triple spikes are fair
       case 'v': if (!devNoclip && inX(0.35, 0.65) && inY(0.7, 1)) return 'dead'; break;
       case 'h': if (!devNoclip && inX(0.04, 0.96) && p.y < t.y + 0.42 && p.y + 1 > t.y) return 'dead'; break;
       case 'G': if (!devNoclip && inX(-0.3, 1.3) && p.y < t.y + 0.68 && p.y + 1 > t.y) return 'dead'; break;
-      case 's': {
+      case 's': case 'm': {
+        const ty = t.type === 'm' ? sawBobY(t, p.x) : t.y;
         const closestX = Math.max(t.x, Math.min(t.x + 1, p.x + 0.5));
-        const closestY = Math.max(t.y, Math.min(t.y + 1, p.y + 0.5));
+        const closestY = Math.max(ty, Math.min(ty + 1, p.y + 0.5));
         const dx = t.x + 0.5 - closestX;
-        const dy = t.y + 0.5 - closestY;
+        const dy = ty + 0.5 - closestY;
         if (!devNoclip && dx * dx + dy * dy < 0.39 * 0.39) return 'dead';
         break;
       }
@@ -1026,7 +1196,7 @@ function step(p, hold, lvl, justPressed = hold) {
         break;
       }
       case 'p': case 'r': if (p.mode === 'cube' && inX(0.2, 0.8) && inY(0, 0.3)) { p.vy = t.type === 'r' ? RED_PAD : PAD; p.grounded = false; } break;
-      case 'o': case 'b': if (p.mode === 'cube' && (hold || p.jumpBuffer > 0) && inY(0.1, 0.9) && !p.used.includes(t.id)) { p.vy = t.type === 'b' ? BOOST_ORB_JUMP : JUMP; p.grounded = false; p.coyote = 0; p.jumpBuffer = 0; p.used = [...p.used, t.id]; } break;
+      case 'o': case 'b': case 'q': if (p.mode === 'cube' && (hold || p.jumpBuffer > 0) && inY(0.1, 0.9) && !p.used.includes(t.id)) { p.vy = t.type === 'b' ? BOOST_ORB_JUMP : t.type === 'q' ? PINK_ORB_JUMP : JUMP; p.grounded = false; p.coyote = 0; p.jumpBuffer = 0; p.used = [...p.used, t.id]; } break;
       case 'c': if (inY(0, 1) && !p.coins.includes(t.id)) p.coins = [...p.coins, t.id]; break;
       case 'S': case 'C': case 'B': case 'W': {
         const to = PORTAL_MODE[t.type];
@@ -1212,7 +1382,9 @@ const KONAMI = ['ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyB', 'Ke
 const SAVE_KEY = 'deometry-gash-save';
 const EQUIPPED = { cube: 0, ship: 0, ball: 0, wave: 0, trail: 0, death: 0 };
 const SETTINGS = { music: 0.7, sfx: 0.8, progress: true, shake: true };
-let save = { v: 4, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: EQUIPPED, settings: SETTINGS };
+let save = { v: 5, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: EQUIPPED, settings: SETTINGS };
+// Version 4 saves stored each coin's tile id from when coins were numbered among all tiles; now a coin's id is its place among the level's coins.
+const COIN_IDS_V4 = {"First Steps":[0,1],"Sunrise Run":[0,2],"Orb Garden":[0,1],"Rolling Thunder":[10,155,199],"Prism Path":[0,2],"Tidal Flow":[0,2],"Sky Rush":[29,71],"Neon Circuit":[0,3],"Wave Rider":[5,24,152],"Circuit Breaker":[0,3],"Gash Gauntlet":[3,28],"Mode Mayhem":[262,310,332],"Demon Gash":[11,481,559],"Flutterclunk":[195,229,237],"Abyssal Run":[244,378]};
 // Version 1 saves stored coin tile ids from before the portals moved down to where the player passes them.
 const COIN_IDS_V1 = { 2: { 34: 29, 72: 71 }, 3: { 4: 3, 32: 28 } };
 const reorderLevelProgress = (values, sourceOrder) => Object.fromEntries(Object.entries(values || {}).flatMap(([oldIndex, value]) => {
@@ -1228,6 +1400,10 @@ try {
     old.best = reorderLevelProgress(old.best, LEGACY_LEVEL_ORDER); old.coins = reorderLevelProgress(old.coins, LEGACY_LEVEL_ORDER); old.v = 4;
   } else if (old && old.v === 3) {
     old.best = reorderLevelProgress(old.best, LEVEL_ORDER_V3); old.coins = reorderLevelProgress(old.coins, LEVEL_ORDER_V3); old.v = 4;
+  }
+  if (old?.v === 4) {
+    for (const i in old.coins) { const ids = COIN_IDS_V4[LEVELS[i]?.name]; if (ids && Array.isArray(old.coins[i])) old.coins[i] = old.coins[i].map(id => ids.indexOf(id)).filter(n => n >= 0); }
+    old.v = 5;
   }
   save = { ...save, ...old };
 } catch {}
@@ -1608,7 +1784,7 @@ function playEffects(prev) {
     if (p.grounded && Math.random() < 0.6) emit(particles, { x: p.x + 0.2, y: contact, vx: -3 - Math.random() * 2, vy: p.grav * (0.5 + Math.random()), life: 0.3, size: 4, color, shrink: true, add: true });
   }
   emitTrail(particles, p.x + 0.5, p.y + 0.5, skin('trail').name, color);
-  if (p.used.length > prev.used) { const o = level.tiles.find(t => t.id === p.used[p.used.length - 1]); burstAt(o.x + 0.5, o.y + 0.5, o.type === 'b' ? '#45edff' : '#ffd400'); sfx('orb'); }
+  if (p.used.length > prev.used) { const o = level.tiles.find(t => t.id === p.used[p.used.length - 1]); burstAt(o.x + 0.5, o.y + 0.5, o.type === 'b' ? '#45edff' : o.type === 'q' ? '#ff6ad5' : '#ffd400'); sfx('orb'); }
   if ((p.vy === PAD || p.vy === RED_PAD) && prev.vy !== p.vy) { burstAt(p.x + 0.5, p.y + 0.1, p.vy === RED_PAD ? '#ff4545' : '#ffd400'); sfx('pad'); }
   if (p.coins.length > prev.coins) { const c = level.tiles.find(t => t.id === p.coins[p.coins.length - 1]); burstAt(c.x + 0.5, c.y + 0.5, '#ffcc33', 18); sfx('coin'); }
   if (p.mode !== prev.mode) { burstAt(p.x + 0.5, p.y + 0.5, MODE_COLOR[p.mode], 16); sfx('portal'); }
@@ -3050,6 +3226,22 @@ function drawFallingSpike(x, y, ceilingY, hue) {
   ctx.restore();
 }
 
+function drawSawTrack(x, top, bottom, hue) {
+  const cx = x + T / 2;
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = '#0d0b16'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(cx, top); ctx.lineTo(cx, bottom); ctx.stroke();
+  ctx.strokeStyle = `hsla(${hue},90%,72%,0.7)`; ctx.lineWidth = 2; ctx.setLineDash([4, 6]); ctx.stroke();
+  ctx.restore();
+}
+
+function drawRisingSpike(x, y, k, hue) {
+  // A glowing slit marks the trap; the spike slides up out of it.
+  ctx.fillStyle = `hsla(${hue},100%,72%,${0.35 + (1 - k) * 0.4})`; ctx.fillRect(x + 6, y + T - 3, T - 12, 3);
+  if (k <= 0) return;
+  ctx.save(); ctx.beginPath(); ctx.rect(x - 4, y - 4, T + 8, T + 4); ctx.clip();
+  drawSpike(x, y + T * (1 - k), false, hue); ctx.restore();
+}
+
 function drawGiantSpike(x, y, hue) {
   ctx.save(); ctx.shadowColor = `hsl(${hue},100%,70%)`; ctx.shadowBlur = 15;
   ctx.beginPath(); ctx.moveTo(x - 12, y + T); ctx.lineTo(x + T / 2, y - 12); ctx.lineTo(x + T + 12, y + T); ctx.closePath();
@@ -3127,13 +3319,13 @@ function drawPad(x, y, time, red = false) {
   ctx.restore();
 }
 
-function drawOrb(x, y, used, time, boost = false) {
+function drawOrb(x, y, used, time, boost = false, pink = false) {
   const cx = x + T / 2, cy = y + T / 2;
-  const color = boost ? '#45edff' : '#ffd400', mid = boost ? '#72f5ff' : '#ffd400', dark = boost ? '#008da8' : '#ff8f00';
+  const color = boost ? '#45edff' : pink ? '#ff6ad5' : '#ffd400', mid = boost ? '#72f5ff' : pink ? '#ff9be6' : '#ffd400', dark = boost ? '#008da8' : pink ? '#b0127e' : '#ff8f00';
   ctx.save();
   if (!used) {
     const k = mod(time * 1.2, 1);
-    ctx.strokeStyle = boost ? `rgba(69,237,255,${0.7 * (1 - k)})` : `rgba(255,212,0,${0.7 * (1 - k)})`; ctx.lineWidth = 2;
+    ctx.strokeStyle = boost ? `rgba(69,237,255,${0.7 * (1 - k)})` : pink ? `rgba(255,106,213,${0.7 * (1 - k)})` : `rgba(255,212,0,${0.7 * (1 - k)})`; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(cx, cy, T * (0.36 + k * 0.3), 0, TAU); ctx.stroke();
     ctx.shadowColor = color; ctx.shadowBlur = 18;
   } else ctx.globalAlpha = 0.35;
@@ -3273,9 +3465,11 @@ function drawWorld(time) {
       case 'F': drawFallingSpike(x, sy(fallingSpikeY(t, me.x) + 1), sy(ROWS), hue); break;
       case 'G': drawGiantSpike(x, y, hue); break;
       case 's': drawSaw(x, y, time, hue); break;
+      case 'm': drawSawTrack(x, sy(t.y + 2.5), sy(t.y - 0.5), hue); drawSaw(x, sy(sawBobY(t, me.x) + 1), time, hue); break;
+      case 'R': drawRisingSpike(x, y, spikeRise(t, me.x), hue); break;
       case 'i': drawSignalPole(x, y, time, hue); break;
       case 'p': case 'r': drawPad(x, y, time, t.type === 'r'); break;
-      case 'o': case 'b': drawOrb(x, y, player.used.includes(t.id), time, t.type === 'b'); break;
+      case 'o': case 'b': case 'q': drawOrb(x, y, player.used.includes(t.id), time, t.type === 'b', t.type === 'q'); break;
       case 'c': if (!player.coins.includes(t.id)) drawCoin(x, y, (save.coins[selected] || []).includes(t.id), time); break;
       case 'S': case 'C': case 'B': case 'W': if (t.tall) { drawPortal(t, x, y, false, time); portals.push([t, x, y]); } break;
     }
@@ -3719,7 +3913,7 @@ const DEV_TILE_TYPES = [
   ['.', 'Empty'], ['#', 'Block'], ['^', 'Small spike'], ['G', 'Giant spike'],
   ['v', 'Hanging spike'], ['h', 'Spike bar'], ['F', 'Falling spike'], ['s', 'Saw'],
   ['i', 'Pole light'], ['p', 'Jump pad'], ['r', 'Red pad'], ['o', 'Jump orb'],
-  ['b', 'Boost orb'], ['c', 'Coin'], ['S', 'Ship portal'], ['C', 'Cube portal'],
+  ['b', 'Boost orb'], ['q', 'Pink orb'], ['m', 'Moving saw'], ['R', 'Rising spike'], ['c', 'Coin'], ['S', 'Ship portal'], ['C', 'Cube portal'],
   ['B', 'Ball portal'], ['W', 'Wave portal']
 ];
 const TILE_INFO = {
@@ -3729,7 +3923,8 @@ const TILE_INFO = {
   'F': ['Falling spike', '⤓', 'Hazards'], 's': ['Saw', '⚙', 'Hazards'],
   'i': ['Pole light', '╂', 'Items'], 'p': ['Jump pad', '⬆', 'Items'],
   'r': ['Red pad', '⬆', 'Items'], 'o': ['Jump orb', '●', 'Items'],
-  'b': ['Boost orb', '✦', 'Items'], 'c': ['Coin', '◉', 'Items'],
+  'b': ['Boost orb', '✦', 'Items'], 'q': ['Pink orb', '•', 'Items'], 'c': ['Coin', '◉', 'Items'],
+  'm': ['Moving saw', '⚙', 'Hazards'], 'R': ['Rising spike', '⇡', 'Hazards'],
   'S': ['Ship portal', '🚀', 'Portals'], 'C': ['Cube portal', '◇', 'Portals'],
   'B': ['Ball portal', '◈', 'Portals'], 'W': ['Wave portal', '〰', 'Portals']
 };
@@ -3851,18 +4046,18 @@ function drawEditorObject(g,tile,x,y,c,rotation=0) {
     const grad=g.createLinearGradient(x,y,x+c,y+c);grad.addColorStop(0,'#7a83b5');grad.addColorStop(1,'#333b68');
     g.fillStyle=grad;g.fillRect(x+2,y+2,c-4,c-4);g.strokeStyle='#b8c8ff';g.lineWidth=2;g.strokeRect(x+3,y+3,c-6,c-6);
     g.strokeStyle='#525d8e';g.lineWidth=1;g.beginPath();g.moveTo(x+c*.25,y+4);g.lineTo(x+c*.25,y+c-4);g.moveTo(x+4,y+c*.25);g.lineTo(x+c-4,y+c*.25);g.stroke();
-  } else if(['^','G','v','h','F'].includes(tile)){
+  } else if(['^','G','v','h','F','R'].includes(tile)){
     g.fillStyle=tile==='G'?'#ff587b':'#ff8eaa';g.strokeStyle='#ffe0e8';g.lineWidth=1.5;g.beginPath();
     if(tile==='v'){g.moveTo(x+3,y+3);g.lineTo(x+c-3,y+3);g.lineTo(cx,y+c-3);}
     else if(tile==='h'){g.moveTo(x+2,y+c*.35);g.lineTo(x+c*.25,y+c-3);g.lineTo(x+c*.5,y+c*.35);g.lineTo(x+c*.75,y+c-3);g.lineTo(x+c-2,y+c*.35);}
     else{g.moveTo(x+(tile==='G'?2:c*.15),y+c-3);g.lineTo(cx,y+(tile==='G'?2:c*.2));g.lineTo(x+c-(tile==='G'?2:c*.15),y+c-3);}
     g.closePath();g.fill();g.stroke();
-  } else if(tile==='s'){
+  } else if(tile==='s'||tile==='m'){
     g.translate(cx,cy);g.fillStyle='#ff587b';g.strokeStyle='#ffd2dd';g.lineWidth=1.5;g.beginPath();
     for(let i=0;i<24;i++){const a=i*Math.PI/12,r=i%2?c*.34:c*.46;g.lineTo(Math.cos(a)*r,Math.sin(a)*r);}
     g.closePath();g.fill();g.stroke();g.beginPath();g.fillStyle='#30223d';g.arc(0,0,c*.15,0,Math.PI*2);g.fill();
-  } else if(['o','b','c'].includes(tile)){
-    g.beginPath();g.arc(cx,cy,c*.28,0,Math.PI*2);g.fillStyle=tile==='c'?'#ffd95a':tile==='b'?'#53f3ff':'#ffe77a';g.fill();g.strokeStyle='#fff';g.lineWidth=2;g.stroke();
+  } else if(['o','b','c','q'].includes(tile)){
+    g.beginPath();g.arc(cx,cy,c*.28,0,Math.PI*2);g.fillStyle=tile==='c'?'#ffd95a':tile==='b'?'#53f3ff':tile==='q'?'#ff7ad9':'#ffe77a';g.fill();g.strokeStyle='#fff';g.lineWidth=2;g.stroke();
     if(tile!=='c'){g.beginPath();g.arc(cx,cy,c*.4,0,Math.PI*2);g.strokeStyle=tile==='b'?'#a1fcff':'#fff0b2';g.lineWidth=1.5;g.stroke();}
   } else if(tile==='p'||tile==='r'){
     g.fillStyle=tile==='r'?'#ff4f61':'#ffdc58';g.strokeStyle='#fff';g.lineWidth=1.5;g.beginPath();

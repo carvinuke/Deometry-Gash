@@ -60,7 +60,7 @@ const orbLaunches = await page.evaluate(() => {
     step(p, true, lvl, false); // staying inside the orb cannot retrigger it
     return { first, second: p.vy, used: p.used.length };
   };
-  return { standard: launch('o'), boost: launch('b'), standardValue: JUMP, boostValue: BOOST_ORB_JUMP, redPad: RED_PAD, yellowPad: PAD };
+  return { standard: launch('o'), boost: launch('b'), pink: launch('q'), pinkValue: PINK_ORB_JUMP, standardValue: JUMP, boostValue: BOOST_ORB_JUMP, redPad: RED_PAD, yellowPad: PAD };
 });
 const poleBeat = await page.evaluate(() => {
   const beat = 60 / SONGS[selected % SONGS.length].bpm;
@@ -79,6 +79,7 @@ const obstacleChecks = await page.evaluate(() => {
     fallingSpikeHit: collide('F', 4.65, 0, traps.x, traps.y), fallingSpikeClear: collide('F', 0, 0, traps.x, traps.y),
     fallingSpikePositions: [fallingSpikeY(traps, 1), fallingSpikeY(traps, 3), fallingSpikeY(traps, 5)],
     poleClear: collide('i', 5, 0),
+    risingSpikeHit: collide('R', 5, 0), movingSawHit: collide('m', 5, sawBobY({ x: 5, y: 2 }, 5) - 0.2, 5, 2), movingSawClear: collide('m', 5, 0, 5, 6),
   };
 });
 // Red pads must clear their whole grounded spike runway with timing margin at every
@@ -120,6 +121,9 @@ console.log('red-pad lane results:', redPadRunways.map(r => ({ level: r.level, s
   phases: r.phases.filter(p => p.result !== 'clear' || !p.launched).length })));
 if (tripleSpikeFrames < 5) throw new Error('a triple spike should leave at least 5 frames to jump');
 if (orbLaunches.standard.first !== orbLaunches.standardValue || orbLaunches.boost.first !== orbLaunches.boostValue || orbLaunches.boost.second >= orbLaunches.boost.first || orbLaunches.boost.used !== 1) throw new Error('cyan boost orbs should give one controlled stronger launch');
+if (orbLaunches.pink.first !== orbLaunches.pinkValue || orbLaunches.pinkValue >= orbLaunches.standardValue || orbLaunches.pink.used !== 1) throw new Error('pink orbs should give one short hop');
+if (obstacleChecks.risingSpikeHit !== 'dead' || obstacleChecks.movingSawHit !== 'dead' || obstacleChecks.movingSawClear === 'dead') throw new Error('rising spike or moving saw collision is off');
+for (const [name, counts] of Object.entries(obstacleChecks.levels)) if (!counts.m && !counts.R && !counts.q) throw new Error(`${name}: use at least one of the newest obstacles (moving saw, rising spike, pink orb)`);
 if (glide > 0.001) throw new Error(`the cube moves unevenly between frames (spread ${glide} tiles)`);
 if (errors.length) throw new Error('page errors: ' + errors.join('; '));
 if (obstacleChecks.ceilingBarHit !== 'dead' || obstacleChecks.ceilingBarClear === 'dead' || obstacleChecks.giantSpikeHit !== 'dead' || obstacleChecks.sawHit !== 'dead' || obstacleChecks.fallingSpikeHit !== 'dead' || obstacleChecks.fallingSpikeClear === 'dead' || obstacleChecks.poleClear === 'dead') throw new Error('new obstacle or pole collision behavior is inconsistent');
