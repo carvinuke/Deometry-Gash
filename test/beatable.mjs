@@ -22,7 +22,7 @@ const results = await page.evaluate(() => LEVELS.flatMap(lvl => [false, true].ma
   const seen = new Set(); let furthest = 0;
   const coins = lvl.tiles.filter(t => t.type === 'c').length;
   const won = (r, q) => r === 'win' && (!allCoins || q.coins.length === coins);
-  const key = (p, f) => [f, p.mode, p.grav, p.y.toFixed(1), p.vy.toFixed(0), p.coyote.toFixed(2), p.jumpBuffer.toFixed(2), p.used.join(','), p.coins.join(',')].join('|');
+  const key = (p, f) => [f, p.mode, p.grav, p.mini, p.y.toFixed(1), p.vy.toFixed(0), p.coyote.toFixed(2), p.jumpBuffer.toFixed(2), p.used.join(','), p.coins.join(',')].join('|');
   function go(p, f) {
     for (;;) {
       furthest = Math.max(furthest, p.x);
@@ -82,6 +82,26 @@ const obstacleChecks = await page.evaluate(() => {
     risingSpikeHit: collide('R', 5, 0), movingSawHit: collide('m', 5, sawBobY({ x: 5, y: 2 }, 5) - 0.2, 5, 2), movingSawClear: collide('m', 5, 0, 5, 6),
   };
 });
+// Clutterfunk-style portals: gravity flips the cube onto the ceiling, mini shrinks the jump, mirror only changes the view.
+const portalChecks = await page.evaluate(() => {
+  const run = (tiles, press) => {
+    const p = newPlayer(), lvl = { tiles: tiles.map((t, id) => ({ id, ...t })), len: 60 }; let top = 0;
+    for (let i = 0; i < 90; i++) { step(p, i === press, lvl, i === press); if (i > press) top = Math.max(top, p.y); }
+    return { y: +p.y.toFixed(2), grav: p.grav, mini: p.mini, mirror: p.mirror, top: +top.toFixed(2) };
+  };
+  return {
+    flipped: run([{ x: 3, y: 0, type: 'U' }], -1),
+    mini: run([{ x: 2, y: 0, type: 'M' }], 40),
+    big: run([], 40),
+    mirror: run([{ x: 2, y: 0, type: 'X' }], -1),
+    gravOrb: (() => { const p = newPlayer(); Object.assign(p, { x: 3.6, y: 1, grounded: false, coyote: 0 }); step(p, true, { tiles: [{ id: 0, x: 4, y: 1, type: 'g' }], len: 20 }, true); return { grav: p.grav }; })(),
+  };
+});
+console.log('portal checks:', portalChecks);
+if (portalChecks.flipped.grav !== -1 || portalChecks.flipped.y !== 9 - 1) throw new Error('a gravity portal should flip the cube up to the ceiling');
+if (!portalChecks.mini.mini || portalChecks.mini.top >= portalChecks.big.top * 0.75) throw new Error('a mini portal should shrink the cube and its jump');
+if (!portalChecks.mirror.mirror || portalChecks.mirror.y !== 0) throw new Error('a mirror portal should flip only the view');
+if (portalChecks.gravOrb.grav !== -1) throw new Error('a gravity orb should flip gravity when pressed');
 // Red pads must clear their whole grounded spike runway with timing margin at every
 // frame phase. This catches levels that are theoretically reachable only on a razor edge.
 const redPadRunways = await page.evaluate(() => LEVELS.flatMap(lvl => lvl.tiles.filter(t => t.type === 'r').map(pad => {
