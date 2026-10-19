@@ -1653,7 +1653,7 @@ const SAVE_KEY = 'deometry-gash-save';
 const EQUIPPED = { cube: 0, ship: 0, ball: 0, wave: 0, trail: 0, death: 0 };
 const SETTINGS = { music: 0.7, sfx: 0.8, progress: true, shake: true };
 const CUSTOM = { face: 'angry', body: '#1fcf4a', inner: '#00e5ff' }; // the Custom cube until the player changes it; checked against FACES further down
-let save = { v: 5, best: {}, pbest: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, attempts: 0, checkpoints: 0, ach: [], equipped: EQUIPPED, settings: SETTINGS };
+let save = { v: 5, best: {}, pbest: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, attempts: 0, checkpoints: 0, ach: [], lv: {}, equipped: EQUIPPED, settings: SETTINGS };
 // Version 4 saves stored each coin's tile id from when coins were numbered among all tiles; now a coin's id is its place among the level's coins.
 const COIN_IDS_V4 = {"First Steps":[0,1],"Sunrise Run":[0,2],"Orb Garden":[0,1],"Rolling Thunder":[10,155,199],"Prism Path":[0,2],"Tidal Flow":[0,2],"Sky Rush":[29,71],"Neon Circuit":[0,3],"Wave Rider":[5,24,152],"Circuit Breaker":[0,3],"Gash Gauntlet":[3,28],"Mode Mayhem":[262,310,332],"Demon Gash":[11,481,559],"Flutterclunk":[195,229,237],"Abyssal Run":[244,378]};
 // Version 1 saves stored coin tile ids from before the portals moved down to where the player passes them.
@@ -1684,11 +1684,14 @@ save.settings = { ...SETTINGS, ...save.settings };
 save.paint = Object.fromEntries(Object.entries({ ...save.paint }).map(([name, c]) => [name, Object.fromEntries(['body', 'inner'].filter(k => /^#[0-9a-f]{6}$/i.test(c?.[k])).map(k => [k, c[k]]))]));
 const persist =() => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch {} };
 function wipeSave() { // keeps the volume and display settings
-  save = { v: 5, best: {}, pbest: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, attempts: 0, checkpoints: 0, ach: [], equipped: { ...EQUIPPED }, custom: { ...CUSTOM }, paint: {}, settings: save.settings };
+  save = { v: 5, best: {}, pbest: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, attempts: 0, checkpoints: 0, ach: [], lv: {}, equipped: { ...EQUIPPED }, custom: { ...CUSTOM }, paint: {}, settings: save.settings };
   persist();
 }
 
 const beaten = i => save.best[i] === 100;
+// each level's own attempts, crashes, jumps and play time for its info button; editor and community tests count nowhere
+const lvStat = () => devTestMode || communityTestMode ? {} : (save.lv[selected] ??= { attempts: 0, deaths: 0, jumps: 0, time: 0 });
+const clockText = s => { const t = Math.floor(s), m = Math.floor(t / 60); return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}` : `${m}:${String(t % 60).padStart(2, '0')}`; };
 const sum = (list, f) => list.reduce((n, x) => n + f(x), 0);
 const ownedItems = () => save.owned.map(id => { const [k, i] = id.split(':'); return ITEMS[k][i]; });
 const starBalance = () => sum(LEVELS, l => beaten(LEVELS.indexOf(l)) ? l.stars : 0) - sum(ownedItems(), it => it.stars || 0);
@@ -1742,6 +1745,7 @@ function buyOrEquip(kind, i) {
 // ---- Game state ----
 let state = 'menu', selected = 0, level = LEVELS[0], player = newPlayer(), stateTime = 0, attempts = 1, holding = false, jumpPressed = false, activePointerId = null;
 let particles = [], history = [], winNote = '', shopTab = 0, shopPick = 0, titleClicks = 0, typed = '', keys = [], devArmed = false;
+let levelInfo = false, fade = 0; // the level select's info panel is open; the dip to black that smooths a screen change
 let newBest = null, runJumps = 0, runTime = 0; // the "New best!" popup, and this visit's jumps and play time for the finish screen
 let practice = false, checkpoints = [], cpTimer = 0; // practice mode: respawn at the last checkpoint, and nothing is saved
 let visRot = 0, shake = 0, ceilAnim = 0, mirrorAnim = 1, menuScroll = 0, mouse = { x: -1, y: -1 }, cursorHot = false, drag = null;
@@ -1752,6 +1756,7 @@ function startLevel(i, prac = false) {
   practice = prac; checkpoints = []; cpTimer = 0; save.attempts++; checkAchievements();
   selected = i; level = LEVELS[i]; player = newPlayer(); attempts = 1; newBest = null; runJumps = 0; runTime = 0; particles = []; history = [];
   visRot = 0; shake = 0; ceilAnim = 0; mirrorAnim = 1; state = 'play'; stateTime = 0; holding = false; jumpPressed = false; activePointerId = null; was = { x: 0, y: 0, rot: 0 };
+  lvStat().attempts++; fade = 1; levelInfo = false;
   playSong(SONGS[i % SONGS.length]);
 }
 function respawn() {
@@ -1762,7 +1767,7 @@ function respawn() {
   }
   const cp = practice && checkpoints[checkpoints.length - 1];
   player = cp ? structuredClone(cp.p) : newPlayer(); visRot = cp ? cp.rot : 0; cpTimer = 0;
-  state = 'play'; attempts++; save.attempts++; checkAchievements(); history = []; playSong(SONGS[selected % SONGS.length]);
+  state = 'play'; attempts++; save.attempts++; lvStat().attempts++; fade = 0.5; checkAchievements(); history = []; playSong(SONGS[selected % SONGS.length]);
 }
 function placeCheckpoint() { checkpoints.push({ p: structuredClone(player), rot: visRot }); cpTimer = 0; save.checkpoints++; checkAchievements(); }
 function pause() { // only during a level; a pause during the crash skips straight to the next attempt
@@ -1771,7 +1776,8 @@ function pause() { // only during a level; a pause during the crash skips straig
 }
 function go(to) {
   if (devTestMode && to === 'levels') return devBackToEditor();
-  state = to; practice = false; checkpoints = []; wipeAsk = false; holding = false; sfx('click'); }
+  if (to !== state) fade = 1;
+  state = to; practice = false; checkpoints = []; wipeAsk = false; levelInfo = false; holding = false; persist(); sfx('click'); }
 const progress = () => Math.min(100, Math.floor(player.x / level.len * 100));
 
 // ---- Sound and music ----
@@ -2106,7 +2112,7 @@ function playEffects(prev) {
     if (prev.grounded && !p.grounded && p.vy > 0) {
       spray(particles, 6, p.x + 0.5, p.y + 0.05, 3, { color: 'rgba(255,255,255,0.7)', size: 4, life: 0.3, g: -10 });
       if (p.vy !== PAD && p.vy !== RED_PAD) sfx('jump');
-      runJumps++; if (++save.jumps >= 1000) unlockSecret('jumps');
+      runJumps++; lvStat().jumps++; if (++save.jumps >= 1000) unlockSecret('jumps');
       checkAchievements();
     } else if (!prev.grounded && p.grounded) spray(particles, 8, p.x + 0.5, p.y + 0.05, 4, { color: 'rgba(255,255,255,0.6)', size: 4, life: 0.25 });
     if (p.grounded && Math.random() < 0.7) emit(particles, { x: p.x + 0.05, y: p.y + 0.08, vx: -3 - Math.random() * 2, vy: 0.5 + Math.random() * 1.5, life: 0.35, size: 5, color, shrink: true, add: true });
@@ -2133,6 +2139,7 @@ function finishLevel() {
   if (devTestMode) { winNote = 'Test complete · nothing saved'; return; }
   if (practice) { winNote = 'Practice complete! Only your practice best is saved'; save.pbest[selected] = 100; persist(); earn('practice'); return; }
   const firstClear = !beaten(selected);
+  if (firstClear) lvStat().clearAt = lvStat().attempts;
   const had = save.coins[selected] || [];
   const coins = [...new Set([...had, ...player.coins])];
   save.best[selected] = 100; save.coins[selected] = coins; persist();
@@ -2164,7 +2171,7 @@ function die() {
   }
   if (!practice && pct > (save.best[selected] || 0)) { save.best[selected] = pct; newBest = { pct, at: clock }; sfx('best'); }
   if (practice && pct > (save.pbest[selected] || 0)) save.pbest[selected] = pct;
-  save.deaths++; persist();
+  save.deaths++; lvStat().deaths++; persist();
   if (save.deaths >= 50) unlockSecret('deaths');
   if (pct >= 90 && !practice) unlockSecret('close');
   checkAchievements();
@@ -4249,7 +4256,7 @@ function drawWinPanel() {
   txt(practice ? 'PRACTICE COMPLETE!' : 'LEVEL COMPLETE!', 0, 14, 46, vgrad(-22, 14, '#fff7b0', '#ffd400', '#ff7a00'), 'center', 8);
   ctx.restore();
   ui(`${level.name}  ·  ${level.difficulty}`, W / 2, 146, 16, FACE[level.difficulty] || '#fff');
-  const t = Math.floor(runTime), stats = [['Attempts', attempts], ['Jumps', runJumps], ['Time', `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`]];
+  const stats = [['Attempts', attempts], ['Jumps', runJumps], ['Time', clockText(runTime)]];
   stats.forEach(([k, v], i) => {
     const x = W / 2 + (i - 1) * 150;
     rr(x - 66, 160, 132, 54, 12); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
@@ -4301,6 +4308,21 @@ function drawBalance() {
   drawCoinIcon(x + 106, y + 18, 10, 'new'); txt(String(coinBalance()), x + 122, y + 27, 22, '#fff', 'left', 4);
 }
 
+// Like GD's main menu, random icons from the shop cross the screen in their own modes behind the buttons.
+const PARADE = [['ship', 262, 150, 0.1], ['wave', 236, 230, 0.55], ['ball', GROUND - T / 2, 200, 0.3], ['cube', GROUND - T / 2, 125, 0.8]]; // mode, center y, speed (px/s), where it starts
+function drawParade(time) {
+  const span = W + 2 * VIEW.x + 160;
+  PARADE.forEach(([mode, y0, v, off], k) => {
+    const d = time * v + off * span, n = Math.floor(d / span), list = ITEMS[mode], it = list[(n * 7 + k * 5 + 3) % list.length];
+    const at = tt => { const q = stagePose(mode, tt); return { x: mod(d - (time - tt) * v, span) - 80 - VIEW.x, y: y0 - (mode === 'ball' ? 0 : q.y * T * 0.8), rot: mode === 'ball' ? (d - (time - tt) * v) / (T / 2) : q.rot, mode }; }; // the ball just rolls along the floor
+    const me = at(time);
+    ctx.save(); ctx.globalAlpha = 0.85;
+    if (mode === 'wave') { const hist = [...Array(24)].map((_, j) => at(time - (23 - j) * 0.02)).filter(q => q.x <= me.x); drawWaveTrail(hist, q => q.x, q => q.y, mainColor(it)); }
+    if (mode === 'ship') drawFlame(me.x, me.y, me.rot, true, it.look);
+    ICON[mode](me.x, me.y, me.rot, it, T, true);
+    ctx.restore();
+  });
+}
 function drawRunner(time) { // the equipped cube hopping along the menu floor
   const x = mod(time * 160, W + 2 * VIEW.x + 120) - 60 - VIEW.x, ph = mod(time * 1.25, 1), air = ph < 0.42;
   const jump = air ? Math.sin(ph / 0.42 * Math.PI) : 0, rot = (Math.floor(time * 1.25) + Math.min(1, ph / 0.42)) * Math.PI / 2;
@@ -4344,6 +4366,7 @@ function drawTitle(time) {
   const hue = 225 + Math.sin(time * 0.12) * 45, camX = time * 3;
   drawBackground(hue, camX, time);
   drawFloor(hue, camX, GROUND, false);
+  if (!REDUCED_MOTION) drawParade(time);
   drawRunner(time);
   ctx.fillStyle = vignette(); fillScreen();
   drawBalance();
@@ -4402,6 +4425,9 @@ function drawLevels(time) {
       if (best) { rr(bx, by, Math.max(14, bw * best / 100), 14, 7); ctx.fillStyle = best === 100 ? vgrad(by, by + 14, '#fff7b0', '#ffd400') : vgrad(by, by + 14, c0, c1); ctx.fill(); }
       ui(`${name} ${best === 100 ? 'complete!' : best + '%'}`, cx, by + 11, 11, best === 100 ? '#5a3a00' : '#fff');
     });
+    if (sel) { const b = infoBtn(), r = 15 + (hovered(b) ? 2 : 0); // GD's little "i" on a level page
+      ctx.beginPath(); ctx.arc(b.x + b.w / 2, b.y + b.h / 2, r, 0, TAU); ctx.fillStyle = vgrad(b.y, b.y + b.h, '#9fd8ff', '#2b6bff'); ctx.fill();
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.stroke(); txt('i', b.x + b.w / 2, b.y + b.h / 2 + 8, 22, '#fff', 'center', 4); }
     ctx.restore();
   });
   drawArrow(PREV_BTN, -1); drawArrow(NEXT_BTN, 1);
@@ -4409,7 +4435,26 @@ function drawLevels(time) {
     ctx.beginPath(); ctx.arc(W / 2 + (i - (LEVELS.length - 1) / 2) * 20, CARD_Y + CARD_H + 30, i === selected ? 6 : 4, 0, TAU);
     ctx.fillStyle = i === selected ? '#ffd400' : 'rgba(255,255,255,0.45)'; ctx.fill();
   });
-  ui('Enter or click the card to play  ·  ← → to choose  ·  Esc to go back', W / 2, CARD_Y + CARD_H + 70, 14, 'rgba(255,255,255,0.8)');
+  ui('Enter or click the card to play  ·  ← → to choose  ·  I for level info  ·  Esc to go back', W / 2, CARD_Y + CARD_H + 70, 14, 'rgba(255,255,255,0.8)');
+  if (levelInfo) drawLevelInfo();
+}
+const infoBtn = () => { const c = cardRect(selected); return { x: c.x + CARD_W - 52, y: c.y + 14, w: 36, h: 36 }; };
+function drawLevelInfo() { // the info button's panel: this level's own stats
+  const l = LEVELS[selected], s = save.lv[selected] || {}, got = (save.coins[selected] || []).length, px = W / 2 - 280, py = 64;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; fillScreen();
+  rr(px, py, 560, 352, 22); ctx.fillStyle = vgrad(py, py + 352, `hsla(${l.hue},45%,26%,0.97)`, 'rgba(16,14,34,0.97)'); ctx.fill();
+  ctx.strokeStyle = `hsl(${l.hue},80%,65%)`; ctx.lineWidth = 3; ctx.stroke();
+  txt(l.name, W / 2, py + 54, 38, '#fff', 'center', 6);
+  ui(`${l.difficulty}  ·  ${l.stars} stars  ·  ${l.coinTiles.length} coins`, W / 2, py + 80, 15, shade(FACE[l.difficulty], 0.45));
+  [['Attempts', s.attempts || 0], ['Crashes', s.deaths || 0], ['Jumps', s.jumps || 0],
+   ['Time played', clockText(s.time || 0)], ['Normal best', `${save.best[selected] || 0}%`], ['Practice best', `${save.pbest[selected] || 0}%`]].forEach(([k, v], i) => {
+    const x = W / 2 + (i % 3 - 1) * 172, y = py + 100 + Math.floor(i / 3) * 74;
+    rr(x - 80, y, 160, 62, 12); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+    txt(String(v), x, y + 34, 26, '#fff', 'center', 4); ui(k, x, y + 53, 12, 'rgba(255,255,255,0.75)');
+  });
+  l.coinTiles.forEach((t, j) => drawCoinIcon(W / 2 - (l.coinTiles.length - 1) * 18 + j * 36, py + 268, 13, (save.coins[selected] || []).includes(t.id) ? 'new' : 'none'));
+  ui(s.clearAt ? `Beaten on attempt ${s.clearAt}  ·  ${got}/${l.coinTiles.length} coins` : beaten(selected) ? `Beaten  ·  ${got}/${l.coinTiles.length} coins` : `Not beaten yet  ·  ${got}/${l.coinTiles.length} coins`, W / 2, py + 302, 15, '#ffd400');
+  ui('Click anywhere or press Esc to close', W / 2, py + 334, 12, 'rgba(255,255,255,0.7)');
 }
 
 // Settings: the same sliders and switches sit on the settings screen and in the pause menu.
@@ -5395,7 +5440,7 @@ document.getElementById('communityClose').addEventListener('click', closeCommuni
 // ---- Loop ----
 let last = performance.now(), acc = 0, clock = 0, tween = 1, was = { x: 0, y: 0, rot: 0 };
 function frame(now) {
-  acc += Math.min(0.25, (now - last) / 1000); last = now;
+  const frameDt = Math.min(0.25, (now - last) / 1000); acc += frameDt; last = now;
   while (acc >= DT) {
     acc -= DT; clock += DT;
     if (toast && (toast.t -= DT) <= 0) toast = null;
@@ -5408,7 +5453,7 @@ function frame(now) {
     mirrorAnim += ((player.mirror ? -1 : 1) - mirrorAnim) * 0.1;
     was = { x: player.x, y: player.y, rot: visRot, mode: player.mode }; // frames drawn before the next step blend from here
     if (state === 'play') {
-      runTime += DT;
+      runTime += DT; lvStat().time += DT;
       const prev = { grounded: player.grounded, vy: player.vy, mode: player.mode, grav: player.grav, mini: player.mini, mirror: player.mirror, used: player.used.length, coins: player.coins.length };
       const r = step(player, holding, level, jumpPressed);
       jumpPressed = false;
@@ -5436,6 +5481,7 @@ function frame(now) {
   else if (state === 'stats') drawAchievements(time);
   else drawWorld(time);
   if (state === 'pause') drawPause();
+  if (fade > 0) { ctx.fillStyle = `rgba(0,0,0,${fade * fade})`; fillScreen(); fade = Math.max(0, fade - frameDt * 5); }
   drawToast();
   syncHexInput();
   canvas.style.cursor = cursorHot ? 'pointer' : 'default';
@@ -5493,6 +5539,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape' || e.code === 'Backspace') {
     if (state === 'play' || state === 'dead') devTestMode ? devBackToEditor() : pause();
     else if (state === 'win') go('levels');
+    else if (levelInfo) { levelInfo = false; sfx('click'); }
     else if (state === 'custom') go('shop');
     else if (state !== 'menu') go('menu');
     return;
@@ -5511,6 +5558,7 @@ addEventListener('keydown', e => {
     if (e.code === 'KeyZ' && state === 'play') return placeCheckpoint();
     if (e.code === 'KeyX') return void checkpoints.pop();
   }
+  if (state === 'levels' && e.code === 'KeyI') { levelInfo = !levelInfo; return sfx('click'); }
   if (state === 'levels' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { selected = mod(selected + (e.code === 'ArrowLeft' ? -1 : 1), LEVELS.length); sfx('click'); }
   if (state === 'custom' && !editing.base && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { save.custom.face = FACE_IDS[mod(FACE_IDS.indexOf(save.custom.face) + (e.code === 'ArrowLeft' ? -1 : 1), FACE_IDS.length)]; persist(); sfx('click'); }
   if (state === 'shop') { // up and down switch tabs (landing on what is equipped), left and right pick an item
@@ -5544,6 +5592,8 @@ canvas.addEventListener('pointerdown', e => {
     return;
   }
   if (state === 'levels') {
+    if (levelInfo) { levelInfo = false; return sfx('click'); }
+    if (hit(infoBtn())) { levelInfo = true; return sfx('click'); }
     if (hit(BACK_BTN)) return go('menu');
     if (hit(PREV_BTN) || hit(NEXT_BTN)) { selected = mod(selected + (mx < W / 2 ? -1 : 1), LEVELS.length); return sfx('click'); }
     const i = LEVELS.findIndex((_, i) => hit(cardRect(i)));
