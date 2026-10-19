@@ -33,17 +33,23 @@ const exhaustAnchors = await page.evaluate(() => Object.keys(SHIPS).every(look =
 assert.equal(exhaustAnchors, true, 'every ship skin has a tailored exhaust anchor');
 const renderers = await page.evaluate(() => ({
   cube: ITEMS.cube.every(it => typeof LOOKS[it.look] === 'function' || KIT[it.look]),
-  kit: Object.keys(KIT).length === 36 && Object.keys(KIT).every(look => ITEMS.cube.some(it => it.look === look && it.base)),
+  kit: Object.keys(KIT).length === 59 && Object.keys(KIT).every(look => ITEMS.cube.some(it => it.look === look && it.base)),
   ship: ITEMS.ship.every(it => typeof SHIPS[it.look] === 'function' && EXHAUST[it.look]),
   ball: ITEMS.ball.every(it => typeof BALLS[it.look] === 'function'),
   wave: ITEMS.wave.every(it => typeof WAVES[it.look] === 'function'),
-  added: ['Helix', 'Shard', 'Stinger', 'Lancer', 'Comet', 'Quasar', 'Ion', 'Aurora', 'Prism', 'Rift', 'Meteor'].every(name => KINDS.some(k => ITEMS[k].some(it => it.name === name))),
+  added: ['Helix', 'Shard', 'Stinger', 'Lancer', 'Comet', 'Quasar', 'Ion', 'Aurora', 'Prism', 'Rift', 'Meteor', 'Grin', 'Pumpkin', 'Wedge', 'Shuttle', 'Eight Ball', 'Crater', 'Twin Dart', 'Bee', 'Smoke', 'Starfall'].every(name => KINDS.some(k => ITEMS[k].some(it => it.name === name))),
 }));
 assert.deepEqual(renderers, { cube: true, kit: true, ship: true, ball: true, wave: true, added: true }, 'every new shop item has a registered visual and stays available to equip, and every traced icon is a paintable cube');
 const extraIcons = await page.evaluate(() => {
   drawTrailIcon('Aurora', 40, 40); drawTrailIcon('Prism', 80, 40);
   drawDeathIcon('Rift', 120, 40); drawDeathIcon('Meteor', 160, 40);
-  return true;
+  for (const n of ['Smoke', 'Confetti', 'Snow', 'Toxic']) { drawTrailIcon(n, 40, 40); emitTrail([], 0, 0, n, '#ffffff'); }
+  for (const n of ['Splash', 'Implode', 'Glitch', 'Starfall']) { drawDeathIcon(n, 40, 40); const l = []; deathEffect(l, 0, 0, n, '#ffffff'); if (!l.length) return n; }
+  // ships, balls and waves can be painted too; their picks are kept apart from a cube with the same name
+  const ship = ITEMS.ship.find(it => it.name === 'Whale'); openEditor(ship); setColor('body', '#123456');
+  const painted = ship.body === '#123456' && !!save.paint['ship:Whale'] && ITEMS.ship.find(it => it.name === 'Ghost').base === undefined;
+  delete save.paint['ship:Whale']; state = 'menu'; // back to the title screen for the secrets below
+  return painted;
 });
 assert.equal(extraIcons, true, 'new trail and death icons render without errors');
 
