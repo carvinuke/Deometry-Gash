@@ -1596,7 +1596,7 @@ const SAVE_KEY = 'deometry-gash-save';
 const EQUIPPED = { cube: 0, ship: 0, ball: 0, wave: 0, trail: 0, death: 0 };
 const SETTINGS = { music: 0.7, sfx: 0.8, progress: true, shake: true };
 const CUSTOM = { face: 'angry', body: '#1fcf4a', inner: '#00e5ff' }; // the Custom cube until the player changes it; checked against FACES further down
-let save = { v: 5, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, attempts: 0, checkpoints: 0, ach: [], equipped: EQUIPPED, settings: SETTINGS };
+let save = { v: 5, best: {}, pbest: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, attempts: 0, checkpoints: 0, ach: [], equipped: EQUIPPED, settings: SETTINGS };
 // Version 4 saves stored each coin's tile id from when coins were numbered among all tiles; now a coin's id is its place among the level's coins.
 const COIN_IDS_V4 = {"First Steps":[0,1],"Sunrise Run":[0,2],"Orb Garden":[0,1],"Rolling Thunder":[10,155,199],"Prism Path":[0,2],"Tidal Flow":[0,2],"Sky Rush":[29,71],"Neon Circuit":[0,3],"Wave Rider":[5,24,152],"Circuit Breaker":[0,3],"Gash Gauntlet":[3,28],"Mode Mayhem":[262,310,332],"Demon Gash":[11,481,559],"Flutterclunk":[195,229,237],"Abyssal Run":[244,378]};
 // Version 1 saves stored coin tile ids from before the portals moved down to where the player passes them.
@@ -1627,7 +1627,7 @@ save.settings = { ...SETTINGS, ...save.settings };
 save.paint = Object.fromEntries(Object.entries({ ...save.paint }).map(([name, c]) => [name, Object.fromEntries(['body', 'inner'].filter(k => /^#[0-9a-f]{6}$/i.test(c?.[k])).map(k => [k, c[k]]))]));
 const persist =() => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch {} };
 function wipeSave() { // keeps the volume and display settings
-  save = { v: 5, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, attempts: 0, checkpoints: 0, ach: [], equipped: { ...EQUIPPED }, custom: { ...CUSTOM }, paint: {}, settings: save.settings };
+  save = { v: 5, best: {}, pbest: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, attempts: 0, checkpoints: 0, ach: [], equipped: { ...EQUIPPED }, custom: { ...CUSTOM }, paint: {}, settings: save.settings };
   persist();
 }
 
@@ -2054,7 +2054,7 @@ function finishLevel() {
   song = null; sfx('win');
   if (communityTestMode) { state = 'win'; stateTime = 0; winNote = 'Community test complete · no official progress changed'; return; }
   if (devTestMode) { winNote = 'Test complete · nothing saved'; return; }
-  if (practice) { winNote = 'Practice run: nothing is saved'; earn('practice'); return; }
+  if (practice) { winNote = 'Practice complete! Only your practice best is saved'; save.pbest[selected] = 100; persist(); earn('practice'); return; }
   const firstClear = !beaten(selected);
   const had = save.coins[selected] || [];
   const coins = [...new Set([...had, ...player.coins])];
@@ -2086,6 +2086,7 @@ function die() {
     song = null; sfx('death'); return;
   }
   if (!practice && pct > (save.best[selected] || 0)) { save.best[selected] = pct; newBest = { pct, at: clock }; sfx('best'); }
+  if (practice && pct > (save.pbest[selected] || 0)) save.pbest[selected] = pct;
   save.deaths++; persist();
   if (save.deaths >= 50) unlockSecret('deaths');
   if (pct >= 90 && !practice) unlockSecret('close');
@@ -4095,14 +4096,17 @@ function drawLevels(time) {
     rr(x, y, CARD_W, CARD_H, 24); ctx.strokeStyle = sel ? '#ffd400' : 'rgba(255,255,255,0.4)'; ctx.lineWidth = sel ? 4 : 2; ctx.stroke();
     txt(l.name, cx, y + 54, 40, '#fff', 'center', 7);
     drawFace(x + 110, y + 124, 36, l.difficulty);
-    txt(l.difficulty, x + 110, y + 186, 22, shade(FACE[l.difficulty], 0.45), 'center', 4);
+    txt(l.difficulty, x + 110, y + 182, 22, shade(FACE[l.difficulty], 0.45), 'center', 4);
     drawStar(x + 236, y + 112, 14); txt(`${l.stars} stars`, x + 258, y + 122, 28, '#fff', 'left', 5);
     const got = save.coins[i] || [];
     l.coinTiles.forEach((t, j) => drawCoinIcon(x + 250 + j * 40, y + 158, 14, got.includes(t.id) ? 'new' : 'none'));
-    const best = save.best[i] || 0, bx = x + 30, by = y + 200, bw = CARD_W - 60;
-    rr(bx, by, bw, 16, 8); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
-    if (best) { rr(bx, by, Math.max(16, bw * best / 100), 16, 8); ctx.fillStyle = best === 100 ? vgrad(by, by + 16, '#fff7b0', '#ffd400') : vgrad(by, by + 16, '#c3ff7a', '#3fcf2a'); ctx.fill(); }
-    ui(best === 100 ? 'Complete!' : `Best ${best}%`, cx, by + 13, 12, best === 100 ? '#5a3a00' : '#fff');
+    // Normal and practice progress bars, like Geometry Dash's level pages
+    [['Normal', save.best[i] || 0, '#c3ff7a', '#3fcf2a', 196], ['Practice', save.pbest[i] || 0, '#9ff3ff', '#2a9fcf', 213]].forEach(([name, best, c0, c1, dy]) => {
+      const bx = x + 30, by = y + dy, bw = CARD_W - 60;
+      rr(bx, by, bw, 14, 7); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
+      if (best) { rr(bx, by, Math.max(14, bw * best / 100), 14, 7); ctx.fillStyle = best === 100 ? vgrad(by, by + 14, '#fff7b0', '#ffd400') : vgrad(by, by + 14, c0, c1); ctx.fill(); }
+      ui(`${name} ${best === 100 ? 'complete!' : best + '%'}`, cx, by + 11, 11, best === 100 ? '#5a3a00' : '#fff');
+    });
     ctx.restore();
   });
   drawArrow(PREV_BTN, -1); drawArrow(NEXT_BTN, 1);
