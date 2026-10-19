@@ -13,7 +13,7 @@ await page.evaluate(() => localStorage.clear());
 await page.reload();
 
 const before = await page.evaluate(() => KINDS.map(k => ITEMS[k].filter((_, i) => unlocked(k, i)).length));
-assert.deepEqual(before, [1, 1, 1, 1, 1, 1], 'only the free items start unlocked');
+assert.deepEqual(before, [2, 1, 1, 1, 1, 1], 'only the free items (two of them cubes: Classic and Custom) start unlocked');
 const order = await page.evaluate(() => ({
   names: LEVELS.map(l => l.name),
   songs: SONGS.length,
@@ -107,8 +107,27 @@ const keptV3 = await page.evaluate(() => ({
 await page.evaluate(() => localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 4, best: {}, coins: { 3: [10, 199], 13: [195, 237] } })));
 await page.reload();
 const keptV4 = await page.evaluate(() => ({ version: save.v, rolling: save.coins[3], flutter: save.coins[13], names: [LEVELS[3].name, LEVELS[13].name] }));
+// The Custom cube: using it opens its editor, and a clicked face and swatch and a typed hex code survive a reload.
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+const customOpened = await page.evaluate(() => { const i = ITEMS.cube.findIndex(it => it.look === 'custom'); openShop(); shopSelect(0, i); buyOrEquip('cube', i); return state; });
+const clickBox = async b => { const v = await page.evaluate(() => VIEW); await page.mouse.click((b.x + b.w / 2 + v.x) * v.s, (b.y + b.h / 2 + v.y) * v.s); };
+await clickBox(await page.evaluate(() => facePos(FACE_IDS.indexOf('kitty'))));
+await clickBox(await page.evaluate(() => swatchPos(PALETTE.indexOf('#2b5bff')))); // the block color tab starts picked
+await clickBox(await page.evaluate(() => colorTabPos(1)));
+await page.fill('#customHex', '#F80');
+await page.reload();
+const customKept = await page.evaluate(() => { const s = skin('cube'); return { look: s.look, face: s.face, body: s.body, inner: s.inner }; });
+// A saved face or color the game can't draw falls back to the default instead of stopping the game (the page errors below would catch that).
+await page.evaluate(() => localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 5, equipped: { cube: ITEMS.cube.findIndex(it => it.look === 'custom') }, custom: { face: '__proto__', body: 'red', inner: null } })));
+await page.reload();
+await page.waitForTimeout(100); // the title screen draws the equipped cube
+const customFixed = await page.evaluate(() => ({ fixed: save.custom, defaults: CUSTOM }));
 await browser.close();
 assert.deepEqual(errors, []);
+assert.equal(customOpened, 'custom', 'using the Custom cube opens its editor');
+assert.deepEqual(customKept, { look: 'custom', face: 'kitty', body: '#2b5bff', inner: '#ff8800' }, 'the Custom cube keeps the face and colors picked for it');
+assert.deepEqual(customFixed.fixed, customFixed.defaults, 'a Custom cube the game cannot draw falls back to the default look');
 assert.deepEqual(keptV4, { version: 5, rolling: [0, 2], flutter: [0, 2], names: ['Rolling Thunder', 'Flutterclunk'] }, 'version 4 coins map to their place among the level coins');
 assert.deepEqual(after.secrets, ['close', 'code', 'deaths', 'jumps', 'konami', 'title']);
 assert.deepEqual(after.locked, [], 'everything is unlockable');
