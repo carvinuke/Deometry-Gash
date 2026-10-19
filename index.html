@@ -136,7 +136,6 @@
   #devPanel .editor-tools-grid button, #devPanel .editor-tools-grid .editor-toggle { min-width: 0; min-height: 30px; padding: 5px 6px; border-radius: 8px; background: linear-gradient(#405f89,#203b64); border-color: #789ac3; color: #f2f7ff; font-size: 10px; font-weight: 800; text-align: center; white-space: nowrap; }
   #devPanel .editor-tools-grid #devTestStart { background: linear-gradient(#7dee52,#39ad40); border-color: #c8ff9d; color: #0c2b12; }
   #devPanel .editor-tools-grid #devSetStart[aria-pressed="true"] { background: linear-gradient(#ffd95d,#e38a2c); border-color: #fff0b0; color: #382006; }
-  #devPanel .editor-tools-grid #devClearStart { color: #ffd8df; border-color: #d86a7d; }
   #devPanel .editor-toggle { display: flex; justify-content: center; align-items: center; gap: 4px; }
   #devPanel .editor-toggle input { width: 13px; height: 13px; margin: 0; padding: 0; accent-color: #79ee54; }
   #devPanel .editor-status { grid-row: 3; display: flex; align-items: center; overflow: hidden; padding: 2px 12px; border-top: 1px solid #243d65; background: #081326; color: #9db5d5; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
@@ -328,8 +327,8 @@
         <button id="devRotateLeft" type="button" title="Rotate selected object counter-clockwise">↶ −90°</button>
         <button id="devRotateRight" type="button" title="Rotate selected object clockwise">↷ +90°</button>
         <button id="devSetStart" type="button" aria-pressed="false">⊙ Place start</button>
-        <button id="devTestStart" class="dev-primary" type="button">▶ Play from start</button>
-        <button id="devClearStart" type="button">Clear start</button>
+        <button id="devTestStart" class="dev-primary" type="button" title="Test from the START marker, or from the left edge of the view if there is none (P)">▶ Test here (P)</button>
+        <button id="devTestAll" type="button" title="Test the draft from column 1">⏮ Test from 1</button>
         <button id="devAddColumn" type="button" title="Add a blank column">＋ Add column</button>
         <button id="devRemoveColumn" type="button" title="Remove the final column">− Remove column</button>
         <label class="editor-toggle"><input id="devNoclip" type="checkbox"> Noclip</label>
@@ -1691,6 +1690,7 @@ let practice = false, checkpoints = [], cpTimer = 0; // practice mode: respawn a
 let visRot = 0, shake = 0, ceilAnim = 0, mirrorAnim = 1, menuScroll = 0, mouse = { x: -1, y: -1 }, cursorHot = false, drag = null;
 
 function startLevel(i, prac = false) {
+  if (devTestMode) { practice = prac; checkpoints = []; attempts = 0; return devRespawn(); } // Replay during an editor test
   communityTestMode = false; communityTestLevel = null;
   practice = prac; checkpoints = []; cpTimer = 0; save.attempts++; checkAchievements();
   selected = i; level = LEVELS[i]; player = newPlayer(); attempts = 1; newBest = null; runJumps = 0; runTime = 0; particles = []; history = [];
@@ -1698,6 +1698,7 @@ function startLevel(i, prac = false) {
   playSong(SONGS[i % SONGS.length]);
 }
 function respawn() {
+  if (devTestMode && !(practice && checkpoints.length)) return devRespawn();
   if (communityTestMode && communityTestLevel) {
     level = buildLevel(communityTestLevel.name, 'Normal', 1, 185, [communityTestLevel.rows]);
     player = newPlayer(); visRot = 0; state = 'play'; attempts++; history = []; playSong(SONGS[selected % SONGS.length]); return;
@@ -1711,7 +1712,9 @@ function pause() { // only during a level; a pause during the crash skips straig
   if (state === 'dead') respawn();
   if (state === 'play') { state = 'pause'; holding = false; sfx('click'); }
 }
-function go(to) { state = to; practice = false; checkpoints = []; wipeAsk = false; holding = false; sfx('click'); }
+function go(to) {
+  if (devTestMode && to === 'levels') return devBackToEditor();
+  state = to; practice = false; checkpoints = []; wipeAsk = false; holding = false; sfx('click'); }
 const progress = () => Math.min(100, Math.floor(player.x / level.len * 100));
 
 // ---- Sound and music ----
@@ -2050,6 +2053,7 @@ function playEffects(prev) {
 function finishLevel() {
   song = null; sfx('win');
   if (communityTestMode) { state = 'win'; stateTime = 0; winNote = 'Community test complete · no official progress changed'; return; }
+  if (devTestMode) { winNote = 'Test complete · nothing saved'; return; }
   if (practice) { winNote = 'Practice run: nothing is saved'; earn('practice'); return; }
   const firstClear = !beaten(selected);
   const had = save.coins[selected] || [];
@@ -2074,8 +2078,9 @@ function finishLevel() {
 
 function die() {
   const pct = progress();
-  if (communityTestMode) {
-    save.deaths++; persist();
+  if (communityTestMode || devTestMode) {
+    if (devTestMode) devLastDeath = { x: Math.floor(player.x + 0.5), y: Math.max(0, Math.min(ROWS - 1, ROWS - 1 - Math.floor(player.y + 0.5))) };
+    else { save.deaths++; persist(); }
     deathEffect(particles, player.x + 0.5, player.y + 0.5, skin('death').name, mainColor(skin(player.mode)));
     if (!REDUCED_MOTION && save.settings.shake) shake = 0.35;
     song = null; sfx('death'); return;
@@ -3920,6 +3925,7 @@ function drawHUD() {
       ui(b.id === 'add' ? 'Place (Z)' : 'Remove (X)', b.x + b.w / 2, b.y + b.h - 6, 10, '#fff');
     }
   }
+  if (devTestMode && state !== 'win') txt('TEST · Esc: back to editor', 16 - VIEW.x, (practice ? 82 : 58) - VIEW.y, 16, '#ffd84a', 'left', 4);
   const banked = save.coins[selected] || [];
   level.coinTiles.forEach((c, i) => drawCoinIcon(W + VIEW.x - 80 - i * 28, 24 - VIEW.y, 10, player.coins.includes(c.id) ? 'new' : banked.includes(c.id) ? 'old' : 'none'));
   if (state === 'play' || state === 'dead') {
@@ -3957,7 +3963,7 @@ function drawWinPanel() {
   level.coinTiles.forEach((c, i) => drawCoinIcon(W / 2 - (level.coinTiles.length - 1) * 18 + i * 36, 240, 13, got.includes(c.id) ? 'new' : 'none'));
   ctx.font = `24px ${FONT}`; // shrink a long note (several unlocks) to fit the panel
   if (winNote) txt(winNote, W / 2, 284, Math.min(24, 24 * (pw - 40) / ctx.measureText(winNote).width), '#ffd400', 'center', 5);
-  for (const b of WIN_BTNS) roundBtn(b, b.id === 'restart' ? 'Replay  (R)' : 'Levels  (Space)');
+  for (const b of WIN_BTNS) roundBtn(b, b.id === 'restart' ? 'Replay  (R)' : devTestMode ? 'Editor  (Space)' : 'Levels  (Space)');
   ctx.restore();
 }
 
@@ -4212,7 +4218,7 @@ function drawPause() { // drawn over the frozen level, like GD's pause menu
   rr(bx, 98, 340, 16, 8); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
   if (best) { rr(bx, 98, Math.max(16, 340 * best / 100), 16, 8); ctx.fillStyle = vgrad(98, 114, '#c3ff7a', '#3fcf2a'); ctx.fill(); }
   ui(`Best ${best}%   ·   Attempt ${attempts}`, W / 2, 111, 12, '#fff');
-  for (const b of PAUSE_BTNS) roundBtn(b, { practice: practice ? 'Exit practice  (P)' : 'Practice  (P)', restart: 'Restart  (R)', resume: 'Resume  (Esc)', levels: 'Levels  (Q)' }[b.id]);
+  for (const b of PAUSE_BTNS) roundBtn(b, { practice: practice ? 'Exit practice  (P)' : 'Practice  (P)', restart: 'Restart  (R)', resume: 'Resume  (Esc)', levels: devTestMode ? 'Editor  (Q)' : 'Levels  (Q)' }[b.id]);
   drawSettings(266);
 }
 function roundBtn(b, label) { // the pause menu's and finish screen's round buttons, drawn by id
@@ -4565,7 +4571,7 @@ function wireEditorModes(element, getMode, setMode) {
   }
 }
 let devPanelOpen = false, devReturnState = 'menu', devRows = [], devOffset = 0, devTile = '#', devMode = 'build';
-let devTestStart=null,devPlacingStart=false,devTestMode=false,devTestStartSnapshot=null;
+let devTestStart=null,devPlacingStart=false,devTestMode=false,devTestStartSnapshot=null,devLastDeath=null;
 let devUndoStack=[],devRedoStack=[],devHistoryBaseline=null;
 function devHistorySnapshot(){
   if(!devRows.length)return null;
@@ -4613,11 +4619,49 @@ document.getElementById('devDeleteSelected').addEventListener('click',()=>{const
 document.getElementById('devRotateLeft').addEventListener('click',()=>devRotateSelected(-90));
 document.getElementById('devRotateRight').addEventListener('click',()=>devRotateSelected(90));
 document.getElementById('devDeselect').addEventListener('click',()=>{devSelectedCell=null;devRenderGrid();});
-document.getElementById('devSetStart').addEventListener('click',()=>{devPlacingStart=!devPlacingStart;document.getElementById('devSetStart').setAttribute('aria-pressed',String(devPlacingStart));devRenderGrid();devStatusText(devPlacingStart?'Click a cell to place the temporary test start.':'Placement cancelled.');});
-document.getElementById('devClearStart').addEventListener('click',()=>{devTestStart=null;devPlacingStart=false;document.getElementById('devSetStart').setAttribute('aria-pressed','false');devRenderGrid();devStatusText('Temporary test start cleared.');});
+document.getElementById('devSetStart').addEventListener('click',()=>{ // with a start already placed, the button clears it
+  if(devTestStart&&!devPlacingStart){devTestStart=null;devRenderGrid();return devStatusText('Test start cleared. Test here now starts at the left edge of the view.');}
+  devPlacingStart=!devPlacingStart;document.getElementById('devSetStart').setAttribute('aria-pressed',String(devPlacingStart));devRenderGrid();devStatusText(devPlacingStart?'Click a cell to place the temporary test start.':'Placement cancelled.');
+});
 document.getElementById('devTestStart').addEventListener('click',devTestFromStart);
+document.getElementById('devTestAll').addEventListener('click',()=>devPlaytest({x:0,y:ROWS-1}));
 function devRotateSelected(d){const p=devSelectedCell;if(!p||!devRows[p.y]||devRows[p.y][p.x]==='.')return devStatusText('Select an object in Edit mode first.');const n=devCurrentLevel().name;devSetRotation(n,p.x,p.y,devRotationAt(n,p.x,p.y)+d);devRenderGrid();devStatusText('Rotated object. Save level to keep it.');}
-function devTestFromStart(){if(!devTestStart)return devStatusText('Place a temporary test start in the scene first.');const m=devCurrentLevel(),rows=devRows.map(r=>r.slice()),start={...devTestStart};level=buildLevel(m.name+' (test)',m.difficulty,m.stars,m.hue,[rows]);for(const t of level.tiles)t.rotation=devRotationAt(m.name,t.x,ROWS-1-t.y);player=newPlayer();player.x=start.x;player.y=Math.max(0,ROWS-1-start.y);player.grounded=player.y===0;attempts=1;particles=[];history=[];visRot=0;shake=0;ceilAnim=0;mirrorAnim=1;was={x:player.x,y:player.y,rot:0};devTestMode=true;devTestStartSnapshot={meta:{...m},rows,start};state='play';stateTime=0;holding=false;jumpPressed=false;activePointerId=null;playSong(SONGS[selected%SONGS.length]);devPanel.hidden=true;devPanelOpen=false;}
+// A test plays the unsaved draft. Each attempt restarts at the test start, in the mode, gravity, size and mirror that the portals before it set.
+function devTestFromStart(){
+  if(devTestStart)return devPlaytest(devTestStart);
+  const x=devOffset,col=devRows.map(r=>r[x]);let y=ROWS-1;while(y>0&&col[y]!=='.')y--; // the lowest free cell at the view's left edge
+  devPlaytest({x,y});
+}
+function devTestPlayer(rows,start){
+  const p=newPlayer();p.x=start.x;p.y=Math.max(0,ROWS-1-start.y);
+  for(let x=0;x<start.x;x++)for(const row of rows){
+    const c=row[x];if(PORTAL_MODE[c])p.mode=PORTAL_MODE[c];
+    else if(c==='U'||c==='N')p.grav=c==='U'?-1:1;else if(c==='M'||c==='Z')p.mini=c==='M';else if(c==='X'||c==='Y')p.mirror=c==='X';
+  }
+  p.grounded=p.y===0&&p.grav>0;return p;
+}
+function devPlaytest(start){
+  const m=devCurrentLevel();
+  devTestStartSnapshot={meta:{...m},song:LEVELS.indexOf(m),rows:devRows.map(r=>r.slice()),start:{...start}};
+  devTestMode=true;devLastDeath=null;practice=false;checkpoints=[];attempts=0;shake=0;activePointerId=null;
+  devPanel.hidden=true;devPanelOpen=false;devRespawn();
+}
+function devRespawn(){
+  const z=devTestStartSnapshot,m=z.meta;
+  level=buildLevel(m.name+' (test)',m.difficulty,m.stars,m.hue,[z.rows]);
+  for(const t of level.tiles)t.rotation=devRotationAt(m.name,t.x,ROWS-1-t.y);
+  player=devTestPlayer(z.rows,z.start);was={x:player.x,y:player.y,rot:0};
+  visRot=0;ceilAnim=player.mode!=='cube'||player.grav<0?1:0;mirrorAnim=player.mirror?-1:1;
+  attempts++;particles=[];history=[];newBest=null;runJumps=0;runTime=0;cpTimer=0;
+  state='play';stateTime=0;holding=false;jumpPressed=false;playSong(SONGS[z.song%SONGS.length]);
+}
+function devBackToEditor(){ // leaving a test lands back in the editor with the draft untouched, showing where you last died
+  devTestMode=false;devTestStartSnapshot=null;practice=false;checkpoints=[];song=null;holding=false;state=devReturnState;
+  devPanel.hidden=false;devPanelOpen=true;
+  const d=devLastDeath,cols=editorSceneMetrics(devVisualCanvas).cols;
+  if(d&&(d.x<devOffset||d.x>=devOffset+cols))devOffset=Math.max(0,d.x-Math.floor(cols/3));
+  devRenderGrid();devStatusText(d?'Back from the test. The red ✕ marks where you last died.':'Back from the test.');
+}
 function devCurrentLevel() { return LEVELS.find(lvl => lvl.name === devLevelSelect.value) || LEVELS[0]; }
 function devStatusText(message) { devStatus.textContent = message; }
 function devPersistOverrides() {
@@ -4687,6 +4731,8 @@ function drawVisualEditor(canvas,rows,offset,mode,selectedCell,rotations={},test
       g.strokeStyle='#69ffb0';g.lineWidth=3;g.beginPath();g.arc(x,y+cell/2,cell*.38,0,TAU);g.stroke();
       ui('START',x,Math.max(top+11,y-3),10,'#69ffb0');
     }
+    const dead=canvas===devVisualCanvas&&devLastDeath;
+    if(dead&&dead.x>=offset){ui('✕',colX(dead.x)+cell/2,top+dead.y*cell+cell*.75,cell*.9,'#ff4d6d');}
     if(selectedCell&&selectedCell.x>=offset){
       g.shadowColor='#ffe75b';g.shadowBlur=10;g.strokeStyle='#ffe75b';g.lineWidth=3;
       g.strokeRect(colX(selectedCell.x)+2,top+selectedCell.y*cell+2,cell-4,cell-4);g.shadowBlur=0;
@@ -4777,6 +4823,7 @@ function devRenderGrid() {
   if(!devRows.length)return;
   devHistorySync();
   devOffset=Math.max(0,Math.min(Math.max(0,devRows[0].length-1),devOffset));
+  document.getElementById('devSetStart').textContent=devTestStart&&!devPlacingStart?'✕ Clear start':'⊙ Place start';
   devOffsetInput.max=String(Math.max(0,devRows[0].length-1));devOffsetInput.value=String(devOffset);document.getElementById('devColumnValue').textContent=String(devOffset+1);
   drawVisualEditor(devVisualCanvas,devRows,devOffset,devMode,devSelectedCell,DEV_ROTATIONS[devCurrentLevel().name]||{},devTestStart,devPlacingStart,devLook());
 }
@@ -4797,6 +4844,17 @@ function openDevPanel() {
   devLoadDraft();
   devStatusText('Developer tools unlocked. Changes are drafts until saved.');
 }
+function devShortcut(e) { // P tests, Ctrl+Z / Ctrl+Y undo and redo, Ctrl+S saves, arrows scroll
+  if (['INPUT', 'SELECT'].includes(e.target.tagName)) return;
+  const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  if (mod && k === 'z') e.shiftKey ? devRedo() : devUndo();
+  else if (mod && k === 'y') devRedo();
+  else if (mod && k === 's') devSaveLevel();
+  else if (!mod && k === 'p') devTestFromStart();
+  else if (!mod && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { devOffset += (e.code === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 20 : 5); devRenderGrid(); }
+  else return;
+  e.preventDefault();
+}
 function closeDevPanel() {
   devPanel.hidden = true; devPanelOpen = false;
   state = devReturnState;
@@ -4807,7 +4865,8 @@ function devSaveLevel() {
   devPersistOverrides();devPersistRotations();
   applyLevelOverrides({ [name]: rows });
   if (level?.name === name) level = LEVELS.find(lvl => lvl.name === name);
-  devLoadDraft();
+  const start = devTestStart, offset = devOffset;
+  devLoadDraft(); devTestStart = start; devOffset = offset; devHistoryBaseline = devHistorySnapshot(); devRenderGrid();
   devStatusText('Saved ' + name + '. Changes persist in this browser; export ZIP to share them.');
 }
 function devResetLevel() {
@@ -5095,17 +5154,17 @@ function press() {
 function pauseAction(id) {
   if (id === 'resume') { state = 'play'; sfx('click'); }
   else if (id === 'practice') { // leaving practice starts a fresh, real attempt
-    if (communityTestMode || devTestMode) return;
+    if (communityTestMode) return;
     if (practice) startLevel(selected); else { practice = true; checkpoints = []; cpTimer = 0; state = 'play'; }
     sfx('click');
   }
   else if (id === 'restart') {
-    if(devTestMode&&devTestStartSnapshot){const z=devTestStartSnapshot,m=z.meta;level=buildLevel(m.name+' (test)',m.difficulty,m.stars,m.hue,[z.rows]);for(const t of level.tiles)t.rotation=devRotationAt(m.name,t.x,ROWS-1-t.y);player=newPlayer();player.x=z.start.x;player.y=Math.max(0,ROWS-1-z.start.y);player.grounded=player.y===0;attempts++;particles=[];history=[];visRot=0;state='play';stateTime=0;holding=false;jumpPressed=false;playSong(SONGS[selected%SONGS.length]);return;}
+    if (devTestMode) return devRespawn();
     if (communityTestMode && communityTestLevel) {
       level = buildLevel(communityTestLevel.name, 'Normal', 1, 185, [communityTestLevel.rows]);
       player = newPlayer(); attempts = 1; particles = []; history = []; visRot = 0; state = 'play'; stateTime = 0; holding = false; jumpPressed = false; playSong(SONGS[selected % SONGS.length]);
     } else startLevel(selected, practice);
-  } else { communityTestMode = false; communityTestLevel = null; devTestMode=false;devTestStartSnapshot=null;go('levels'); }
+  } else { communityTestMode = false; communityTestLevel = null; go('levels'); }
 }
 function shopSelect(tab, i) { shopTab = tab; shopPick = Math.max(0, Math.min(ITEMS[KINDS[tab]].length - 1, i)); stageClock = 0; stageParticles = []; }
 function browseShopPage(direction) {
@@ -5119,7 +5178,7 @@ addEventListener('keydown', e => {
   audio(); // the first key press is allowed to start the sound
   if (e.target === hexInput) return; // typing a hex code
   if (communityPanelOpen) { if (e.code === 'Escape') { e.preventDefault(); closeCommunityEditor(); } return; }
-  if (devPanelOpen) { if (e.code === 'Escape') { e.preventDefault(); closeDevPanel(); } return; }
+  if (devPanelOpen) { if (e.code === 'Escape') { e.preventDefault(); closeDevPanel(); } else devShortcut(e); return; }
   keys = [...keys, e.code].slice(-KONAMI.length);
   if (keys.join() === KONAMI.join()) { unlockSecret('konami'); devArmed = true; typed = ''; }
   if (state === 'pause') {
@@ -5132,7 +5191,7 @@ addEventListener('keydown', e => {
   if (state === 'settings' && wipeAsk) { if (e.code === 'Escape' || e.code === 'Backspace') go('settings'); return; }
   if (state === 'win' && e.code === 'KeyR') { if (stateTime > 0.5) startLevel(selected, practice); return; }
   if (e.code === 'Escape' || e.code === 'Backspace') {
-    if (state === 'play' || state === 'dead') pause();
+    if (state === 'play' || state === 'dead') devTestMode ? devBackToEditor() : pause();
     else if (state === 'win') go('levels');
     else if (state === 'custom') go('shop');
     else if (state !== 'menu') go('menu');
@@ -5141,7 +5200,7 @@ addEventListener('keydown', e => {
   if (['menu', 'levels', 'shop'].includes(state) && e.key.length === 1) {
     typed = (typed + e.key.toLowerCase()).slice(-4);
     if (typed === 'gash') unlockSecret('code');
-    if (devArmed && state === 'menu' && typed.endsWith('dev')) { devArmed = false; openDevPanel(); return; }
+    if (devArmed && state === 'menu' && typed.endsWith('dev')) { typed = ''; openDevPanel(); return; } // stays armed, so "dev" reopens it until the page reloads
   }
   if (state === 'menu') {
     if (e.code === 'KeyS') return openShop();

@@ -224,5 +224,24 @@ const mapJump = await page.evaluate(() => { const at = devOffset / devRows[0].le
 if (errors.length || !editorChecks.ctxRestored || editorChecks.rotated !== 90 || !(mapJump > 0.5 && mapJump < 0.75)) {
   throw new Error('level editor self-check failed: ' + JSON.stringify({ errors, ...editorChecks, mapJump }));
 }
+// A playtest runs the unsaved draft from the test start in the mode the portals before it set, every death respawns
+// there, nothing reaches the save, and leaving the test reopens the editor with the draft intact.
+const playtest = await page.evaluate(() => {
+  const i = LEVELS.findIndex(l => DEV_BASE_ROWS.get(l.name).some(r => r.includes('S')));
+  selected = i; openDevPanel();
+  const sx = Math.max(...devRows.map(r => r.indexOf('S'))) + 3, before = JSON.stringify(save);
+  devRows[0] = '#' + devRows[0].slice(1); // an unsaved edit
+  devTestStart = { x: sx, y: 4 }; devTestFromStart();
+  const first = { mode: player.mode, x: player.x, open: devPanelOpen };
+  player.x += 4; die(); respawn();
+  const again = { x: player.x, attempts };
+  go('levels');
+  const back = { open: devPanelOpen, kept: devRows[0][0] === '#', death: !!devLastDeath, saveSame: JSON.stringify(save) === before };
+  closeDevPanel(); return { sx, first, again, back };
+});
+if (playtest.first.mode !== 'ship' || playtest.first.x !== playtest.sx || playtest.first.open || playtest.again.x !== playtest.sx
+  || playtest.again.attempts !== 2 || !playtest.back.open || !playtest.back.kept || !playtest.back.death || !playtest.back.saveSame) {
+  throw new Error('editor playtest self-check failed: ' + JSON.stringify(playtest));
+}
 await browser.close();
 console.log('OK');
