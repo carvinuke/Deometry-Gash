@@ -49,8 +49,6 @@
   #communityPanel .dev-muted { color: #a8d5d7; }
   #communityPanel .dev-actions { position: sticky; bottom: -14px; background: #081923; padding: 9px 0 2px; }
   #communityPanel .dev-primary { border-color: #5ffff0; color: #5ffff0; }
-  #communityButton { position: fixed; z-index: 10; right: 18px; bottom: 18px; border: 2px solid #5ffff0; border-radius: 10px; background: #102a35ee; color: #eaffff; padding: 11px 16px; font: 800 14px system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 18px #0008; }
-  #communityButton[hidden] { display: none; }
   /* Geometry Dash-inspired editor toolbars and object palette. */
   #devPanel, #communityPanel { inset: 0; width: 100vw; height: 100vh; height: 100dvh; max-width: none; padding: 12px 16px; border-radius: 0; display: flex; flex-direction: column; gap: 3px; }
   #devPanel .editor-scene, #communityPanel .editor-scene { flex: 1 1 auto; min-height: 230px; max-height: 60vh; overflow: hidden; border: 1px solid #514a72; border-radius: 10px; background: #101323; }
@@ -305,7 +303,6 @@
   </footer>
   <div id="devStatus" class="editor-status" role="status">Changes are not saved until you press Save.</div>
 </section>
-<button id="communityButton" type="button" hidden>Create Level</button>
 <section id="communityPanel" hidden aria-label="Community level editor">
   <div class="dev-row" style="justify-content:space-between">
     <div><h2>Community Level Editor</h2><div class="dev-muted">Your own levels only · never changes the official levels.</div></div>
@@ -967,7 +964,7 @@ try {
   const stored = JSON.parse(localStorage.getItem(DEV_LEVEL_KEY) || '{}');
   if (stored && typeof stored === 'object' && !Array.isArray(stored)) DEV_OVERRIDES = { ...DEV_OVERRIDES, ...stored };
 } catch {}
-applyLevelOverrides(DEV_OVERRIDES);
+applyLevelOverrides(DEV_EMBEDDED_OVERRIDES); // saved browser layouts load only when the dev editor opens
 
 function newPlayer() { return { x: 0, y: 0, vy: 0, grounded: true, coyote: 0.1, jumpBuffer: 0, rot: 0, mode: 'cube', grav: 1, used: [], coins: [] }; }
 const clamp = (v, m) => Math.max(-m, Math.min(m, v));
@@ -3750,6 +3747,7 @@ function devRenderGrid() {
 function openDevPanel() {
   if (devPanelOpen) return;
   devReturnState = state;
+  applyLevelOverrides(DEV_OVERRIDES);
   if (state === 'play' || state === 'dead') { state = 'pause'; holding = false; }
   devLevelSelect.replaceChildren();
   for (const lvl of LEVELS) {
@@ -3871,7 +3869,6 @@ document.getElementById('devClose').addEventListener('click', closeDevPanel);
 
 // ---- Community level editor (isolated from official level data) ----
 const communityPanel = document.getElementById('communityPanel');
-const communityButton = document.getElementById('communityButton');
 const communitySelect = document.getElementById('communityLevel');
 const communityGrid = document.getElementById('communityGrid');
 const communityVisualCanvas=document.getElementById('communityVisualCanvas');
@@ -3923,7 +3920,7 @@ function openCommunityEditor() {
   if (communityPanelOpen || devPanelOpen) return;
   communityReturnState = state; state = 'pause'; holding = false; jumpPressed = false;
   communityRenderSelect(); communityLoadDraft();
-  communityPanel.hidden = false; communityPanelOpen = true; communityButton.hidden = true;
+  communityPanel.hidden = false; communityPanelOpen = true;
   communityStatusText(COMMUNITY_LEVELS.length ? 'Custom levels are saved only in this browser.' : 'Create your first level with + New.');
 }
 function closeCommunityEditor() {
@@ -3969,7 +3966,7 @@ function communityTest() {
   level = buildLevel(communityTestLevel.name, 'Normal', 1, 185, [communityTestLevel.rows]);
   player = newPlayer(); attempts = 1; particles = []; history = []; visRot = 0; shake = 0; ceilAnim = 0;
   state = 'play'; stateTime = 0; holding = false; jumpPressed = false; activePointerId = null;
-  playSong(SONGS[selected % SONGS.length]); communityPanel.hidden = true; communityPanelOpen = false; communityButton.hidden = true;
+  playSong(SONGS[selected % SONGS.length]); communityPanel.hidden = true; communityPanelOpen = false;
   say('Testing custom level: ' + communityTestLevel.name);
 }
 function communityExport() {
@@ -3999,7 +3996,6 @@ document.getElementById('communitySave').addEventListener('click', communitySave
 document.getElementById('communityTest').addEventListener('click', communityTest);
 document.getElementById('communityExport').addEventListener('click', communityExport);
 document.getElementById('communityClose').addEventListener('click', closeCommunityEditor);
-communityButton.addEventListener('click', openCommunityEditor);
 
 // ---- Loop ----
 let last = performance.now(), acc = 0, clock = 0, tween = 1, was = { x: 0, y: 0, rot: 0 };
@@ -4033,7 +4029,6 @@ function frame(now) {
   tickMusic();
   ctx.setTransform(VIEW.k, 0, 0, VIEW.k, VIEW.x * VIEW.k, VIEW.y * VIEW.k);
   cursorHot = false;
-  communityButton.hidden = state !== 'menu' || communityPanelOpen || devPanelOpen;
   const time = clock + acc;
   if (state === 'menu') drawTitle(time);
   else if (state === 'levels') drawLevels(time);
@@ -4098,7 +4093,6 @@ addEventListener('keydown', e => {
     if (devArmed && state === 'menu' && typed.endsWith('dev')) { devArmed = false; openDevPanel(); return; }
   }
   if (state === 'menu') {
-    if (e.code === 'KeyC') { e.preventDefault(); openCommunityEditor(); return; }
     if (e.code === 'KeyS') return openShop();
     if (e.code === 'KeyO') return go('settings');
   }
