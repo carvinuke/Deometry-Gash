@@ -246,11 +246,15 @@
     #devPanel .dev-palette button { height: 56px; }
     #devPanel .editor-tools-grid button, #devPanel .editor-tools-grid .editor-toggle { min-height: 27px; }
   }
-
+  /* The Custom cube editor's hex code box; the script lays it over the canvas while the editor is open. */
+  #customHex { position: fixed; z-index: 5; box-sizing: border-box; margin: 0; padding: 0 .5em; border: 2px solid rgba(255,255,255,.45); border-radius: 10px; background: rgba(8,8,22,.8); color: #fff; font-family: "Lilita One", "Arial Rounded MT Bold", "Arial Black", system-ui, sans-serif; letter-spacing: .06em; outline: none; }
+  #customHex:focus { border-color: #ffd400; box-shadow: 0 0 10px rgba(255,212,0,.55); }
+  #customHex:invalid { border-color: #ff5a5a; }
 </style>
 </head>
 <body>
 <canvas id="game" width="960" height="480" aria-label="Deometry Gash, a Geometry Dash style game. Pick a level with the arrow keys and Enter, then hold Space, Up or click to jump."></canvas>
+<input id="customHex" hidden type="text" maxlength="7" spellcheck="false" autocomplete="off" autocapitalize="off" pattern="#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})" aria-label="Custom hex color code, like #ff8800">
 <section id="devPanel" hidden aria-label="Main level editor">
   <header class="editor-topbar">
     <button id="devClose" class="editor-back" type="button" aria-label="Exit editor" title="Exit editor">←</button>
@@ -1338,6 +1342,8 @@ const ITEMS = {
     { name: 'TNT', level: 14, body: '#d8262b', inner: '#f4ecd2', look: 'tnt' },
     { name: 'Dice', level: 2, body: '#f7f7f2', inner: '#151515', look: 'dice' },
     { name: 'Gift', level: 0, body: '#2fbf5a', inner: '#ff3b5c', look: 'gift' },
+    // the player picks this one's face and colors in its editor (see drawCustomizer); they live in save.custom
+    { name: 'Custom', free: true, look: 'custom', get face() { return save.custom.face; }, get body() { return save.custom.body; }, get inner() { return save.custom.inner; } },
   ],
   ship: [
     { name: 'Rocket', free: true, body: '#ff4fd8', inner: '#ffd400', look: 'rocket' },
@@ -1464,6 +1470,7 @@ const KONAMI = ['ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyB', 'Ke
 const SAVE_KEY = 'deometry-gash-save';
 const EQUIPPED = { cube: 0, ship: 0, ball: 0, wave: 0, trail: 0, death: 0 };
 const SETTINGS = { music: 0.7, sfx: 0.8, progress: true, shake: true };
+const CUSTOM = { face: 'angry', body: '#1fcf4a', inner: '#00e5ff' }; // the Custom cube until the player changes it; checked against FACES further down
 let save = { v: 5, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: EQUIPPED, settings: SETTINGS };
 // Version 4 saves stored each coin's tile id from when coins were numbered among all tiles; now a coin's id is its place among the level's coins.
 const COIN_IDS_V4 = {"First Steps":[0,1],"Sunrise Run":[0,2],"Orb Garden":[0,1],"Rolling Thunder":[10,155,199],"Prism Path":[0,2],"Tidal Flow":[0,2],"Sky Rush":[29,71],"Neon Circuit":[0,3],"Wave Rider":[5,24,152],"Circuit Breaker":[0,3],"Gash Gauntlet":[3,28],"Mode Mayhem":[262,310,332],"Demon Gash":[11,481,559],"Flutterclunk":[195,229,237],"Abyssal Run":[244,378]};
@@ -1493,7 +1500,7 @@ save.equipped = { ...EQUIPPED, ...save.equipped }; // saves from before new kind
 save.settings = { ...SETTINGS, ...save.settings };
 const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch {} };
 function wipeSave() { // keeps the volume and display settings
-  save = { v: 4, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: { ...EQUIPPED }, settings: save.settings };
+  save = { v: 5, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: { ...EQUIPPED }, custom: { ...CUSTOM }, settings: save.settings };
   persist();
 }
 
@@ -1510,6 +1517,7 @@ function unlocked(kind, i) {
 }
 function describe(kind, i) {
   const it = ITEMS[kind][i];
+  if (it.look === 'custom') return `${it.name}: press Enter or click it to choose its face and colors.`;
   if (save.equipped[kind] === i) return `${it.name} is equipped.`;
   if (unlocked(kind, i)) return `${it.name}: press Enter or click to equip.`;
   if (it.level !== undefined) return `Beat ${LEVELS[it.level].name} to unlock ${it.name}.`;
@@ -1536,6 +1544,7 @@ function buyOrEquip(kind, i) {
     say(`Bought ${it.name}!`); sfx('buy');
   } else sfx('click');
   save.equipped[kind] = i; persist();
+  if (it.look === 'custom') state = 'custom'; // using the Custom cube opens its editor
 }
 
 // ---- Game state ----
@@ -1675,7 +1684,7 @@ function playStep({ def: s, line }, i, t) { // one 16th note of drums, bass, arp
 }
 function tickMusic() { // schedules the notes due in the next moment; called every frame
   if (!AC || AC.state !== 'running') return;
-  if (['menu', 'levels', 'shop', 'settings'].includes(state) && song?.def !== MENU_SONG) playSong(MENU_SONG);
+  if (['menu', 'levels', 'shop', 'custom', 'settings'].includes(state) && song?.def !== MENU_SONG) playSong(MENU_SONG);
   if (!song || state === 'pause' || save.settings.music <= 0) return;
   const sd = 60 / song.def.bpm / 4, now = AC.currentTime;
   if (song.start + song.next * sd < now) song.start = now + 0.05 - song.next * sd; // just started, or back from a pause: carry on from here
@@ -2256,7 +2265,76 @@ const LOOKS = {
     for (const k of [-1, 1]) { ctx.beginPath(); ctx.ellipse(k * 6, -12, 6, 3.5, k * 0.5, 0, TAU); ctx.fillStyle = inner; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke(); } // bow
     box(-3, -15, 6, 6, shade(inner, -0.2), 2);
   },
+  custom(body, inner, t, s) { FACES[s.face](inner); },
 };
+
+// Faces for the Custom cube, in a bubble style: every eye and mouth is a black-outlined shape filled with the face color,
+// and mouths with teeth are a darker shade of it inside. The first three copy the faces the player sent in.
+function bubble(fill) { ctx.fillStyle = fill; ctx.fill(); ctx.lineJoin = 'round'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2.2; ctx.stroke(); }
+function eye(x, y, r, c) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); bubble(c); }
+function halfMouth(x, y, rx, ry, frown = false) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, frown ? Math.PI : 0, frown ? TAU : Math.PI); ctx.closePath(); } // flat edge on y, round side below (or above)
+function toothyMouth(c, mouth, teeth) {
+  mouth(); ctx.fillStyle = shade(c, -0.55); ctx.fill();
+  ctx.save(); mouth(); ctx.clip(); for (const t of teeth) poly(t, c, 1.8); ctx.restore();
+  mouth(); ctx.lineJoin = 'round'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2.2; ctx.stroke();
+}
+const FACES = {
+  angry(c) {
+    poly([[-13.4, -11.4], [-13.4, -1.7], [-3.9, -1.7]], c, 2.2); poly([[13.4, -11.4], [13.4, -1.7], [3.9, -1.7]], c, 2.2);
+    poly([[-14, 2.8], [-10.8, 2.8], [-7.6, 8.2], [-4.4, 2.8], [4.4, 2.8], [7.6, 8.2], [10.8, 2.8], [14, 2.8], [14, 12.9], [3.4, 12.9], [0, 8.4], [-3.4, 12.9], [-14, 12.9]], c, 2.2); // two fangs and a tooth
+  },
+  scream(c) {
+    eye(-10.6, -11.2, 3.9, c); eye(10.6, -11.2, 3.9, c);
+    toothyMouth(c, () => rr(-14.6, -5.8, 29.2, 19.8, 4), [[[-15.5, -8], [-3.8, -8], [-9.9, 2.6]], [[15.5, -8], [3.8, -8], [9.9, 2.6]], [[-9.9, 5.8], [-19, 17], [-3.6, 17]], [[9.9, 5.8], [19, 17], [3.6, 17]]]);
+  },
+  classic(c) { rr(-9.75, -11, 7, 7, 1); bubble(c); rr(2.75, -11, 7, 7, 1); bubble(c); rr(-11.8, 0.6, 23.6, 5.9, 1); bubble(c); },
+  smile(c) { eye(-7.3, -7.3, 4.3, c); eye(7.3, -7.3, 4.3, c); halfMouth(0, 2.2, 10.6, 10); bubble(c); },
+  happy(c) {
+    for (const x of [-7.3, 7.3]) { ctx.beginPath(); ctx.arc(x, -5, 5.2, Math.PI, TAU); ctx.arc(x, -5, 1.8, 0, Math.PI, true); ctx.closePath(); bubble(c); } // ^ ^
+    halfMouth(0, 1.7, 11.8, 11.5); bubble(c);
+  },
+  wow(c) { eye(-7.3, -7.3, 5.2, c); eye(7.3, -7.3, 5.2, c); ctx.beginPath(); ctx.ellipse(0, 7.8, 4.5, 5.6, 0, 0, TAU); bubble(c); },
+  sad(c) { eye(-7.3, -6.7, 4.3, c); eye(7.3, -6.7, 4.3, c); halfMouth(0, 12.3, 9.5, 7.3, true); bubble(c); },
+  mad(c) {
+    ctx.beginPath(); ctx.arc(-7.3, -5.6, 5.2, 0.45, 0.45 + Math.PI); ctx.closePath(); bubble(c); // eyes cut flat by a frown
+    ctx.beginPath(); ctx.arc(7.3, -5.6, 5.2, -0.45, Math.PI - 0.45); ctx.closePath(); bubble(c);
+    halfMouth(0, 11.8, 8.4, 5.6, true); bubble(c);
+  },
+  grin(c) {
+    eye(-7.3, -7.8, 4, c); eye(7.3, -7.8, 4, c);
+    rr(-13.4, 0.6, 26.8, 12.3, 5); bubble(c);
+    ctx.save(); ctx.clip(); ctx.beginPath(); ctx.moveTo(-14, 6.75); ctx.lineTo(14, 6.75); // teeth
+    for (const x of [-6.7, 0, 6.7]) { ctx.moveTo(x, 0); ctx.lineTo(x, 13); }
+    ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+  },
+  cool(c) {
+    for (const x of [-7.8, 7.8]) { halfMouth(x, -10, 6.2, 7.3); bubble(c); } // shades
+    rr(-15, -12.3, 30, 3.9, 1.7); ctx.fillStyle = '#000'; ctx.fill();
+    ctx.save(); ctx.translate(2.8, 3.9); ctx.rotate(-0.25); halfMouth(0, 0, 9, 6.2); bubble(c); ctx.restore(); // smirk
+  },
+  derp(c) {
+    eye(-7.3, -7.3, 5.6, c); eye(7.8, -5, 3.1, c);
+    ctx.beginPath(); ctx.ellipse(4.5, 10, 4, 4.5, 0, 0, TAU); bubble(shade(c, -0.3)); // tongue
+    ctx.save(); ctx.rotate(-0.12); halfMouth(0, 3.4, 10.6, 7.8); bubble(c); ctx.restore();
+  },
+  cyclops(c) { eye(0, -5.6, 7.6, c); halfMouth(0, 6.2, 10.6, 6.7); bubble(c); },
+  fangs(c) {
+    eye(-7.3, -7.8, 4, c); eye(7.3, -7.8, 4, c);
+    toothyMouth(c, () => halfMouth(0, 0.6, 12.3, 12.3), [[[-9.2, -1.1], [-3.6, -1.1], [-6.4, 6.7]], [[9.2, -1.1], [3.6, -1.1], [6.4, 6.7]]]);
+  },
+  sleepy(c) { for (const x of [-7.3, 7.3]) { halfMouth(x, -5.6, 5.2, 4.7); bubble(c); } ctx.beginPath(); ctx.ellipse(2.8, 9, 3.1, 3.8, 0, 0, TAU); bubble(c); },
+  alien(c) {
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(s * 7.6, -5.6, 6.3, 3.7, s * -0.55, 0, TAU); bubble(c); }
+    ctx.beginPath(); ctx.ellipse(0, 9, 2.9, 2.2, 0, 0, TAU); bubble(c);
+  },
+  kitty(c) {
+    eye(-7.3, -6.7, 4.3, c); eye(7.3, -6.7, 4.3, c);
+    ctx.beginPath(); ctx.moveTo(-8.4, 3.9); ctx.arc(-4.2, 3.9, 4.2, Math.PI, 0, true); ctx.arc(4.2, 3.9, 4.2, Math.PI, 0, true); ctx.closePath(); bubble(c); // a :3 mouth
+  },
+};
+save.custom = { ...CUSTOM, ...save.custom }; // a face or color a save can't draw (an old or hand-edited one) falls back to the default, since a bad color stops the game loop
+if (!Object.keys(FACES).includes(save.custom.face)) save.custom.face = CUSTOM.face;
+for (const k of ['body', 'inner']) if (!/^#[0-9a-f]{6}$/i.test(save.custom[k])) save.custom[k] = CUSTOM[k];
 
 function traceCustomCube(look, h, t) {
   ctx.beginPath();
@@ -2313,8 +2391,8 @@ function drawCube(cx, cy, rot, s, size = T, glow = false) {
   if (custom) { traceCustomCube(s.look, h, t); ctx.fill(); }
   else ctx.fillRect(-h, -h, T, T);
   ctx.shadowBlur = 0;
-  LOOKS[s.look](body, s.inner, t);
-  if (!custom) {
+  LOOKS[s.look](body, s.inner, t, s);
+  if (!custom && s.look !== 'custom') { // the Custom cube's faces fill the whole square, so it has no bevel
     ctx.lineWidth = 2; // bevel: lit top-left edge, shaded bottom-right edge
     ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.beginPath(); ctx.moveTo(-h + 4.5, h - 7); ctx.lineTo(-h + 4.5, -h + 4.5); ctx.lineTo(h - 7, -h + 4.5); ctx.stroke();
     ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.moveTo(h - 4.5, -h + 7); ctx.lineTo(h - 4.5, h - 4.5); ctx.lineTo(-h + 7, h - 4.5); ctx.stroke();
@@ -4013,6 +4091,89 @@ function drawToast() {
   ctx.restore();
 }
 
+// The Custom cube's editor: a face from FACES, then a block color and a face color, picked from the palette or typed as a hex code.
+const PALETTE = [
+  '#ff9a9a', '#ffc28a', '#fff08a', '#c8ff9a', '#9af0b0', '#a8f6ff', '#a8d8ff', '#b4bcff', '#d0b0ff', '#f4b0ff', '#ffb0d8', '#ffffff',
+  '#ff2b2b', '#ff7a1a', '#ffd400', '#7dff3a', '#1fcf4a', '#00e5ff', '#3fa9ff', '#2b5bff', '#8a3dff', '#d63cff', '#ff4fa8', '#9aa0aa',
+  '#8a0f0f', '#9a4200', '#9a7a00', '#3a8a10', '#0b6b2a', '#007a8a', '#0f5a9a', '#14257a', '#43108a', '#6e0f80', '#8a0f4f', '#1b1b1b',
+];
+const FACE_IDS = Object.keys(FACES), COLOR_TABS = [['body', 'Block color'], ['inner', 'Face color']];
+const EDIT_X = 353, EDIT_W = GRID_X + GRID_W - EDIT_X, PREVIEW_X = (GRID_X + EDIT_X - 16) / 2; // the controls' column, and the middle of the preview to its left
+const facePos = i => ({ x: EDIT_X + (i % 8) * (EDIT_W + 6) / 8, y: 100 + Math.floor(i / 8) * 64, w: (EDIT_W + 6) / 8 - 6, h: 58 });
+const colorTabPos = i => ({ x: EDIT_X + i * (EDIT_W + 8) / 2, y: 236, w: (EDIT_W - 8) / 2, h: 36 });
+const swatchPos = i => ({ x: EDIT_X + (i % 12) * (EDIT_W + 6) / 12, y: 284 + Math.floor(i / 12) * 34, w: (EDIT_W + 6) / 12 - 6, h: 28 });
+const HEX_BOX = { x: EDIT_X + 130, y: 392, w: 150, h: 34 };
+const hexInput = document.getElementById('customHex');
+let customTarget = 'body', hexPlace = '';
+const customSkin = (face = save.custom.face) => ({ ...save.custom, face, look: 'custom' });
+const faceName = id => id[0].toUpperCase() + id.slice(1);
+function parseHex(s) { // '#f80', 'F80' or 'ff8800' -> '#ff8800'; anything else -> null
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s.trim());
+  return m && '#' + (m[1].length === 3 ? m[1].replace(/./g, '$&$&') : m[1]).toLowerCase();
+}
+
+function drawCustomizer(time) {
+  const hue = 260 + Math.sin(time * 0.12) * 40; // the shop's backdrop
+  drawBackground(hue, time * 2, time);
+  drawFloor(hue, time * 2, GROUND, false);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; fillScreen();
+  ctx.fillStyle = vignette(); fillScreen();
+  backButton();
+  txt('CUSTOM CUBE', W / 2, 46, 40, vgrad(14, 46, '#fff7b0', '#ffd400', '#ff7a00'), 'center', 7);
+
+  panel(GRID_X, 72, EDIT_X - 16 - GRID_X, 354);
+  drawCube(PREVIEW_X, 188 + Math.sin(time * 2.5) * 5, 0, customSkin(), 124, true);
+  txt(faceName(save.custom.face), PREVIEW_X, 310, 30, '#fff', 'center', 6);
+  COLOR_TABS.forEach(([k, label], i) => {
+    const y = 350 + i * 34;
+    rr(PREVIEW_X - 92, y - 13, 26, 20, 5); ctx.fillStyle = save.custom[k]; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+    ui(`${label.split(' ')[0]}   ${save.custom[k]}`, PREVIEW_X - 56, y + 2, 15, '#fff', 'left');
+  });
+
+  txt('Face', EDIT_X, 90, 20, '#fff', 'left', 4);
+  FACE_IDS.forEach((id, i) => {
+    const b = facePos(i), on = id === save.custom.face;
+    ctx.save();
+    if (on) { ctx.shadowColor = '#ffd400'; ctx.shadowBlur = 14; }
+    rr(b.x, b.y, b.w, b.h, 10);
+    ctx.fillStyle = hovered(b) ? vgrad(b.y, b.y + b.h, '#3d3d6e', '#24243f') : vgrad(b.y, b.y + b.h, '#2c2c50', '#1a1a30'); ctx.fill();
+    ctx.restore();
+    rr(b.x, b.y, b.w, b.h, 10); ctx.strokeStyle = on ? '#ffd400' : 'rgba(255,255,255,0.25)'; ctx.lineWidth = on ? 3 : 2; ctx.stroke();
+    drawCube(b.x + b.w / 2, b.y + b.h / 2, 0, customSkin(id), 38);
+  });
+
+  COLOR_TABS.forEach(([k, label], i) => { // which color the palette and the hex box change
+    const b = colorTabPos(i), on = k === customTarget;
+    rr(b.x, b.y, b.w, b.h, 12);
+    ctx.fillStyle = on ? vgrad(b.y, b.y + b.h, '#ffe46b', '#ff9d00') : hovered(b) ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.42)'; ctx.fill();
+    ctx.strokeStyle = on ? '#000' : 'rgba(255,255,255,0.3)'; ctx.lineWidth = on ? 2.5 : 2; ctx.stroke();
+    txt(label, b.x + 14, b.y + 25, 19, '#fff', 'left', 4);
+    rr(b.x + b.w - 46, b.y + 7, 34, 22, 6); ctx.fillStyle = save.custom[k]; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5; ctx.stroke();
+  });
+  PALETTE.forEach((c, i) => {
+    const b = swatchPos(i), y = b.y - (hovered(b) ? 2 : 0);
+    if (c === save.custom[customTarget]) { rr(b.x - 4, y - 4, b.w + 8, b.h + 8, 10); ctx.strokeStyle = '#ffd400'; ctx.lineWidth = 3; ctx.stroke(); }
+    rr(b.x, y, b.w, b.h, 7); ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 2; ctx.stroke();
+  });
+  txt('Custom hex', EDIT_X, HEX_BOX.y + 25, 20, '#fff', 'left', 4);
+  const typo = document.activeElement === hexInput && !parseHex(hexInput.value);
+  ui(typo ? 'Not a color code yet' : 'Type a color code, like #ff8800', HEX_BOX.x + HEX_BOX.w + 14, HEX_BOX.y + 22, 13, typo ? '#ff8a8a' : 'rgba(255,255,255,0.75)', 'left');
+  ui('Changes save on their own  ·  ← → to change the face  ·  Esc to go back', W / 2, 470, 14, '#fff');
+}
+function syncHexInput() { // the hex box is a real text field (so phones bring up a keyboard), laid over the canvas while the editor is open
+  const open = state === 'custom';
+  if (hexInput.hidden === open) { hexInput.hidden = !open; if (!open) hexInput.blur(); }
+  if (!open) return;
+  if (document.activeElement !== hexInput && hexInput.value !== save.custom[customTarget]) hexInput.value = save.custom[customTarget];
+  const r = canvas.getBoundingClientRect(), b = HEX_BOX, s = VIEW.s, h = Math.max(b.h * s, 24); // 16px text at least, or phones zoom in on it
+  const place = [r.left + (b.x + VIEW.x) * s, r.top + (b.y + b.h / 2 + VIEW.y) * s - h / 2, b.w * s, h, Math.max(16, 19 * s)].map(n => n.toFixed(1) + 'px');
+  if (place.join() === hexPlace) return;
+  hexPlace = place.join();
+  [hexInput.style.left, hexInput.style.top, hexInput.style.width, hexInput.style.height, hexInput.style.fontSize] = place;
+}
+hexInput.addEventListener('input', () => { const c = parseHex(hexInput.value); if (c) { save.custom[customTarget] = c; persist(); } });
+hexInput.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Escape') hexInput.blur(); });
+
 
 // ---- Hidden developer tools ----
 const devPanel = document.getElementById('devPanel');
@@ -4540,10 +4701,12 @@ function frame(now) {
   if (state === 'menu') drawTitle(time);
   else if (state === 'levels') drawLevels(time);
   else if (state === 'shop') drawShop(time);
+  else if (state === 'custom') drawCustomizer(time);
   else if (state === 'settings') drawSettingsScreen(time);
   else drawWorld(time);
   if (state === 'pause') drawPause();
   drawToast();
+  syncHexInput();
   canvas.style.cursor = cursorHot ? 'pointer' : 'default';
   requestAnimationFrame(frame);
 }
@@ -4577,6 +4740,7 @@ function openShop() { go('shop'); shopSelect(shopTab, shopPick); }
 const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
 addEventListener('keydown', e => {
   audio(); // the first key press is allowed to start the sound
+  if (e.target === hexInput) return; // typing a hex code
   if (communityPanelOpen) { if (e.code === 'Escape') { e.preventDefault(); closeCommunityEditor(); } return; }
   if (devPanelOpen) { if (e.code === 'Escape') { e.preventDefault(); closeDevPanel(); } return; }
   keys = [...keys, e.code].slice(-KONAMI.length);
@@ -4591,6 +4755,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape' || e.code === 'Backspace') {
     if (state === 'play' || state === 'dead') pause();
     else if (state === 'win') go('levels');
+    else if (state === 'custom') go('shop');
     else if (state !== 'menu') go('menu');
     return;
   }
@@ -4604,6 +4769,7 @@ addEventListener('keydown', e => {
     if (e.code === 'KeyO') return go('settings');
   }
   if (state === 'levels' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { selected = mod(selected + (e.code === 'ArrowLeft' ? -1 : 1), LEVELS.length); sfx('click'); }
+  if (state === 'custom' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { save.custom.face = FACE_IDS[mod(FACE_IDS.indexOf(save.custom.face) + (e.code === 'ArrowLeft' ? -1 : 1), FACE_IDS.length)]; persist(); sfx('click'); }
   if (state === 'shop') { // up and down switch tabs (landing on what is equipped), left and right pick an item
     const d = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[e.code];
     if (d) {
@@ -4647,6 +4813,16 @@ canvas.addEventListener('pointerdown', e => {
   if (state === 'settings' && hit(WIPE_BTN)) { go('settings'); wipeAsk = true; return; }
   if (state === 'settings') return hit(BACK_BTN) ? go('menu') : settingsPointer(100, mx, my);
   if (state === 'pause') { const b = PAUSE_BTNS.find(b => hit(b)); return b ? pauseAction(b.id) : settingsPointer(266, mx, my); }
+  if (state === 'custom') {
+    if (hit(BACK_BTN)) return go('shop');
+    const f = FACE_IDS.findIndex((_, i) => hit(facePos(i))), t = COLOR_TABS.findIndex((_, i) => hit(colorTabPos(i))), c = PALETTE.findIndex((_, i) => hit(swatchPos(i)));
+    if (f >= 0) save.custom.face = FACE_IDS[f];
+    else if (t >= 0) customTarget = COLOR_TABS[t][0];
+    else if (c >= 0) save.custom[customTarget] = PALETTE[c];
+    else return;
+    persist(); sfx('click');
+    return;
+  }
   if (state === 'shop') {
     if (hit(BACK_BTN)) return go('menu');
     const kind = KINDS[shopTab], pages = Math.ceil(ITEMS[kind].length / SHOP_PAGE_SIZE);
