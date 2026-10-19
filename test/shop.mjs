@@ -66,13 +66,26 @@ const after = await page.evaluate(() => {
   LEVELS.forEach((l, i) => { save.best[i] = 100; save.coins[i] = l.tiles.filter(t => t.type === 'c').map(t => t.id); });
   for (let i = 0; i < 50; i++) die();
   startLevel(0); player.x = level.len * 0.95; die(); // so close
+  // Achievements: the counters, then a practice clear and a first-try clear.
+  save.attempts = 1000; save.jumps = 5000; save.deaths = 500; save.checkpoints = 100; checkAchievements();
+  startLevel(0, true); finishLevel(); startLevel(0); finishLevel();
   KINDS.forEach(k => ITEMS[k].forEach((_, i) => buyOrEquip(k, i)));
   return {
     locked: KINDS.flatMap(k => ITEMS[k].filter((_, i) => !unlocked(k, i)).map(it => it.name)),
-    stars: starBalance(), coins: coinBalance(), secrets: save.secrets.sort(),
+    stars: starBalance(), coins: coinBalance(), secrets: save.secrets.sort(), ach: save.ach.length === ACHIEVEMENTS.length,
     saved: JSON.parse(localStorage.getItem(SAVE_KEY)).owned.length,
   };
 });
+
+// Practice mode respawns at the last checkpoint and saves no progress, coins or close-call secret.
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+const practiced = await page.evaluate(() => {
+  startLevel(3, true); player.x = 20; placeCheckpoint(); player.x = level.len * 0.95; player.coins = [level.coinTiles[0].id];
+  die(); respawn(); const at = player.x; finishLevel();
+  return { at, best: save.best[3], coins: save.coins[3], secrets: save.secrets, ach: save.ach, checkpoints: save.checkpoints };
+});
+assert.deepEqual(practiced, { at: 20, best: undefined, coins: undefined, secrets: [], ach: ['practice'], checkpoints: 1 }, 'practice respawns at the checkpoint and saves nothing but the achievement');
 
 // A version 1 save (from before the portals moved) still has the same coins collected.
 await page.evaluate(() => localStorage.setItem(SAVE_KEY, JSON.stringify({ best: { 0: 100, 2: 75 }, coins: { 2: [34, 72], 3: [32] } })));
@@ -152,6 +165,7 @@ assert.deepEqual(paintFixed, { body: '#ff4fa8', inner: '#00ff00', spookedTabs: [
 assert.deepEqual(keptV4, { version: 5, rolling: [0, 2], flutter: [0, 2], names: ['Rolling Thunder', 'Flutterclunk'] }, 'version 4 coins map to their place among the level coins');
 assert.deepEqual(after.secrets, ['close', 'code', 'deaths', 'jumps', 'konami', 'title']);
 assert.deepEqual(after.locked, [], 'everything is unlockable');
+assert.equal(after.ach, true, 'every achievement can be earned');
 assert.equal(after.stars, 0, 'the icon-kit cubes cost exactly the stars the levels give beyond the other items');
 assert.equal(after.coins, 0, 'and exactly the leftover coins');
 assert.equal(after.saved, 57, 'purchases persist');
