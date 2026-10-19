@@ -1341,6 +1341,8 @@ function step(p, hold, lvl, justPressed = hold) {
 
 // ---- Unlockables ----
 // Each item unlocks one way: free, by beating a level, by spending stars or coins, or by finding a secret.
+// A paintable cube's two colors can be changed in the cube editor: the picks live in save.paint by name, and `base` keeps the colors it comes in.
+const paintable = it => ({ ...it, base: { body: it.body, inner: it.inner }, get body() { return save.paint[it.name]?.body || it.body; }, get inner() { return save.paint[it.name]?.inner || it.inner; } });
 const ITEMS = {
   cube: [
     { name: 'Classic', free: true, body: '#ffd400', inner: '#00e5ff', look: 'classic' },
@@ -1530,9 +1532,11 @@ try {
 } catch {}
 save.equipped = { ...EQUIPPED, ...save.equipped }; // saves from before new kinds existed
 save.settings = { ...SETTINGS, ...save.settings };
-const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch {} };
+// paintable cubes keep only real colors from the save, so anything else (an old or hand-edited save) falls back to the cube's own color
+save.paint = Object.fromEntries(Object.entries({ ...save.paint }).map(([name, c]) => [name, Object.fromEntries(['body', 'inner'].filter(k => /^#[0-9a-f]{6}$/i.test(c?.[k])).map(k => [k, c[k]]))]));
+const persist =() => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch {} };
 function wipeSave() { // keeps the volume and display settings
-  save = { v: 5, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: { ...EQUIPPED }, custom: { ...CUSTOM }, settings: save.settings };
+  save = { v: 5, best: {}, coins: {}, owned: [], secrets: [], deaths: 0, jumps: 0, equipped: { ...EQUIPPED }, custom: { ...CUSTOM }, paint: {}, settings: save.settings };
   persist();
 }
 
@@ -1550,7 +1554,7 @@ function unlocked(kind, i) {
 function describe(kind, i) {
   const it = ITEMS[kind][i];
   if (it.look === 'custom') return `${it.name}: press Enter or click it to choose its face and colors.`;
-  if (save.equipped[kind] === i) return `${it.name} is equipped.`;
+  if (save.equipped[kind] === i) return it.base ? `${it.name} is equipped. Press Enter or click it again to change its colors.` : `${it.name} is equipped.`;
   if (unlocked(kind, i)) return `${it.name}: press Enter or click to equip.`;
   if (it.level !== undefined) return `Beat ${LEVELS[it.level].name} to unlock ${it.name}.`;
   if (it.stars) return `${it.name} costs ${it.stars} stars. You have ${starBalance()}. Beat levels to earn more.`;
@@ -1568,7 +1572,7 @@ function unlockSecret(id) {
   say(`Secret found: ${SECRETS[id]}! Unlocked ${it.name}.`);
 }
 function buyOrEquip(kind, i) {
-  const it = ITEMS[kind][i];
+  const it = ITEMS[kind][i], again = save.equipped[kind] === i;
   if (!unlocked(kind, i)) {
     if (it.stars && starBalance() >= it.stars) save.owned.push(`${kind}:${i}`);
     else if (it.coins && coinBalance() >= it.coins) save.owned.push(`${kind}:${i}`);
@@ -1576,7 +1580,7 @@ function buyOrEquip(kind, i) {
     say(`Bought ${it.name}!`); sfx('buy');
   } else sfx('click');
   save.equipped[kind] = i; persist();
-  if (it.look === 'custom') state = 'custom'; // using the Custom cube opens its editor
+  if (it.look === 'custom' || (it.base && again)) openEditor(it); // using the Custom cube opens its editor, and so does using a paintable cube that is already on
 }
 
 // ---- Game state ----
@@ -3241,6 +3245,10 @@ function drawCheck(cx, cy) {
   ctx.beginPath(); ctx.moveTo(cx - 4, cy); ctx.lineTo(cx - 1, cy + 3); ctx.lineTo(cx + 4.5, cy - 3.5); ctx.stroke();
   ctx.restore();
 }
+function drawPaintBadge(cx, cy) { // a little paint palette on cubes whose colors can be changed
+  ctx.beginPath(); ctx.arc(cx, cy, 9, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+  for (const [c, dx, dy] of [['#ff2b2b', -3.4, -2], ['#ffd400', 1.6, -4], ['#2b8cff', 3.8, 1.4], ['#3fcf2a', -1, 3.6]]) { ctx.beginPath(); ctx.arc(cx + dx, cy + dy, 2.3, 0, TAU); ctx.fillStyle = c; ctx.fill(); }
+}
 
 // ---- World ----
 const fillScreen = () => ctx.fillRect(-VIEW.x, -VIEW.y, W + 2 * VIEW.x, H + 2 * VIEW.y);
@@ -4038,6 +4046,7 @@ function drawShop(time) {
     ctx.globalAlpha = 1;
     if (!open) drawLock(b.x + b.w - 15, b.y + 16);
     if (on) drawCheck(b.x + b.w - 14, b.y + 14);
+    if (it.base) drawPaintBadge(b.x + 14, b.y + 14);
     ui(open || !it.secret ? it.name : '???', cx, b.y + 72, 13, '#fff');
     if (on) ui('Equipped', cx, b.y + 88, 11, '#6dff5a');
     else if (open) ui('Equip', cx, b.y + 88, 11, 'rgba(255,255,255,0.75)');
@@ -4131,21 +4140,28 @@ function drawToast() {
   ctx.restore();
 }
 
-// The Custom cube's editor: a face from FACES, then a block color and a face color, picked from the palette or typed as a hex code.
+// The cube editor. The Custom cube gets a face from FACES and a paintable cube gets a preset; then both get two colors, picked from the palette or typed as a hex code.
 const PALETTE = [
   '#ff9a9a', '#ffc28a', '#fff08a', '#c8ff9a', '#9af0b0', '#a8f6ff', '#a8d8ff', '#b4bcff', '#d0b0ff', '#f4b0ff', '#ffb0d8', '#ffffff',
   '#ff2b2b', '#ff7a1a', '#ffd400', '#7dff3a', '#1fcf4a', '#00e5ff', '#3fa9ff', '#2b5bff', '#8a3dff', '#d63cff', '#ff4fa8', '#9aa0aa',
   '#8a0f0f', '#9a4200', '#9a7a00', '#3a8a10', '#0b6b2a', '#007a8a', '#0f5a9a', '#14257a', '#43108a', '#6e0f80', '#8a0f4f', '#1b1b1b',
 ];
-const FACE_IDS = Object.keys(FACES), COLOR_TABS = [['body', 'Block color'], ['inner', 'Face color']];
+// Color pairs that look good on any paintable cube, all from the palette; null is the cube's own colors.
+const PRESETS = [null, ['#1fcf4a', '#00e5ff'], ['#ffd400', '#00e5ff'], ['#ff7a1a', '#ffd400'], ['#ff2b2b', '#1b1b1b'], ['#2b5bff', '#ffffff'], ['#8a3dff', '#7dff3a'], ['#ff4fa8', '#fff08a'],
+  ['#1b1b1b', '#ff2b2b'], ['#ffffff', '#2b5bff'], ['#00e5ff', '#ff4fa8'], ['#7dff3a', '#43108a'], ['#9aa0aa', '#ffd400'], ['#0b6b2a', '#c8ff9a'], ['#14257a', '#ffc28a'], ['#d63cff', '#a8f6ff']];
+const FACE_IDS = Object.keys(FACES), COLOR_TABS = ['body', 'inner'];
+const colorLabel = k => (editing.base ? { body: 'Main color', inner: 'Detail color' } : { body: 'Block color', inner: 'Face color' })[k];
 const EDIT_X = 353, EDIT_W = GRID_X + GRID_W - EDIT_X, PREVIEW_X = (GRID_X + EDIT_X - 16) / 2; // the controls' column, and the middle of the preview to its left
 const facePos = i => ({ x: EDIT_X + (i % 8) * (EDIT_W + 6) / 8, y: 100 + Math.floor(i / 8) * 64, w: (EDIT_W + 6) / 8 - 6, h: 58 });
 const colorTabPos = i => ({ x: EDIT_X + i * (EDIT_W + 8) / 2, y: 236, w: (EDIT_W - 8) / 2, h: 36 });
 const swatchPos = i => ({ x: EDIT_X + (i % 12) * (EDIT_W + 6) / 12, y: 284 + Math.floor(i / 12) * 34, w: (EDIT_W + 6) / 12 - 6, h: 28 });
 const HEX_BOX = { x: EDIT_X + 130, y: 392, w: 150, h: 34 };
 const hexInput = document.getElementById('customHex');
-let customTarget = 'body', hexPlace = '';
+let editing = ITEMS.cube.find(it => it.look === 'custom'), customTarget = 'body', hexPlace = ''; // the cube in the editor, and which of its colors the palette changes
+function openEditor(it) { editing = it; customTarget = 'body'; state = 'custom'; }
+function setColor(k, c) { if (editing.base) (save.paint[editing.name] ??= {})[k] = c; else save.custom[k] = c; } // the cube's getters pick it up everywhere
 const customSkin = (face = save.custom.face) => ({ ...save.custom, face, look: 'custom' });
+const presetLook = p => ({ ...editing, body: p?.[0] ?? editing.base.body, inner: p?.[1] ?? editing.base.inner });
 const faceName = id => id[0].toUpperCase() + id.slice(1);
 function parseHex(s) { // '#f80', 'F80' or 'ff8800' -> '#ff8800'; anything else -> null
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s.trim());
@@ -4153,65 +4169,65 @@ function parseHex(s) { // '#f80', 'F80' or 'ff8800' -> '#ff8800'; anything else 
 }
 
 function drawCustomizer(time) {
-  const hue = 260 + Math.sin(time * 0.12) * 40; // the shop's backdrop
+  const it = editing, custom = !it.base, hue = 260 + Math.sin(time * 0.12) * 40; // the shop's backdrop
   drawBackground(hue, time * 2, time);
   drawFloor(hue, time * 2, GROUND, false);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; fillScreen();
   ctx.fillStyle = vignette(); fillScreen();
   backButton();
-  txt('CUSTOM CUBE', W / 2, 46, 40, vgrad(14, 46, '#fff7b0', '#ffd400', '#ff7a00'), 'center', 7);
+  txt(custom ? 'CUSTOM CUBE' : 'CUBE COLORS', W / 2, 46, 40, vgrad(14, 46, '#fff7b0', '#ffd400', '#ff7a00'), 'center', 7);
 
   panel(GRID_X, 72, EDIT_X - 16 - GRID_X, 354);
-  drawCube(PREVIEW_X, 188 + Math.sin(time * 2.5) * 5, 0, customSkin(), 124, true);
-  txt(faceName(save.custom.face), PREVIEW_X, 310, 30, '#fff', 'center', 6);
-  COLOR_TABS.forEach(([k, label], i) => {
+  drawCube(PREVIEW_X, 188 + Math.sin(time * 2.5) * 5, 0, custom ? customSkin() : it, 124, true);
+  txt(custom ? faceName(save.custom.face) : it.name, PREVIEW_X, 310, 30, '#fff', 'center', 6);
+  COLOR_TABS.forEach((k, i) => {
     const y = 350 + i * 34;
-    rr(PREVIEW_X - 92, y - 13, 26, 20, 5); ctx.fillStyle = save.custom[k]; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
-    ui(`${label.split(' ')[0]}   ${save.custom[k]}`, PREVIEW_X - 56, y + 2, 15, '#fff', 'left');
+    rr(PREVIEW_X - 92, y - 13, 26, 20, 5); ctx.fillStyle = it[k]; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+    ui(`${colorLabel(k).split(' ')[0]}   ${it[k]}`, PREVIEW_X - 56, y + 2, 15, '#fff', 'left');
   });
 
-  txt('Face', EDIT_X, 90, 20, '#fff', 'left', 4);
-  FACE_IDS.forEach((id, i) => {
-    const b = facePos(i), on = id === save.custom.face;
+  txt(custom ? 'Face' : 'Presets', EDIT_X, 90, 20, '#fff', 'left', 4);
+  (custom ? FACE_IDS : PRESETS).forEach((p, i) => {
+    const b = facePos(i), look = custom ? customSkin(p) : presetLook(p), on = custom ? p === save.custom.face : look.body === it.body && look.inner === it.inner;
     ctx.save();
     if (on) { ctx.shadowColor = '#ffd400'; ctx.shadowBlur = 14; }
     rr(b.x, b.y, b.w, b.h, 10);
     ctx.fillStyle = hovered(b) ? vgrad(b.y, b.y + b.h, '#3d3d6e', '#24243f') : vgrad(b.y, b.y + b.h, '#2c2c50', '#1a1a30'); ctx.fill();
     ctx.restore();
     rr(b.x, b.y, b.w, b.h, 10); ctx.strokeStyle = on ? '#ffd400' : 'rgba(255,255,255,0.25)'; ctx.lineWidth = on ? 3 : 2; ctx.stroke();
-    drawCube(b.x + b.w / 2, b.y + b.h / 2, 0, customSkin(id), 38);
+    drawCube(b.x + b.w / 2, b.y + b.h / 2, 0, look, 38);
   });
 
-  COLOR_TABS.forEach(([k, label], i) => { // which color the palette and the hex box change
+  COLOR_TABS.forEach((k, i) => { // which color the palette and the hex box change
     const b = colorTabPos(i), on = k === customTarget;
     rr(b.x, b.y, b.w, b.h, 12);
     ctx.fillStyle = on ? vgrad(b.y, b.y + b.h, '#ffe46b', '#ff9d00') : hovered(b) ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.42)'; ctx.fill();
     ctx.strokeStyle = on ? '#000' : 'rgba(255,255,255,0.3)'; ctx.lineWidth = on ? 2.5 : 2; ctx.stroke();
-    txt(label, b.x + 14, b.y + 25, 19, '#fff', 'left', 4);
-    rr(b.x + b.w - 46, b.y + 7, 34, 22, 6); ctx.fillStyle = save.custom[k]; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5; ctx.stroke();
+    txt(colorLabel(k), b.x + 14, b.y + 25, 19, '#fff', 'left', 4);
+    rr(b.x + b.w - 46, b.y + 7, 34, 22, 6); ctx.fillStyle = it[k]; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5; ctx.stroke();
   });
   PALETTE.forEach((c, i) => {
     const b = swatchPos(i), y = b.y - (hovered(b) ? 2 : 0);
-    if (c === save.custom[customTarget]) { rr(b.x - 4, y - 4, b.w + 8, b.h + 8, 10); ctx.strokeStyle = '#ffd400'; ctx.lineWidth = 3; ctx.stroke(); }
+    if (c === it[customTarget]) { rr(b.x - 4, y - 4, b.w + 8, b.h + 8, 10); ctx.strokeStyle = '#ffd400'; ctx.lineWidth = 3; ctx.stroke(); }
     rr(b.x, y, b.w, b.h, 7); ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 2; ctx.stroke();
   });
   txt('Custom hex', EDIT_X, HEX_BOX.y + 25, 20, '#fff', 'left', 4);
   const typo = document.activeElement === hexInput && !parseHex(hexInput.value);
   ui(typo ? 'Not a color code yet' : 'Type a color code, like #ff8800', HEX_BOX.x + HEX_BOX.w + 14, HEX_BOX.y + 22, 13, typo ? '#ff8a8a' : 'rgba(255,255,255,0.75)', 'left');
-  ui('Changes save on their own  ·  ← → to change the face  ·  Esc to go back', W / 2, 470, 14, '#fff');
+  ui(`Changes save on their own  ·  ${custom ? '← → to change the face' : 'the first preset is the original look'}  ·  Esc to go back`, W / 2, 470, 14, '#fff');
 }
 function syncHexInput() { // the hex box is a real text field (so phones bring up a keyboard), laid over the canvas while the editor is open
   const open = state === 'custom';
   if (hexInput.hidden === open) { hexInput.hidden = !open; if (!open) hexInput.blur(); }
   if (!open) return;
-  if (document.activeElement !== hexInput && hexInput.value !== save.custom[customTarget]) hexInput.value = save.custom[customTarget];
+  if (document.activeElement !== hexInput && hexInput.value !== editing[customTarget]) hexInput.value = editing[customTarget];
   const r = canvas.getBoundingClientRect(), b = HEX_BOX, s = VIEW.s, h = Math.max(b.h * s, 24); // 16px text at least, or phones zoom in on it
   const place = [r.left + (b.x + VIEW.x) * s, r.top + (b.y + b.h / 2 + VIEW.y) * s - h / 2, b.w * s, h, Math.max(16, 19 * s)].map(n => n.toFixed(1) + 'px');
   if (place.join() === hexPlace) return;
   hexPlace = place.join();
   [hexInput.style.left, hexInput.style.top, hexInput.style.width, hexInput.style.height, hexInput.style.fontSize] = place;
 }
-hexInput.addEventListener('input', () => { const c = parseHex(hexInput.value); if (c) { save.custom[customTarget] = c; persist(); } });
+hexInput.addEventListener('input', () => { const c = parseHex(hexInput.value); if (c) { setColor(customTarget, c); persist(); } });
 hexInput.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Escape') hexInput.blur(); });
 
 
@@ -4890,7 +4906,7 @@ addEventListener('keydown', e => {
     if (e.code === 'KeyO') return go('settings');
   }
   if (state === 'levels' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { selected = mod(selected + (e.code === 'ArrowLeft' ? -1 : 1), LEVELS.length); sfx('click'); }
-  if (state === 'custom' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { save.custom.face = FACE_IDS[mod(FACE_IDS.indexOf(save.custom.face) + (e.code === 'ArrowLeft' ? -1 : 1), FACE_IDS.length)]; persist(); sfx('click'); }
+  if (state === 'custom' && !editing.base && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { save.custom.face = FACE_IDS[mod(FACE_IDS.indexOf(save.custom.face) + (e.code === 'ArrowLeft' ? -1 : 1), FACE_IDS.length)]; persist(); sfx('click'); }
   if (state === 'shop') { // up and down switch tabs (landing on what is equipped), left and right pick an item
     const d = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[e.code];
     if (d) {
@@ -4936,10 +4952,11 @@ canvas.addEventListener('pointerdown', e => {
   if (state === 'pause') { const b = PAUSE_BTNS.find(b => hit(b)); return b ? pauseAction(b.id) : settingsPointer(266, mx, my); }
   if (state === 'custom') {
     if (hit(BACK_BTN)) return go('shop');
-    const f = FACE_IDS.findIndex((_, i) => hit(facePos(i))), t = COLOR_TABS.findIndex((_, i) => hit(colorTabPos(i))), c = PALETTE.findIndex((_, i) => hit(swatchPos(i)));
-    if (f >= 0) save.custom.face = FACE_IDS[f];
-    else if (t >= 0) customTarget = COLOR_TABS[t][0];
-    else if (c >= 0) save.custom[customTarget] = PALETTE[c];
+    const f = (editing.base ? PRESETS : FACE_IDS).findIndex((_, i) => hit(facePos(i))), t = COLOR_TABS.findIndex((_, i) => hit(colorTabPos(i))), c = PALETTE.findIndex((_, i) => hit(swatchPos(i)));
+    if (f >= 0 && editing.base) save.paint[editing.name] = PRESETS[f] ? { body: PRESETS[f][0], inner: PRESETS[f][1] } : {}; // the first preset goes back to the cube's own colors
+    else if (f >= 0) save.custom.face = FACE_IDS[f];
+    else if (t >= 0) customTarget = COLOR_TABS[t];
+    else if (c >= 0) setColor(customTarget, PALETTE[c]);
     else return;
     persist(); sfx('click');
     return;
