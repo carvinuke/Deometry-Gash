@@ -541,6 +541,15 @@ const LEVELS = [
         '........######..............................',
         '........##############............######....',
         '........################################....'),
+    seg('',
+        '',
+        '',
+        '',
+        '',
+        '......################.......',
+        '..M........................Z.',
+        '..M........................Z.',
+        '..M.......^......^^........Z.'),
     seg('..^^......G.....^^...'),
     gap(16),
   ]),
@@ -563,6 +572,15 @@ const LEVELS = [
         '..S........###.....###...####.....................',
         '..S........###.....###...####.................##..'),
     seg('..##^^##^^##^^##....'),
+    seg('',
+        '',
+        '',
+        '',
+        '',
+        '.....##########........##########......',
+        '..M..................................Z.',
+        '..M..................................Z.',
+        '..M......^^.......#^^.....^^.........Z.'),
     seg('..RR...m...RRR....m..R.R...'),
     seg('....q..q..o............',
         '.......................',
@@ -779,6 +797,15 @@ const LEVELS = [
         '',
         '',
         '..R....RR...m...R....^^....RRR..'),
+    seg('',
+        '',
+        '',
+        '',
+        '',
+        '......#######.....vvvv.....#######.........',
+        '..M........................................Z.',
+        '..M........................................Z.',
+        '..M.....^^.....^......#^^.........^^.......Z.'),
     seg('...^^..G..^^....^^...'),
     gap(16),
   ]),
@@ -1659,13 +1686,14 @@ function buyOrEquip(kind, i) {
 // ---- Game state ----
 let state = 'menu', selected = 0, level = LEVELS[0], player = newPlayer(), stateTime = 0, attempts = 1, holding = false, jumpPressed = false, activePointerId = null;
 let particles = [], history = [], winNote = '', shopTab = 0, shopPick = 0, titleClicks = 0, typed = '', keys = [], devArmed = false;
+let newBest = null, runJumps = 0, runTime = 0; // the "New best!" popup, and this visit's jumps and play time for the finish screen
 let practice = false, checkpoints = [], cpTimer = 0; // practice mode: respawn at the last checkpoint, and nothing is saved
 let visRot = 0, shake = 0, ceilAnim = 0, mirrorAnim = 1, menuScroll = 0, mouse = { x: -1, y: -1 }, cursorHot = false, drag = null;
 
 function startLevel(i, prac = false) {
   communityTestMode = false; communityTestLevel = null;
   practice = prac; checkpoints = []; cpTimer = 0; save.attempts++; checkAchievements();
-  selected = i; level = LEVELS[i]; player = newPlayer(); attempts = 1; particles = []; history = [];
+  selected = i; level = LEVELS[i]; player = newPlayer(); attempts = 1; newBest = null; runJumps = 0; runTime = 0; particles = []; history = [];
   visRot = 0; shake = 0; ceilAnim = 0; mirrorAnim = 1; state = 'play'; stateTime = 0; holding = false; jumpPressed = false; activePointerId = null; was = { x: 0, y: 0, rot: 0 };
   playSong(SONGS[i % SONGS.length]);
 }
@@ -1728,6 +1756,7 @@ const SFX = {
   click: t => tone(sfxBus, t, { f: 1100, to: 700, type: 'triangle', dur: 0.05, vol: 0.2 }),
   buy: t => { tone(sfxBus, t, { f: 784, type: 'square', dur: 0.08, vol: 0.12 }); tone(sfxBus, t + 0.07, { f: 1175, type: 'square', dur: 0.3, vol: 0.12 }); },
   nope: t => tone(sfxBus, t, { f: 220, to: 150, type: 'square', dur: 0.18, vol: 0.12 }),
+  best: t => [659, 880, 1319].forEach((f, i) => tone(sfxBus, t + 0.15 + i * 0.08, { f, type: 'triangle', dur: 0.3, vol: 0.22 })),
   secret: t => [784, 988, 1175, 1568].forEach((f, i) => tone(sfxBus, t + i * 0.07, { f, type: 'triangle', dur: 0.35, vol: 0.2 })),
 };
 function sfx(name) { if (AC?.state === 'running' && save.settings.sfx > 0) SFX[name](AC.currentTime); }
@@ -1997,7 +2026,7 @@ function playEffects(prev) {
     if (prev.grounded && !p.grounded && p.vy > 0) {
       spray(particles, 6, p.x + 0.5, p.y + 0.05, 3, { color: 'rgba(255,255,255,0.7)', size: 4, life: 0.3, g: -10 });
       if (p.vy !== PAD && p.vy !== RED_PAD) sfx('jump');
-      if (++save.jumps >= 1000) unlockSecret('jumps');
+      runJumps++; if (++save.jumps >= 1000) unlockSecret('jumps');
       checkAchievements();
     } else if (!prev.grounded && p.grounded) spray(particles, 8, p.x + 0.5, p.y + 0.05, 4, { color: 'rgba(255,255,255,0.6)', size: 4, life: 0.25 });
     if (p.grounded && Math.random() < 0.7) emit(particles, { x: p.x + 0.05, y: p.y + 0.08, vx: -3 - Math.random() * 2, vy: 0.5 + Math.random() * 1.5, life: 0.35, size: 5, color, shrink: true, add: true });
@@ -2051,7 +2080,7 @@ function die() {
     if (!REDUCED_MOTION && save.settings.shake) shake = 0.35;
     song = null; sfx('death'); return;
   }
-  if (!practice) save.best[selected] = Math.max(save.best[selected] || 0, pct);
+  if (!practice && pct > (save.best[selected] || 0)) { save.best[selected] = pct; newBest = { pct, at: clock }; sfx('best'); }
   save.deaths++; persist();
   if (save.deaths >= 50) unlockSecret('deaths');
   if (pct >= 90 && !practice) unlockSecret('close');
@@ -3869,6 +3898,7 @@ function drawWorld(time) {
     fillScreen();
   }
   drawHUD();
+  if (newBest && state !== 'win') drawNewBest(clock - newBest.at);
   if (state === 'win') { drawWinPanel(); worldParticles(); }
 }
 
@@ -3903,21 +3933,41 @@ function drawHUD() {
 function drawDiamond(cx, cy, r, fill = '#3dff6a') { poly([[cx, cy - r * 1.3], [cx + r, cy], [cx, cy + r * 1.3], [cx - r, cy]], fill, 2.5); }
 const cpBtns = () => [{ id: 'add', x: 16 - VIEW.x, y: H + VIEW.y - 74, w: 74, h: 60 }, { id: 'del', x: 98 - VIEW.x, y: H + VIEW.y - 74, w: 74, h: 60 }]; // in practice, bottom left
 
+const WIN_BTNS = [['restart', W / 2 - 70], ['levels', W / 2 + 70]].map(([id, x]) => ({ id, x: x - 30, y: 318, w: 60, h: 60 }));
 function drawWinPanel() {
-  const a = Math.min(1, stateTime * 3);
+  const a = Math.min(1, stateTime * 3), e = 1 - (1 - a) ** 3;
   ctx.save(); ctx.globalAlpha = a;
-  ctx.fillStyle = 'rgba(0,0,0,0.45)'; fillScreen();
-  const pw = 500, ph = 240, px = W / 2 - pw / 2, py = H / 2 - ph / 2 + (1 - a) * 40;
-  rr(px, py, pw, ph, 20); ctx.fillStyle = vgrad(py, py + ph, 'rgba(44,38,90,0.96)', 'rgba(16,14,34,0.96)'); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; fillScreen();
+  const pw = 560, ph = 360, px = W / 2 - pw / 2, py = H / 2 - ph / 2 + (1 - e) * 60;
+  ctx.translate(0, py - 60); // the buttons' boxes sit at their resting place, so they slide in with the panel
+  rr(px, 60, pw, ph, 22); ctx.fillStyle = vgrad(60, 60 + ph, 'rgba(44,38,90,0.97)', 'rgba(16,14,34,0.97)'); ctx.fill();
   ctx.strokeStyle = '#ffd400'; ctx.lineWidth = 3; ctx.stroke();
-  txt(practice ? 'PRACTICE COMPLETE!' : 'LEVEL COMPLETE!', W / 2, py + 64, 46, vgrad(py + 28, py + 64, '#fff7b0', '#ffd400', '#ff7a00'), 'center', 8);
-  ui(`${level.name} · ${attempts} attempt${attempts > 1 ? 's' : ''}`, W / 2, py + 100, 16, 'rgba(255,255,255,0.85)');
-  const got = save.coins[selected] || [];
-  level.coinTiles.forEach((c, i) => drawCoinIcon(W / 2 - (level.coinTiles.length - 1) * 18 + i * 36, py + 134, 13, got.includes(c.id) ? 'new' : 'none'));
-  ctx.font = `26px ${FONT}`; // shrink a long note (several unlocks) to fit the panel
-  if (winNote) txt(winNote, W / 2, py + 186, Math.min(26, 26 * (pw - 40) / ctx.measureText(winNote).width), '#ffd400', 'center', 5);
-  ctx.globalAlpha = a * (0.6 + 0.4 * Math.sin(stateTime * 5));
-  ui('Press jump to continue', W / 2, py + ph - 16, 14, '#fff');
+  const pop = REDUCED_MOTION ? 1 : 1 + 0.25 * Math.max(0, 1 - stateTime * 2.5) * Math.sin(stateTime * 18);
+  ctx.save(); ctx.translate(W / 2, 108); ctx.scale(pop, pop);
+  txt(practice ? 'PRACTICE COMPLETE!' : 'LEVEL COMPLETE!', 0, 14, 46, vgrad(-22, 14, '#fff7b0', '#ffd400', '#ff7a00'), 'center', 8);
+  ctx.restore();
+  ui(`${level.name}  ·  ${level.difficulty}`, W / 2, 146, 16, FACE[level.difficulty] || '#fff');
+  const t = Math.floor(runTime), stats = [['Attempts', attempts], ['Jumps', runJumps], ['Time', `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`]];
+  stats.forEach(([k, v], i) => {
+    const x = W / 2 + (i - 1) * 150;
+    rr(x - 66, 160, 132, 54, 12); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+    txt(String(v), x, 192, 24, '#fff', 'center', 4); ui(k, x, 207, 11, 'rgba(255,255,255,0.7)');
+  });
+  const got = practice ? player.coins : save.coins[selected] || [];
+  level.coinTiles.forEach((c, i) => drawCoinIcon(W / 2 - (level.coinTiles.length - 1) * 18 + i * 36, 240, 13, got.includes(c.id) ? 'new' : 'none'));
+  ctx.font = `24px ${FONT}`; // shrink a long note (several unlocks) to fit the panel
+  if (winNote) txt(winNote, W / 2, 284, Math.min(24, 24 * (pw - 40) / ctx.measureText(winNote).width), '#ffd400', 'center', 5);
+  for (const b of WIN_BTNS) roundBtn(b, b.id === 'restart' ? 'Replay  (R)' : 'Levels  (Space)');
+  ctx.restore();
+}
+
+function drawNewBest(t) { // pops in over the crash, then fades out early in the next attempt
+  if (t > 1.8) return;
+  const s = REDUCED_MOTION ? 1 : t < 0.18 ? t / 0.18 * 1.2 : 1 + 0.2 * Math.max(0, 1 - (t - 0.18) * 6);
+  ctx.save(); ctx.globalAlpha = Math.min(1, (1.8 - t) * 2.5);
+  ctx.translate(W / 2, 140 - VIEW.y); ctx.scale(s, s);
+  txt('NEW BEST!', 0, 0, 44, vgrad(-34, 0, '#fff7b0', '#ffd400', '#ff7a00'), 'center', 8);
+  txt(`${newBest.pct}%`, 0, 42, 32, '#fff', 'center', 6);
   ctx.restore();
 }
 
@@ -4162,18 +4212,19 @@ function drawPause() { // drawn over the frozen level, like GD's pause menu
   rr(bx, 98, 340, 16, 8); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
   if (best) { rr(bx, 98, Math.max(16, 340 * best / 100), 16, 8); ctx.fillStyle = vgrad(98, 114, '#c3ff7a', '#3fcf2a'); ctx.fill(); }
   ui(`Best ${best}%   ·   Attempt ${attempts}`, W / 2, 111, 12, '#fff');
-  for (const b of PAUSE_BTNS) {
-    const cx = b.x + b.w / 2, cy = b.y + b.h / 2, r = b.w / 2 + (hovered(b) ? 3 : 0), main = b.id === 'resume';
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fillStyle = vgrad(cy - r, cy + r, main ? '#c6ff7a' : '#9fd8ff', main ? '#2fb52a' : '#2b6bff'); ctx.fill();
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.stroke();
-    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff';
-    if (main) poly([[cx - 13, cy - 21], [cx + 22, cy], [cx - 13, cy + 21]], '#fff', 3);
-    else if (b.id === 'practice') drawDiamond(cx, cy, 13, practice ? '#ff4545' : '#3dff6a');
-    else if (b.id === 'restart') { ctx.beginPath(); ctx.arc(cx, cy, 13, -1.2, 4.3); ctx.lineWidth = 5; ctx.stroke(); poly([[cx + 4, cy - 16], [cx - 8.5, cy - 19.5], [cx - 2, cy - 4.5]], '#fff', 0); }
-    else for (const k of [-1, 0, 1]) { rr(cx - 14, cy - 3 + k * 9, 28, 6, 3); ctx.fill(); }
-    ui({ practice: practice ? 'Exit practice  (P)' : 'Practice  (P)', restart: 'Restart  (R)', resume: 'Resume  (Esc)', levels: 'Levels  (Q)' }[b.id], cx, b.y + b.h + 24, 13, '#fff');
-  }
+  for (const b of PAUSE_BTNS) roundBtn(b, { practice: practice ? 'Exit practice  (P)' : 'Practice  (P)', restart: 'Restart  (R)', resume: 'Resume  (Esc)', levels: 'Levels  (Q)' }[b.id]);
   drawSettings(266);
+}
+function roundBtn(b, label) { // the pause menu's and finish screen's round buttons, drawn by id
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2, r = b.w / 2 + (hovered(b) ? 3 : 0), main = b.id === 'resume';
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fillStyle = vgrad(cy - r, cy + r, main ? '#c6ff7a' : '#9fd8ff', main ? '#2fb52a' : '#2b6bff'); ctx.fill();
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff';
+  if (main) poly([[cx - 13, cy - 21], [cx + 22, cy], [cx - 13, cy + 21]], '#fff', 3);
+  else if (b.id === 'practice') drawDiamond(cx, cy, 13, practice ? '#ff4545' : '#3dff6a');
+  else if (b.id === 'restart') { ctx.beginPath(); ctx.arc(cx, cy, 13, -1.2, 4.3); ctx.lineWidth = 5; ctx.stroke(); poly([[cx + 4, cy - 16], [cx - 8.5, cy - 19.5], [cx - 2, cy - 4.5]], '#fff', 0); }
+  else for (const k of [-1, 0, 1]) { rr(cx - 14, cy - 3 + k * 9, 28, 6, 3); ctx.fill(); }
+  ui(label, cx, b.y + b.h + 20, 13, '#fff');
 }
 
 function fitText(s, size, maxW) { ctx.font = `600 ${size}px system-ui, sans-serif`; return Math.min(size, size * maxW / ctx.measureText(s).width); }
@@ -4998,6 +5049,7 @@ function frame(now) {
     mirrorAnim += ((player.mirror ? -1 : 1) - mirrorAnim) * 0.1;
     was = { x: player.x, y: player.y, rot: visRot, mode: player.mode }; // frames drawn before the next step blend from here
     if (state === 'play') {
+      runTime += DT;
       const prev = { grounded: player.grounded, vy: player.vy, mode: player.mode, grav: player.grav, mini: player.mini, mirror: player.mirror, used: player.used.length, coins: player.coins.length };
       const r = step(player, holding, level, jumpPressed);
       jumpPressed = false;
@@ -5078,6 +5130,7 @@ addEventListener('keydown', e => {
     return;
   }
   if (state === 'settings' && wipeAsk) { if (e.code === 'Escape' || e.code === 'Backspace') go('settings'); return; }
+  if (state === 'win' && e.code === 'KeyR') { if (stateTime > 0.5) startLevel(selected, practice); return; }
   if (e.code === 'Escape' || e.code === 'Backspace') {
     if (state === 'play' || state === 'dead') pause();
     else if (state === 'win') go('levels');
@@ -5168,6 +5221,7 @@ canvas.addEventListener('pointerdown', e => {
     return;
   }
   if ((state === 'play' || state === 'dead') && hit(pauseBtn())) return pause();
+  if (state === 'win' && stateTime > 0.5 && hit(WIN_BTNS[0])) return startLevel(selected, practice);
   const cb = practice && (state === 'play' || state === 'dead') && cpBtns().find(hit);
   if (cb) return cb.id === 'add' ? state === 'play' && placeCheckpoint() : checkpoints.pop();
   press();
