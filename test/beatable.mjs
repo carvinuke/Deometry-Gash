@@ -203,5 +203,26 @@ const devToolsChecks = await page.evaluate(async () => {
 if (!devToolsChecks.panel || !devToolsChecks.panelHidden || devToolsChecks.levelCount !== devToolsChecks.baseCount || !devToolsChecks.editRoundTrip || devToolsChecks.zipStart !== 0x04034b50 || devToolsChecks.zipEnd !== 0x06054b50) {
   throw new Error('developer editor, level persistence, or ZIP export self-check failed: ' + JSON.stringify(devToolsChecks));
 }
+// The editor draws every level and palette with the game's sprites and hands ctx back to the game, a rotation made in
+// the editor lands on the same tile in the game, and clicking the minimap moves the view there.
+const editorChecks = await page.evaluate(() => {
+  openDevPanel();
+  for (const lvl of LEVELS) {
+    devLevelSelect.value = lvl.name; devLoadDraft();
+    for (const category of TILE_CATEGORIES) devTilePalette.selectCategory(category);
+    for (devOffset = 0; devOffset < devRows[0].length; devOffset += 25) { devVisualCanvas._hover = { x: devOffset + 2, y: 4, tile: 'M' }; devRenderGrid(); }
+  }
+  const name = LEVELS[0].name, rows = DEV_BASE_ROWS.get(name), x = rows[ROWS - 1].indexOf('^');
+  devSetRotation(name, x, ROWS - 1, 90); applyLevelOverrides({ [name]: rows });
+  const rotated = LEVELS[0].tiles.find(t => t.x === x && t.y === 0).rotation;
+  devSetRotation(name, x, ROWS - 1, 0); applyLevelOverrides({ [name]: rows });
+  const r = devVisualCanvas.getBoundingClientRect(), { map } = editorSceneMetrics(devVisualCanvas);
+  return { ctxRestored: ctx === canvas.getContext('2d'), rotated, mapX: r.left + map.x + map.w * 0.75, mapY: r.top + map.y + map.h / 2 };
+});
+await page.mouse.click(editorChecks.mapX, editorChecks.mapY);
+const mapJump = await page.evaluate(() => { const at = devOffset / devRows[0].length; closeDevPanel(); return at; });
+if (errors.length || !editorChecks.ctxRestored || editorChecks.rotated !== 90 || !(mapJump > 0.5 && mapJump < 0.75)) {
+  throw new Error('level editor self-check failed: ' + JSON.stringify({ errors, ...editorChecks, mapJump }));
+}
 await browser.close();
 console.log('OK');
